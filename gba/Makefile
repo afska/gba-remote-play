@@ -4,7 +4,7 @@
 .SUFFIXES:
 
 # --- Paths ---
-export BASE_DIR = $(GBA_DIR)\projects\gba-remote-play
+export BASE_DIR = $(GBA_DIR)\projects\gba-remote-play\gba
 
 export TONCLIB := $(DEVKITPRO)/libtonc
 include  $(BASE_DIR)/tonc_rules

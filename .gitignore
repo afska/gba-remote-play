@@ -1,6 +1,7 @@
 desktop.ini
 
-.vscode/settings.json
+gba/.vscode/settings.json
+raspi/.vscode/settings.json
 *.code-workspace
 
 build/
