@@ -1,7 +1,7 @@
 #!/bin/bash
 
 SOURCE="src/data"
-DESTINATION="content/_compiled_files"
+DESTINATION="_compiled_files"
 
 cd "$SOURCE"
 
@@ -9,7 +9,7 @@ cd "$SOURCE"
 mkdir -p "$DESTINATION"
 rm $DESTINATION/*.h $DESTINATION/*.c
 
-// ...
+# ...
 
 # [Cleanup]
 rm *.h *.c

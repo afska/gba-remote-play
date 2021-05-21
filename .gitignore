@@ -1,5 +1,8 @@
 desktop.ini
 
+.vscode/settings.json
+*.code-workspace
+
 build/
 *.elf
 *.gba
