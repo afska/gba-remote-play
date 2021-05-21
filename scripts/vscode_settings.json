@@ -1,0 +1,15 @@
+{
+  "extensions.ignoreRecommendations": false,
+  "terminal.integrated.shell.windows": "C:\\Program Files\\Git\\bin\\bash.exe",
+  "terminal.integrated.shellArgs.windows": [
+      "--login",
+      "-i"
+  ],
+  "window.zoomLevel": 1,
+  "C_Cpp.clang_format_style": "{ BasedOnStyle: Chromium }",
+  "editor.formatOnSave": true,
+  "prettier.requireConfig": true,
+  "[javascript]": {
+      "editor.defaultFormatter": "esbenp.prettier-vscode"
+  }
+}

@@ -1,0 +1,8 @@
+desktop.ini
+
+build/
+*.elf
+*.gba
+*.sav
+
+src/data/_compiled_files
