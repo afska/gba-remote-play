@@ -6,6 +6,7 @@ raspi/.vscode/settings.json
 
 build/
 *.elf
+*.run
 *.gba
 *.sav
 
