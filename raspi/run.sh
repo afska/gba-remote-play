@@ -3,5 +3,5 @@
 OUTPUT="out/raspi.run"
 
 rm -f "$OUTPUT"
-g++ ./src/** -o "$OUTPUT"
+g++ -lwiringPi ./src/** -o "$OUTPUT"
 "$OUTPUT"
