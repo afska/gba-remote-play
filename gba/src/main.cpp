@@ -7,6 +7,7 @@ void log(std::string text);
 
 #define IS_MASTER true
 #define BIT_CLOCK 0
+#define BIT_SPEED 1
 #define BIT_SI 2
 #define BIT_SO 3
 #define BIT_START 7
@@ -28,7 +29,8 @@ int main() {
       goto next;
     } else if (step == 1) {
       REG_SIOCNT = 0;
-      log("Set SIOCNT=0 (256KHZ)");
+      REG_SIOCNT |= (1 << BIT_SPEED);
+      log("Set SIOCNT<1>=1 (2Mhz)");
       step++;
       goto next;
     } else if (step == 2) {
