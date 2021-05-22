@@ -22,14 +22,9 @@ uint32_t Spi32(uint32_t val) {
 int main() {
   wiringPiSPISetupMode(0, 2000000, 3);
 
-  do {
-    uint32_t val = Spi32(2280);
-    std::cout << (std::to_string(val) + "\n");
-    if (val != 0) {
-      std::cout << "SUCCESS\n";
-      return 0;
-    }
-  } while (true);
+  while (true) {
+    uint32_t val = Spi32(0x98765432);
+  }
 
   return 0;
 }
