@@ -18,9 +18,6 @@
 class LinkSPI {
  public:
   u32 transfer(u32 value) {
-    // while (!isReady())
-    //   ;
-
     setNormalMode();
     set2MhzSpeed();
     set32BitPackets();
@@ -36,10 +33,6 @@ class LinkSPI {
 
     return getData();
   }
-
-  // void _onSerial() {
-  //   // TODO: IMPLEMENT
-  // }
 
  private:
   bool isWaiting = false;
@@ -63,9 +56,5 @@ class LinkSPI {
 };
 
 extern LinkSPI* linkSPI;
-
-// inline void SPI_ISR_SERIAL() {
-//   linkSPI->_onSerial();
-// }
 
 #endif  // LINK_SPI_H
