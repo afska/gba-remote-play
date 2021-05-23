@@ -36,7 +36,7 @@ uint32_t Spi32(uint32_t val) {
 int main() {
   if (gpioInitialise() < 0)
     exit(1);
-  if ((spiHandle = spiOpen(0, 2000000, 0)) < 0)
+  if ((spiHandle = spiOpen(0, 2000000, 3)) < 0)
     exit(2);
 
   std::cout << "Starting...\n";
