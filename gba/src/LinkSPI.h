@@ -21,17 +21,20 @@ class LinkSPI {
     setNormalMode();
     set2MhzSpeed();
     set32BitPackets();
-    setData(value);
+    setSlaveMode();
     disableTransfer();
 
-    setSlaveMode();
+    setData(value);
     enableTransfer();
     startTransfer();
 
     while (!isReady())
       ;
 
-    return getData();
+    u32 data = getData();
+    disableTransfer();
+
+    return data;
   }
 
  private:
