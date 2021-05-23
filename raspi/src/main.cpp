@@ -1,26 +1,45 @@
-#include <byteswap.h>
-#include <wiringPiSPI.h>
+#include <unistd.h>
 #include <iostream>
 
 #ifdef __INTELLISENSE__
 #define bswap_32(A) A
-#define u_char unsigned char
+#define gpioInitialise() 0
+#define spiOpen(A, B, C) 0
+#define spiXfer(A, B, C, D) 0
 #endif
+#ifndef __INTELLISENSE__
+#include <byteswap.h>
+extern "C" {
+#include <pigpio.h>
+}
+#endif
+
+int spiHandle = 0;
 
 uint32_t Spi32(uint32_t val) {
   union {
     uint32_t u32;
-    u_char uc[4];
-  } x;
+    char uc[4];
+  } output;
 
-  x.u32 = bswap_32(val);
-  wiringPiSPIDataRW(0, x.uc, 4);
+  union {
+    uint32_t u32;
+    char uc[4];
+  } input;
 
-  return bswap_32(x.u32);
+  output.u32 = bswap_32(val);
+  spiXfer(spiHandle, output.uc, input.uc, 4);
+
+  return bswap_32(input.u32);
 }
 
 int main() {
-  wiringPiSPISetupMode(0, 2000000, 3);
+  if (gpioInitialise() < 0)
+    exit(1);
+  if ((spiHandle = spiOpen(0, 2000000, 0)) < 0)
+    exit(2);
+
+  std::cout << "Starting...\n";
 
   while (true) {
     uint32_t val = Spi32(0x98765432);
