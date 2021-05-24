@@ -3,13 +3,15 @@
     {
       "name": "Linux",
       "includePath": [
-        "${workspaceFolder}/src/**"
+        "${workspaceFolder}/src/**",
+        "${workspaceFolder}/.vscode/libs/**"
       ],
       "defines": [],
       "intelliSenseMode": "gcc-arm64",
       "browse": {
         "path": [
-          "${workspaceFolder}/src/**"
+          "${workspaceFolder}/src/**",
+          "${workspaceFolder}/.vscode/libs/**"
         ],
         "limitSymbolsToIncludedHeaders": true,
         "databaseFilename": ""
