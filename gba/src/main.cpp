@@ -12,11 +12,7 @@ u32 frame = 0;
 u32 goodPackets = 0;
 u32 badPackets = 0;
 
-int main() {
-  init();
-
-  log("Waiting...");
-
+__attribute__((section(".iwram"), target("arm"))) void mainLoop() {
   while (true) {
     u32 receivedPacket = linkSPI->transfer(0x12345678);
 
@@ -25,6 +21,14 @@ int main() {
     else
       badPackets++;
   }
+}
+
+int main() {
+  init();
+
+  log("Waiting...");
+
+  mainLoop();
 
   return 0;
 }
