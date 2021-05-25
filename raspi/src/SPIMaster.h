@@ -3,25 +3,16 @@
 
 #include <iostream>
 
-#ifdef __INTELLISENSE__
-#define bswap_32(A) A
-#define u_char unsigned char
-#define wiringPiSPISetupMode(A, B, C)
-#define wiringPiSPIDataRW(A, B, C)
-#endif
-
-#ifndef __INTELLISENSE__
 #include <byteswap.h>
 #include <wiringPiSPI.h>
-#endif
 
-#define CHANNEL 0
-#define FREQUENCY 4440000
-#define MODE 3
+#define SPI_CHANNEL 0
+#define SPI_FREQUENCY 4440000
+#define SPI_MODE 3
 
 class SPIMaster {
  public:
-  SPIMaster() { wiringPiSPISetupMode(CHANNEL, FREQUENCY, MODE); }
+  SPIMaster() { wiringPiSPISetupMode(SPI_CHANNEL, SPI_FREQUENCY, SPI_MODE); }
 
   uint32_t transfer(uint32_t value) {
     union {

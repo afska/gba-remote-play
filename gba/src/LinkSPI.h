@@ -31,8 +31,8 @@ class LinkSPI {
     while (!isReady())
       ;
 
-    u32 data = getData();
     disableTransfer();
+    u32 data = getData();
 
     return data;
   }
