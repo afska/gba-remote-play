@@ -6,6 +6,8 @@
 
 #define CURRENT_MAX_COLORS 256
 #define TARGET_MAX_COLORS 32
+#define GBA_WIDTH 240
+#define GBA_HEIGHT 160
 
 class GBARemotePlay {
  public:
@@ -22,8 +24,12 @@ class GBARemotePlay {
       spiMaster->transfer(0x98765432);
 
       int64_t buffer = -1;
-      frameBuffer->forEachPixel([&buffer, this](uint32_t red, uint32_t green,
-                                                uint32_t blue) {
+      frameBuffer->forEachPixel([&buffer, this](uint32_t x, uint32_t y,
+                                                uint8_t red, uint8_t green,
+                                                uint8_t blue) {
+        if (x >= GBA_WIDTH || y >= GBA_HEIGHT)
+          return;
+
         uint8_t targetRed = red * TARGET_MAX_COLORS / CURRENT_MAX_COLORS;
         uint8_t targetGreen = green * TARGET_MAX_COLORS / CURRENT_MAX_COLORS;
         uint8_t targetBlue = blue * TARGET_MAX_COLORS / CURRENT_MAX_COLORS;

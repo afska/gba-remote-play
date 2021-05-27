@@ -36,14 +36,16 @@ class LinuxFrameBuffer {
 
     for (int i = 0; i < numberOfPixels; i += 2) {
       if (variableInfo.width < FB_MIN_BUFFER_SIZE &&
-          i % FB_MIN_BUFFER_SIZE >= variableInfo.width)
+          i % FB_MIN_BUFFER_SIZE >= variableInfo.xres)
         continue;
 
+      uint32_t x = (i / 2) % variableInfo.xres;
+      uint32_t y = (i / 2) / variableInfo.xres;
       uint8_t red = buffer[i + 1] & 0xff;
       uint8_t green = (buffer[i] >> 8) & 0xff;
       uint8_t blue = buffer[i] & 0xff;
 
-      action(red, green, blue);
+      action(x, y, red, green, blue);
     }
   }
 
