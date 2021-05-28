@@ -4,14 +4,22 @@
       "name": "Linux",
       "includePath": [
         "${workspaceFolder}/src/**",
-        "${workspaceFolder}/.vscode/libs/**"
+        "/opt/vc/include",
+        "/opt/vc/include/interface/vcos/pthreads",
+        "/opt/vc/include/interface/vmcs_host",
+        "/opt/vc/include/interface/vmcs_host/linux",
+        "/opt/vc/lib"
       ],
       "defines": [],
       "intelliSenseMode": "gcc-arm64",
       "browse": {
         "path": [
           "${workspaceFolder}/src/**",
-          "${workspaceFolder}/.vscode/libs/**"
+          "/opt/vc/include",
+          "/opt/vc/include/interface/vcos/pthreads",
+          "/opt/vc/include/interface/vmcs_host",
+          "/opt/vc/include/interface/vmcs_host/linux",
+          "/opt/vc/lib"
         ],
         "limitSymbolsToIncludedHeaders": true,
         "databaseFilename": ""

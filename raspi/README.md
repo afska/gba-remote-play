@@ -1,10 +1,19 @@
 # raspi
 
-## Install (Linux)
+## Install
 
-- Install C/C++ Build Tools
+### Raspberry Pi
+
+- Install Raspberry Pi OS
+- Enable SSH, SPI, and Serial Port
+
+### Development PC
+
 - Install VSCode
-- Open `workspace.code-workspace`
+- Install the _Remote Development_ extension
+- Run the command: _Remote-SSH: Connect to Host..._
+  * Connect to the Raspberry's IP Address
+  * Open the `raspi` directory
 
 ## VSCode
 
