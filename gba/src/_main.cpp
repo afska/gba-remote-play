@@ -10,21 +10,32 @@ void init();
 LinkSPI* linkSPI = new LinkSPI();
 u32 frame = 0;
 u32 cursor = 0;
+bool even = true;
+
+inline u8 x() {
+  return cursor % RENDER_WIDTH;
+}
+
+inline u8 y() {
+  return cursor / RENDER_WIDTH * 2 + (even ? 0 : 1);
+}
 
 CODE_IWRAM void mainLoop() {
   while (true) {
     u32 receivedPacket = linkSPI->transfer(0x12345678);
 
-    if (receivedPacket == 0x98765432)
+    if (receivedPacket == 0x98765432) {
       cursor = 0;
-    else {
+      even = true;
+    } else if (receivedPacket == 0x98765431) {
+      cursor = 0;
+      even = false;
+    } else {
       u16 firstPixel = (receivedPacket >> 16) & 0xffff;
       u16 secondPixel = (receivedPacket & 0xffff0000) >> 16;
-      m3_plot((cursor % RENDER_WIDTH) * RENDER_SCALE,
-              (cursor / RENDER_WIDTH) * RENDER_SCALE, firstPixel);
+      m3_plot(x() * RENDER_SCALE, y() * RENDER_SCALE, firstPixel);
       cursor++;
-      m3_plot((cursor % RENDER_WIDTH) * RENDER_SCALE,
-              (cursor / RENDER_WIDTH) * RENDER_SCALE, secondPixel);
+      m3_plot(x() * RENDER_SCALE, y() * RENDER_SCALE, secondPixel);
       cursor++;
     }
   }

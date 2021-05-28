@@ -9,11 +9,11 @@
 #include <sys/ioctl.h>
 #include <unistd.h>
 #include <iostream>
+#include "Utils.h"
 
 #define FB_DEVFILE "/dev/fb0"
 #define FB_BYTES_PER_PIXEL 4
 #define FB_IMAGE_MODE VC_IMAGE_ARGB8888
-#define DEBUG false
 
 class LinuxFrameBuffer {
  public:
