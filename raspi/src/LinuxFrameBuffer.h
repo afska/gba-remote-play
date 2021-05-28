@@ -34,7 +34,7 @@ class LinuxFrameBuffer {
     for (int y = 0; y < variableInfo.yres; y++) {
       for (int x = 0; x < variableInfo.xres; x++) {
         size_t offset = x * FB_BYTES_PER_PIXEL + y * fixedInfo.line_length;
-        uint32_t pixel = *((uint32_t*)(buffer + offset));
+        uint32_t pixel = *(uint32_t*)(buffer + offset);
 
         uint32_t rMask = (1 << variableInfo.red.length) - 1;
         uint32_t gMask = (1 << variableInfo.green.length) - 1;

@@ -4,7 +4,7 @@
 #include "LinuxFrameBuffer.h"
 #include "SPIMaster.h"
 
-#define CURRENT_MAX_COLORS 256
+#define SOURCE_MAX_COLORS 256
 #define TARGET_MAX_COLORS 32
 #define GBA_WIDTH 240
 #define GBA_HEIGHT 160
@@ -30,9 +30,9 @@ class GBARemotePlay {
         if (x >= GBA_WIDTH || y >= GBA_HEIGHT)
           return;
 
-        uint8_t targetRed = red * TARGET_MAX_COLORS / CURRENT_MAX_COLORS;
-        uint8_t targetGreen = green * TARGET_MAX_COLORS / CURRENT_MAX_COLORS;
-        uint8_t targetBlue = blue * TARGET_MAX_COLORS / CURRENT_MAX_COLORS;
+        uint8_t targetRed = red * TARGET_MAX_COLORS / SOURCE_MAX_COLORS;
+        uint8_t targetGreen = green * TARGET_MAX_COLORS / SOURCE_MAX_COLORS;
+        uint8_t targetBlue = blue * TARGET_MAX_COLORS / SOURCE_MAX_COLORS;
         uint16_t target = targetRed | (targetGreen << 5) | (targetBlue << 10);
 
         if (buffer == -1)
