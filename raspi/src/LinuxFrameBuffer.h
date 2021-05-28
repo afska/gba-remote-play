@@ -13,6 +13,7 @@
 #define FB_DEVFILE "/dev/fb0"
 #define FB_BYTES_PER_PIXEL 4
 #define FB_IMAGE_MODE VC_IMAGE_ARGB8888
+#define DEBUG false
 
 class LinuxFrameBuffer {
  public:
@@ -21,6 +22,14 @@ class LinuxFrameBuffer {
     retrieveFixedScreenInformation();
     retrieveVariableScreenInformation();
     allocateBuffer();
+
+    if (DEBUG) {
+      std::cout << "Resolution: " + std::to_string(variableInfo.xres) + "x" +
+                       std::to_string(variableInfo.yres) + "\n";
+      std::cout << "Buffer size: " + std::to_string(fixedInfo.smem_len) + "\n";
+      std::cout << "Line length: " + std::to_string(fixedInfo.line_length) +
+                       "\n";
+    }
 
     openPrimaryDisplay();
     createScreenResource();
