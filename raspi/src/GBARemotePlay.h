@@ -6,8 +6,8 @@
 
 #define SOURCE_MAX_COLORS 256
 #define TARGET_MAX_COLORS 32
-#define GBA_WIDTH 240
-#define GBA_HEIGHT 160
+#define GBA_WIDTH 120
+#define GBA_HEIGHT 80
 
 class GBARemotePlay {
  public:

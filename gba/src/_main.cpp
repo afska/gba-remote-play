@@ -20,9 +20,11 @@ CODE_IWRAM void mainLoop() {
     else {
       u16 firstPixel = (receivedPacket >> 16) & 0xffff;
       u16 secondPixel = (receivedPacket & 0xffff0000) >> 16;
-      m3_plot(cursor % RENDER_WIDTH, cursor / RENDER_WIDTH, firstPixel);
+      m3_plot((cursor % RENDER_WIDTH) * RENDER_SCALE,
+              (cursor / RENDER_WIDTH) * RENDER_SCALE, firstPixel);
       cursor++;
-      m3_plot(cursor % RENDER_WIDTH, cursor / RENDER_WIDTH, secondPixel);
+      m3_plot((cursor % RENDER_WIDTH) * RENDER_SCALE,
+              (cursor / RENDER_WIDTH) * RENDER_SCALE, secondPixel);
       cursor++;
     }
   }
@@ -41,8 +43,14 @@ inline void onVBlank() {
 }
 
 inline void init() {
+  // bitmap mode 3, background 2
   REG_DISPCNT = DCNT_MODE3 | DCNT_BG2;
 
+  // enable mosaic
+  REG_MOSAIC = MOS_BUILD(1, 1, 0, 0);
+  REG_BG2CNT = 1 << 6;
+
+  // interrupts
   irq_init(NULL);
   irq_add(II_VBLANK, onVBlank);
 }

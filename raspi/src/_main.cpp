@@ -1,7 +1,7 @@
 #include "GBARemotePlay.h"
 
 int main() {
-  std::cout << "Starting...\n";
+  std::cout << "Starting...\n\n";
 
   auto remotePlay = new GBARemotePlay();
 
