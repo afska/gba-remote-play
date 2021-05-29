@@ -1,6 +1,5 @@
 #include <tonc.h>
 
-#include <string>
 #include "LinkSPI.h"
 #include "Protocol.h"
 #include "Utils.h"
@@ -20,20 +19,36 @@ inline u32 y() {
   return cursor / RENDER_WIDTH;
 }
 
+inline void sync(u32 local, u32 remote) {
+  while (linkSPI->transfer(local) != remote)
+    ;
+}
+
 CODE_IWRAM void mainLoop() {
   while (true) {
-    u32 receivedPacket = linkSPI->transfer(0x12345678);
+    sync(CMD_FRAME_START_GBA, CMD_FRAME_START_RPI);
 
-    if (receivedPacket == COMMAND_FRAME_START)
-      cursor = 0;
-    else {
-      u16 firstPixel = receivedPacket & 0xffff;
-      u16 secondPixel = (receivedPacket >> 16) & 0xffff;
-      m3_plot(x(), y(), firstPixel);
-      cursor++;
-      m3_plot(x(), y(), secondPixel);
-      cursor++;
+    sync(CMD_PALETTE_START_GBA, CMD_PALETTE_START_RPI);
+    for (u32 i = 0; i < PALETTE_COLORS / COLORS_PER_PACKET; i++) {
+      u32 packet = linkSPI->transfer(0);
+      u32 firstColor = packet & 0xffff;
+      u32 secondColor = (packet >> 16) & 0xffff;
+      ((u32*)MEM_PAL)[i] = secondColor << 16 | firstColor;
     }
+
+    sync(CMD_PIXELS_START_GBA, CMD_PIXELS_START_RPI);
+    cursor = 0;
+    u32 packet = 0;
+    while ((packet = linkSPI->transfer(0)) != CMD_FRAME_END_RPI) {
+      if (x() >= RENDER_WIDTH || y() >= RENDER_HEIGHT)
+        break;
+
+      ((u32*)vid_page)[(y() * RENDER_WIDTH + x()) / PIXELS_PER_PACKET] = packet;
+      cursor += PIXELS_PER_PACKET;
+    }
+    vid_flip();
+
+    sync(CMD_FRAME_END_GBA, CMD_FRAME_END_RPI);
   }
 }
 
@@ -50,7 +65,7 @@ inline void onVBlank() {
 }
 
 inline void init() {
-  REG_DISPCNT = DCNT_MODE3 | DCNT_BG2;
+  REG_DISPCNT = DCNT_MODE4 | DCNT_BG2;
 
   irq_init(NULL);
   irq_add(II_VBLANK, onVBlank);
