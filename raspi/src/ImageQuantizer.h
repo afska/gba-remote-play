@@ -6,7 +6,6 @@
 #include "Frame.h"
 #include "libimagequant.h"
 
-#define QUANTIZER_COLORS 256
 #define QUANTIZER_MIN_SPEED 1
 #define QUANTIZER_MAX_SPEED 8
 #define QUANTIZER_8BIT_MAX_COLORS 256

@@ -38,13 +38,13 @@ class GBARemotePlay {
   void send(Frame frame) {
     sync(CMD_PALETTE_START_RPI, CMD_PALETTE_START_GBA);
 
-    for (int i = 0; i < QUANTIZER_COLORS; i += PACKET_SIZE / 2) {
+    for (int i = 0; i < PALETTE_COLORS; i += COLORS_PER_PACKET) {
       spiMaster->transfer(frame.raw15bppPalette[i] |
                           frame.raw15bppPalette[i + 1]);
     }
 
     sync(CMD_PIXELS_START_RPI, CMD_PIXELS_START_GBA);
-    for (int i = 0; i < frame.totalPixels; i += PACKET_SIZE) {
+    for (int i = 0; i < frame.totalPixels; i += PIXELS_PER_PACKET) {
       spiMaster->transfer(
           frame.raw8BitPixels[i] | frame.raw8BitPixels[i + 1] << 8 |
           frame.raw8BitPixels[i + 2] << 16 | frame.raw8BitPixels[i + 3] << 24);
