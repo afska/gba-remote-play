@@ -7,9 +7,6 @@
 #include "SPIMaster.h"
 #include "Utils.h"
 
-#define SOURCE_MAX_COLORS 256
-#define TARGET_MAX_COLORS 32
-
 class GBARemotePlay {
  public:
   GBARemotePlay() {
@@ -25,37 +22,35 @@ class GBARemotePlay {
         std::cin >> ret;
       }
 
-      // reset flag
-      spiMaster->transfer(0x98765432);
-      spiMaster->transfer(0x98765432);
-      spiMaster->transfer(0x98765432);
+      sync(CMD_FRAME_START, CMD_FRAME_START_ACK);
 
       uint8_t* rgbaPixels = frameBuffer->loadFrame();
       auto frame = imageQuantizer->quantize(rgbaPixels, RENDER_WIDTH,
                                             RENDER_HEIGHT, QUANTIZER_SPEED);
-      free(frame);
-      // TODO: FINISH
 
-      int64_t buffer = -1;
-      frameBuffer->forEachPixel([&buffer, this](uint32_t x, uint32_t y,
-                                                uint8_t red, uint8_t green,
-                                                uint8_t blue) {
-        if (x >= RENDER_WIDTH || y >= RENDER_HEIGHT)
-          return;
+      if (frame.isValid())
+        send(frame);
 
-        uint8_t targetRed = red * TARGET_MAX_COLORS / SOURCE_MAX_COLORS;
-        uint8_t targetGreen = green * TARGET_MAX_COLORS / SOURCE_MAX_COLORS;
-        uint8_t targetBlue = blue * TARGET_MAX_COLORS / SOURCE_MAX_COLORS;
-        uint16_t target = targetRed | (targetGreen << 5) | (targetBlue << 10);
-
-        if (buffer == -1)
-          buffer = target;
-        else {
-          spiMaster->transfer(buffer | (target << 16));
-          buffer = -1;
-        }
-      });
+      frame.clean();
     }
+  }
+
+  void send(Frame frame) {
+    sync(CMD_PALETTE_START, CMD_PALETTE_START_ACK);
+
+    for (int i = 0; i < QUANTIZER_COLORS; i += PACKET_SIZE / 2) {
+      spiMaster->transfer(frame.raw15bppPalette[i] |
+                          frame.raw15bppPalette[i + 1]);
+    }
+
+    sync(CMD_PIXELS_START, CMD_PIXELS_START_ACK);
+    for (int i = 0; i < frame.totalPixels; i += PACKET_SIZE) {
+      spiMaster->transfer(
+          frame.raw8BitPixels[i] | frame.raw8BitPixels[i + 1] << 8 |
+          frame.raw8BitPixels[i + 2] << 16 | frame.raw8BitPixels[i + 3] << 24);
+    }
+
+    sync(CMD_FRAME_END, CMD_FRAME_END_ACK);
   }
 
   ~GBARemotePlay() {
@@ -68,6 +63,11 @@ class GBARemotePlay {
   SPIMaster* spiMaster;
   FrameBuffer* frameBuffer;
   ImageQuantizer* imageQuantizer;
+
+  void sync(uint32_t command, uint32_t ack) {
+    while (spiMaster->transfer(command) != ack)
+      ;
+  }
 };
 
 #endif  // GBA_REMOTE_PLAY_H

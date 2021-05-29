@@ -40,28 +40,8 @@ class FrameBuffer {
     vc_dispmanx_snapshot(display, screenResource, (DISPMANX_TRANSFORM_T)0);
     vc_dispmanx_resource_read_data(screenResource, &rect, buffer,
                                    variableInfo.xres * FB_BYTES_PER_PIXEL);
+
     return buffer;
-  }
-
-  template <typename F>
-  inline void forEachPixel(F action) {
-    loadFrame();
-
-    for (int y = 0; y < variableInfo.yres; y++) {
-      for (int x = 0; x < variableInfo.xres; x++) {
-        size_t offset = x * FB_BYTES_PER_PIXEL + y * fixedInfo.line_length;
-        uint32_t pixel = *(uint32_t*)(buffer + offset);
-
-        uint32_t rMask = (1 << variableInfo.red.length) - 1;
-        uint32_t gMask = (1 << variableInfo.green.length) - 1;
-        uint32_t bMask = (1 << variableInfo.blue.length) - 1;
-        uint8_t r = (pixel >> variableInfo.red.offset) & rMask;
-        uint8_t g = (pixel >> variableInfo.green.offset) & gMask;
-        uint8_t b = (pixel >> variableInfo.blue.offset) & bMask;
-
-        action(x, y, r, g, b);
-      }
-    }
   }
 
   ~FrameBuffer() {
@@ -106,6 +86,12 @@ class FrameBuffer {
       std::cout << "Error: only 32bpp is supported\n";
       exit(4);
     }
+
+    if (variableInfo.xres % FB_BYTES_PER_PIXEL != 0 ||
+        variableInfo.yres % FB_BYTES_PER_PIXEL != 0) {
+      std::cout << "Error: resolution must be word-aligned\n";
+      exit(5);
+    }
   }
 
   void allocateBuffer() {
@@ -113,7 +99,7 @@ class FrameBuffer {
     if (buffer == NULL) {
       std::cout << "Error: malloc(" + std::to_string(fixedInfo.smem_len) +
                        ") failed\n";
-      exit(5);
+      exit(6);
     }
   }
 
@@ -123,7 +109,7 @@ class FrameBuffer {
     display = vc_dispmanx_display_open(0);
     if (display == DISPMANX_NO_HANDLE) {
       std::cout << "Error: cannot open primary display\n";
-      exit(6);
+      exit(7);
     }
   }
 
@@ -132,7 +118,7 @@ class FrameBuffer {
         FB_IMAGE_MODE, variableInfo.xres, variableInfo.yres, &image_prt);
     if (screenResource == DISPMANX_NO_HANDLE) {
       printf("Error: cannot create screen resource\n");
-      exit(7);
+      exit(8);
     }
   }
 

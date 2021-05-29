@@ -3,23 +3,21 @@
 
 #include <stdint.h>
 #include <stdlib.h>
+#include "Frame.h"
 #include "libimagequant.h"
-#include "lodepng.h"  // TODO: REMOVE
 
+#define QUANTIZER_COLORS 256
 #define QUANTIZER_MIN_SPEED 1
 #define QUANTIZER_MAX_SPEED 8
-
-typedef struct {
-  uint8_t* raw8BitPixels;
-  const liq_palette* palette;
-} Frame;
+#define QUANTIZER_8BIT_MAX_COLORS 256
+#define QUANTIZER_5BIT_MAX_COLORS 32
 
 class ImageQuantizer {
  public:
-  uint8_t* quantize(uint8_t* rgbaPixels,
-                    uint32_t width,
-                    uint32_t height,
-                    uint8_t speed) {
+  Frame quantize(uint8_t* rgbaPixels,
+                 uint32_t width,
+                 uint32_t height,
+                 uint8_t speed = QUANTIZER_MAX_SPEED) {
     liq_attr* handle = liq_attr_create();
     liq_image* inputImage =
         liq_image_create_rgba(handle, rgbaPixels, width, height, 0);
@@ -28,69 +26,52 @@ class ImageQuantizer {
 
     liq_result* result;
     if (liq_image_quantize(inputImage, handle, &result) != LIQ_OK)
-      return NULL;
+      return Frame{};
 
-    uint8_t* raw8BitPixels = remapImage(inputImage, result, width, height);
-    const liq_palette* palette = liq_get_palette(result);
-
-    // TODO: Serialize palette
-    LodePNGState state;
-    lodepng_state_init(&state);
-    state.info_raw.colortype = LCT_PALETTE;
-    state.info_raw.bitdepth = 8;
-    state.info_png.color.colortype = LCT_PALETTE;
-    state.info_png.color.bitdepth = 8;
-
-    for (int i = 0; i < palette->count; i++) {
-      lodepng_palette_add(&state.info_png.color, palette->entries[i].r,
-                          palette->entries[i].g, palette->entries[i].b,
-                          palette->entries[i].a);
-      lodepng_palette_add(&state.info_raw, palette->entries[i].r,
-                          palette->entries[i].g, palette->entries[i].b,
-                          palette->entries[i].a);
-    }
-
-    unsigned char* output_file_data;
-    size_t output_file_size;
-    unsigned int out_status =
-        lodepng_encode(&output_file_data, &output_file_size, raw8BitPixels,
-                       width, height, &state);
-    if (out_status) {
-      fprintf(stderr, "Can't encode image: %s\n",
-              lodepng_error_text(out_status));
-      return NULL;
-    }
-
-    const char* output_png_file_path = "quantized_example.png";
-    FILE* fp = fopen(output_png_file_path, "wb");
-    if (!fp) {
-      fprintf(stderr, "Unable to write to %s\n", output_png_file_path);
-      return NULL;
-    }
-    fwrite(output_file_data, 1, output_file_size, fp);
-    fclose(fp);
-
-    printf("Written %s\n", output_png_file_path);
-    // ---
+    auto frame = Frame{};
+    frame.totalPixels = width * height;
+    frame.raw8BitPixels = remapImage(inputImage, result, frame.totalPixels);
+    frame.raw15bppPalette = serializePalette(result, frame.totalPixels);
 
     liq_result_destroy(result);
     liq_image_destroy(inputImage);
     liq_attr_destroy(handle);
 
-    return NULL;
+    return frame;
   }
 
  private:
   uint8_t* remapImage(liq_image* image,
                       liq_result* result,
-                      uint32_t width,
-                      uint32_t height) {
-    size_t size = width * height;
+                      uint32_t totalPixels) {
+    size_t size = totalPixels;
     uint8_t* raw8bitPixels = (uint8_t*)malloc(size);
+
     liq_set_dithering_level(result, 1.0);
     liq_write_remapped_image(result, image, raw8bitPixels, size);
 
     return raw8bitPixels;
+  }
+
+  uint16_t* serializePalette(liq_result* result, uint32_t totalPixels) {
+    size_t size = totalPixels * 2;
+    uint16_t* raw15bppPalette = (uint16_t*)malloc(size);
+
+    const liq_palette* palette = liq_get_palette(result);
+
+    for (int i = 0; i < palette->count; i++) {
+      uint8_t red = palette->entries[i].r;
+      uint8_t green = palette->entries[i].g;
+      uint8_t blue = palette->entries[i].b;
+
+      uint8_t r = red * QUANTIZER_5BIT_MAX_COLORS / QUANTIZER_8BIT_MAX_COLORS;
+      uint8_t g = green * QUANTIZER_5BIT_MAX_COLORS / QUANTIZER_8BIT_MAX_COLORS;
+      uint8_t b = blue * QUANTIZER_5BIT_MAX_COLORS / QUANTIZER_8BIT_MAX_COLORS;
+
+      raw15bppPalette[i] = r | (g << 5) | (b << 10);
+    }
+
+    return raw15bppPalette;
   }
 };
 
