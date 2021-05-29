@@ -27,8 +27,8 @@ CODE_IWRAM void mainLoop() {
     if (receivedPacket == COMMAND_FRAME_START)
       cursor = 0;
     else {
-      u16 firstPixel = (receivedPacket >> 16) & 0xffff;
-      u16 secondPixel = (receivedPacket & 0xffff0000) >> 16;
+      u16 firstPixel = receivedPacket & 0xffff;
+      u16 secondPixel = (receivedPacket >> 16) & 0xffff;
       m3_plot(x(), y(), firstPixel);
       cursor++;
       m3_plot(x(), y(), secondPixel);
