@@ -11,7 +11,6 @@ LinkSPI* linkSPI = new LinkSPI();
 u32 frame = 0;
 u32 cursor = 0;
 bool isReady = false;
-COLOR palette[PALETTE_COLORS];
 
 inline u32 x() {
   return cursor % RENDER_WIDTH;
@@ -47,13 +46,21 @@ CODE_IWRAM void mainLoop() {
     sync(CMD_PALETTE_START_GBA, CMD_PALETTE_START_RPI);
     for (u32 i = 0; i < PALETTE_COLORS; i += COLORS_PER_PACKET) {
       u32 packet = linkSPI->transfer(0);
-      palette[i] = packet & 0xffff;
-      palette[i + 1] = (packet >> 16) & 0xffff;
+      pal_obj_mem[i] = packet & 0xffff;
+      pal_obj_mem[i + 1] = (packet >> 16) & 0xffff;
     }
 
     isReady = true;
     sync(CMD_FRAME_END_GBA, CMD_FRAME_END_RPI);
   }
+}
+
+inline void onVBlank() {
+  if (isReady) {
+    tonccpy(pal_bg_mem, pal_obj_mem, sizeof(COLOR) * PALETTE_COLORS);
+    vid_flip();
+  }
+  isReady = false;
 }
 
 int main() {
@@ -64,17 +71,9 @@ int main() {
   return 0;
 }
 
-inline void onVBlank() {
-  if (isReady) {
-    tonccpy(pal_bg_mem, &palette, sizeof(COLOR) * PALETTE_COLORS);
-    vid_flip();
-  }
-  isReady = false;
-}
-
 inline void init() {
   REG_DISPCNT = DCNT_MODE4 | DCNT_BG2;
 
   irq_init(NULL);
-  irq_add(II_VBLANK, onVBlank);
+  irq_add(II_VBLANK, (fnptr)onVBlank);
 }
