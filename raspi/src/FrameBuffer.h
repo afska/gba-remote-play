@@ -13,7 +13,7 @@
 
 #define FB_DEVFILE "/dev/fb0"
 #define FB_BYTES_PER_PIXEL 4
-#define FB_IMAGE_MODE VC_IMAGE_ARGB8888
+#define FB_IMAGE_MODE VC_IMAGE_RGBA32
 
 class FrameBuffer {
  public:
@@ -34,6 +34,13 @@ class FrameBuffer {
     openPrimaryDisplay();
     createScreenResource();
     setUpRect();
+  }
+
+  uint8_t* loadFrame() {
+    vc_dispmanx_snapshot(display, screenResource, (DISPMANX_TRANSFORM_T)0);
+    vc_dispmanx_resource_read_data(screenResource, &rect, buffer,
+                                   variableInfo.xres * FB_BYTES_PER_PIXEL);
+    return buffer;
   }
 
   template <typename F>
@@ -73,12 +80,6 @@ class FrameBuffer {
   VC_IMAGE_TRANSFORM_T transform;
   uint32_t image_prt;
   VC_RECT_T rect;
-
-  void loadFrame() {
-    vc_dispmanx_snapshot(display, screenResource, (DISPMANX_TRANSFORM_T)0);
-    vc_dispmanx_resource_read_data(screenResource, &rect, buffer,
-                                   variableInfo.xres * FB_BYTES_PER_PIXEL);
-  }
 
   void openFrameBuffer() {
     fileDescriptor = open(FB_DEVFILE, O_RDWR);

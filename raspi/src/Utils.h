@@ -1,6 +1,6 @@
 #ifndef UTILS_H
 #define UTILS_H
 
-#define DEBUG false
+#define DEBUG true
 
 #endif  // UTILS_H
