@@ -29,9 +29,12 @@ CODE_IWRAM void mainLoop() {
     sync(CMD_FRAME_START_GBA, CMD_FRAME_START_RPI);
 
     sync(CMD_PALETTE_START_GBA, CMD_PALETTE_START_RPI);
-    for (u32 i = 0; i < PALETTE_COLORS / COLORS_PER_PACKET; i++) {
+    for (u32 i = 0; i < PALETTE_COLORS; i += 2) {
       u32 packet = linkSPI->transfer(0);
-      ((u32*)MEM_PAL)[i] = packet;
+      u16 firstColor = packet & 0xffff;
+      u16 secondColor = (packet >> 16) & 0xffff;
+      pal_bg_mem[i] = firstColor;
+      pal_bg_mem[i + 1] = secondColor;
     }
 
     sync(CMD_PIXELS_START_GBA, CMD_PIXELS_START_RPI);
@@ -41,8 +44,18 @@ CODE_IWRAM void mainLoop() {
       if (x() >= RENDER_WIDTH || y() >= RENDER_HEIGHT)
         break;
 
-      ((u32*)vid_page)[(y() * RENDER_WIDTH + x()) / PIXELS_PER_PACKET] = packet;
-      cursor += PIXELS_PER_PACKET;
+      u8 firstColor = packet & 0xff;
+      m4_plot(x(), y(), firstColor);
+      cursor++;
+      u8 secondColor = (packet >> 8) & 0xff;
+      m4_plot(x(), y(), secondColor);
+      cursor++;
+      u8 thirdColor = (packet >> 16) & 0xff;
+      m4_plot(x(), y(), thirdColor);
+      cursor++;
+      u8 fourthColor = (packet >> 24) & 0xff;
+      m4_plot(x(), y(), fourthColor);
+      cursor++;
     }
     vid_flip();
 
