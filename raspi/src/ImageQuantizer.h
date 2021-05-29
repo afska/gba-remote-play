@@ -67,7 +67,8 @@ class ImageQuantizer {
       uint8_t g = green * QUANTIZER_5BIT_MAX_COLORS / QUANTIZER_8BIT_MAX_COLORS;
       uint8_t b = blue * QUANTIZER_5BIT_MAX_COLORS / QUANTIZER_8BIT_MAX_COLORS;
 
-      raw15bppPalette[i] = r | (g << 5) | (b << 10);
+      raw15bppPalette[i] =
+          palette->entries[i].a != 0 ? r | (g << 5) | (b << 10) : 0;
     }
 
     return raw15bppPalette;
