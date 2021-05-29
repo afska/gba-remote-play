@@ -7,8 +7,7 @@
         "/opt/vc/include",
         "/opt/vc/include/interface/vcos/pthreads",
         "/opt/vc/include/interface/vmcs_host",
-        "/opt/vc/include/interface/vmcs_host/linux",
-        "/opt/vc/lib"
+        "/opt/vc/include/interface/vmcs_host/linux"
       ],
       "defines": [],
       "intelliSenseMode": "gcc-arm",
@@ -18,8 +17,7 @@
           "/opt/vc/include",
           "/opt/vc/include/interface/vcos/pthreads",
           "/opt/vc/include/interface/vmcs_host",
-          "/opt/vc/include/interface/vmcs_host/linux",
-          "/opt/vc/lib"
+          "/opt/vc/include/interface/vmcs_host/linux"
         ],
         "limitSymbolsToIncludedHeaders": true,
         "databaseFilename": ""

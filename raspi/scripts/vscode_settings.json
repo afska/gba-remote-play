@@ -1,4 +1,0 @@
-{
-  "C_Cpp.clang_format_style": "{ BasedOnStyle: Chromium }",
-  "editor.formatOnSave": true
-}

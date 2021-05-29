@@ -9,16 +9,12 @@
 
 ### Development PC
 
-- Install VSCode
-- Install the _Remote Development_ extension
+- Install VSCode, with these extensions:
+  * `Remote Development`
+  * `C/C++ Extensions`
 - Run the command: _Remote-SSH: Connect to Host..._
   * Connect to the Raspberry's IP Address
   * Open the `raspi` directory
-
-## VSCode
-
-- Recommended plugins: `C/C++ Extensions`, `EditorConfig`
-- Recommended settings: [here](scripts/vscode_settings.json)
 
 ## Commands
 
