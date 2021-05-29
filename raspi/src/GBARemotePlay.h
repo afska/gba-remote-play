@@ -41,14 +41,6 @@ class GBARemotePlay {
 
   void send(Frame frame) {
     if (DEBUG)
-      std::cout << "Sending palette command...\n";
-
-    if (DEBUG)
-      std::cout << "Sending pixels command...\n";
-
-    sync(CMD_PIXELS_START_RPI, CMD_PIXELS_START_GBA);
-
-    if (DEBUG)
       std::cout << "Sending pixels...\n";
 
     for (int i = 0; i < frame.totalPixels; i += PIXELS_PER_PACKET)
@@ -56,6 +48,9 @@ class GBARemotePlay {
                           (frame.raw8BitPixels[i + 1] << 8) |
                           (frame.raw8BitPixels[i + 2] << 16) |
                           (frame.raw8BitPixels[i + 3] << 24));
+
+    if (DEBUG)
+      std::cout << "Sending palette command...\n";
 
     sync(CMD_PALETTE_START_RPI, CMD_PALETTE_START_GBA);
 
