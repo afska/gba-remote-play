@@ -7,8 +7,8 @@
 
 #define SOURCE_MAX_COLORS 256
 #define TARGET_MAX_COLORS 32
-#define GBA_WIDTH 120
-#define GBA_HEIGHT 80
+#define GBA_WIDTH 240
+#define GBA_HEIGHT 160
 
 class GBARemotePlay {
  public:
@@ -25,19 +25,15 @@ class GBARemotePlay {
       }
 
       // reset flag
-      spiMaster->transfer(even ? 0x98765432 : 0x98765431);
-      spiMaster->transfer(even ? 0x98765432 : 0x98765431);
-      spiMaster->transfer(even ? 0x98765432 : 0x98765431);
+      spiMaster->transfer(0x98765432);
+      spiMaster->transfer(0x98765432);
+      spiMaster->transfer(0x98765432);
 
       int64_t buffer = -1;
       frameBuffer->forEachPixel([&buffer, this](uint32_t x, uint32_t y,
                                                 uint8_t red, uint8_t green,
                                                 uint8_t blue) {
         if (x >= GBA_WIDTH || y >= GBA_HEIGHT)
-          return;
-
-        bool isEven = y % 2 == 0;
-        if (even != isEven)
           return;
 
         uint8_t targetRed = red * TARGET_MAX_COLORS / SOURCE_MAX_COLORS;
@@ -52,8 +48,6 @@ class GBARemotePlay {
           buffer = -1;
         }
       });
-
-      even = !even;
     }
   }
 
@@ -65,7 +59,6 @@ class GBARemotePlay {
  private:
   SPIMaster* spiMaster;
   LinuxFrameBuffer* frameBuffer;
-  bool even = true;
 };
 
 #endif  // GBA_REMOTE_PLAY_H

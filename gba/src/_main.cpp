@@ -10,32 +10,19 @@ void init();
 LinkSPI* linkSPI = new LinkSPI();
 u32 frame = 0;
 u32 cursor = 0;
-bool even = true;
-
-inline u8 x() {
-  return cursor % RENDER_WIDTH;
-}
-
-inline u8 y() {
-  return cursor / RENDER_WIDTH * 2 + (even ? 0 : 1);
-}
 
 CODE_IWRAM void mainLoop() {
   while (true) {
     u32 receivedPacket = linkSPI->transfer(0x12345678);
 
-    if (receivedPacket == 0x98765432) {
+    if (receivedPacket == 0x98765432)
       cursor = 0;
-      even = true;
-    } else if (receivedPacket == 0x98765431) {
-      cursor = 0;
-      even = false;
-    } else {
+    else {
       u16 firstPixel = (receivedPacket >> 16) & 0xffff;
       u16 secondPixel = (receivedPacket & 0xffff0000) >> 16;
-      m3_plot(x() * RENDER_SCALE, y() * RENDER_SCALE, firstPixel);
+      m3_plot(cursor % RENDER_WIDTH, cursor / RENDER_WIDTH, firstPixel);
       cursor++;
-      m3_plot(x() * RENDER_SCALE, y() * RENDER_SCALE, secondPixel);
+      m3_plot(cursor % RENDER_WIDTH, cursor / RENDER_WIDTH, secondPixel);
       cursor++;
     }
   }
@@ -54,14 +41,8 @@ inline void onVBlank() {
 }
 
 inline void init() {
-  // bitmap mode 3, background 2
   REG_DISPCNT = DCNT_MODE3 | DCNT_BG2;
 
-  // enable mosaic
-  REG_MOSAIC = MOS_BUILD(1, 1, 0, 0);
-  REG_BG2CNT = 1 << 6;
-
-  // interrupts
   irq_init(NULL);
   irq_add(II_VBLANK, onVBlank);
 }
