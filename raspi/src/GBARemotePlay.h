@@ -1,7 +1,7 @@
 #ifndef GBA_REMOTE_PLAY_H
 #define GBA_REMOTE_PLAY_H
 
-#include "LinuxFrameBuffer.h"
+#include "FrameBuffer.h"
 #include "SPIMaster.h"
 #include "Utils.h"
 
@@ -14,7 +14,7 @@ class GBARemotePlay {
  public:
   GBARemotePlay() {
     spiMaster = new SPIMaster();
-    frameBuffer = new LinuxFrameBuffer();
+    frameBuffer = new FrameBuffer();
   }
 
   void run() {
@@ -58,7 +58,7 @@ class GBARemotePlay {
 
  private:
   SPIMaster* spiMaster;
-  LinuxFrameBuffer* frameBuffer;
+  FrameBuffer* frameBuffer;
 };
 
 #endif  // GBA_REMOTE_PLAY_H

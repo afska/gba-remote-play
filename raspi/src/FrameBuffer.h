@@ -1,5 +1,5 @@
-#ifndef LINUX_FRAME_BUFFER_H
-#define LINUX_FRAME_BUFFER_H
+#ifndef FRAME_BUFFER_H
+#define FRAME_BUFFER_H
 
 #include <bcm_host.h>
 #include <linux/fb.h>
@@ -15,9 +15,9 @@
 #define FB_BYTES_PER_PIXEL 4
 #define FB_IMAGE_MODE VC_IMAGE_ARGB8888
 
-class LinuxFrameBuffer {
+class FrameBuffer {
  public:
-  LinuxFrameBuffer() {
+  FrameBuffer() {
     openFrameBuffer();
     retrieveFixedScreenInformation();
     retrieveVariableScreenInformation();
@@ -57,7 +57,7 @@ class LinuxFrameBuffer {
     }
   }
 
-  ~LinuxFrameBuffer() {
+  ~FrameBuffer() {
     close(fileDescriptor);
     vc_dispmanx_resource_delete(screenResource);
     vc_dispmanx_display_close(display);
@@ -140,4 +140,4 @@ class LinuxFrameBuffer {
   }
 };
 
-#endif  // LINUX_FRAME_BUFFER_H
+#endif  // FRAME_BUFFER_H
