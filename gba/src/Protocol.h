@@ -1,0 +1,9 @@
+#ifndef PROTOCOL_H
+#define PROTOCOL_H
+
+#define RENDER_WIDTH 240
+#define RENDER_HEIGHT 160
+
+#define COMMAND_FRAME_START 0x98765432
+
+#endif  // PROTOCOL_H
