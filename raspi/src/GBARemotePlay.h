@@ -22,7 +22,7 @@ class GBARemotePlay {
         std::cin >> ret;
       }
 
-      sync(CMD_FRAME_START, CMD_FRAME_START_ACK);
+      sync(CMD_FRAME_START_RPI, CMD_FRAME_START_GBA);
 
       uint8_t* rgbaPixels = frameBuffer->loadFrame();
       auto frame = imageQuantizer->quantize(rgbaPixels, RENDER_WIDTH,
@@ -36,21 +36,21 @@ class GBARemotePlay {
   }
 
   void send(Frame frame) {
-    sync(CMD_PALETTE_START, CMD_PALETTE_START_ACK);
+    sync(CMD_PALETTE_START_RPI, CMD_PALETTE_START_GBA);
 
     for (int i = 0; i < QUANTIZER_COLORS; i += PACKET_SIZE / 2) {
       spiMaster->transfer(frame.raw15bppPalette[i] |
                           frame.raw15bppPalette[i + 1]);
     }
 
-    sync(CMD_PIXELS_START, CMD_PIXELS_START_ACK);
+    sync(CMD_PIXELS_START_RPI, CMD_PIXELS_START_GBA);
     for (int i = 0; i < frame.totalPixels; i += PACKET_SIZE) {
       spiMaster->transfer(
           frame.raw8BitPixels[i] | frame.raw8BitPixels[i + 1] << 8 |
           frame.raw8BitPixels[i + 2] << 16 | frame.raw8BitPixels[i + 3] << 24);
     }
 
-    sync(CMD_FRAME_END, CMD_FRAME_END_ACK);
+    sync(CMD_FRAME_END_RPI, CMD_FRAME_END_GBA);
   }
 
   ~GBARemotePlay() {
@@ -64,8 +64,8 @@ class GBARemotePlay {
   FrameBuffer* frameBuffer;
   ImageQuantizer* imageQuantizer;
 
-  void sync(uint32_t command, uint32_t ack) {
-    while (spiMaster->transfer(command) != ack)
+  void sync(uint32_t local, uint32_t remote) {
+    while (spiMaster->transfer(local) != remote)
       ;
   }
 };
