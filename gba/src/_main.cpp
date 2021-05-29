@@ -31,9 +31,7 @@ CODE_IWRAM void mainLoop() {
     sync(CMD_PALETTE_START_GBA, CMD_PALETTE_START_RPI);
     for (u32 i = 0; i < PALETTE_COLORS / COLORS_PER_PACKET; i++) {
       u32 packet = linkSPI->transfer(0);
-      u32 firstColor = packet & 0xffff;
-      u32 secondColor = (packet >> 16) & 0xffff;
-      ((u32*)MEM_PAL)[i] = (secondColor << 16) | firstColor;
+      ((u32*)MEM_PAL)[i] = packet;
     }
 
     sync(CMD_PIXELS_START_GBA, CMD_PIXELS_START_RPI);
