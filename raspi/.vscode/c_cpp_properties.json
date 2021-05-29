@@ -11,7 +11,7 @@
         "/opt/vc/lib"
       ],
       "defines": [],
-      "intelliSenseMode": "gcc-arm64",
+      "intelliSenseMode": "gcc-arm",
       "browse": {
         "path": [
           "${workspaceFolder}/src/**",
