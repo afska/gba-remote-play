@@ -1,15 +1,15 @@
-#include "GBARemotePlay.h"
+// #include "GBARemotePlay.h"
 
-int main() {
-  std::cout << "Starting...\n\n";
+// int main() {
+//   std::cout << "Starting...\n\n";
 
-  auto remotePlay = new GBARemotePlay();
+//   auto remotePlay = new GBARemotePlay();
 
-  while (true) {
-    remotePlay->run();
-  }
+//   while (true) {
+//     remotePlay->run();
+//   }
 
-  delete remotePlay;
+//   delete remotePlay;
 
-  return 0;
-}
+//   return 0;
+// }
