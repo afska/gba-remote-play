@@ -7,7 +7,7 @@
 #include <wiringPiSPI.h>
 
 #define SPI_CHANNEL 0
-#define SPI_FREQUENCY 4440000
+#define SPI_FREQUENCY 2500000
 #define SPI_MODE 3
 
 class SPIMaster {
