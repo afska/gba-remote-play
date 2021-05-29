@@ -43,15 +43,6 @@ class GBARemotePlay {
     if (DEBUG)
       std::cout << "Sending palette command...\n";
 
-    sync(CMD_PALETTE_START_RPI, CMD_PALETTE_START_GBA);
-
-    if (DEBUG)
-      std::cout << "Sending palette...\n";
-
-    for (int i = 0; i < PALETTE_COLORS; i += COLORS_PER_PACKET)
-      spiMaster->transfer(frame.raw15bppPalette[i] |
-                          (frame.raw15bppPalette[i + 1] << 16));
-
     if (DEBUG)
       std::cout << "Sending pixels command...\n";
 
@@ -65,6 +56,15 @@ class GBARemotePlay {
                           (frame.raw8BitPixels[i + 1] << 8) |
                           (frame.raw8BitPixels[i + 2] << 16) |
                           (frame.raw8BitPixels[i + 3] << 24));
+
+    sync(CMD_PALETTE_START_RPI, CMD_PALETTE_START_GBA);
+
+    if (DEBUG)
+      std::cout << "Sending palette...\n";
+
+    for (int i = 0; i < PALETTE_COLORS; i += COLORS_PER_PACKET)
+      spiMaster->transfer(frame.raw15bppPalette[i] |
+                          (frame.raw15bppPalette[i + 1] << 16));
 
     if (DEBUG)
       std::cout << "Sending end command...\n";
