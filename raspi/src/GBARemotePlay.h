@@ -20,9 +20,13 @@ class GBARemotePlay {
       if (DEBUG) {
         int ret;
         std::cin >> ret;
+        std::cout << "Sending start command...\n";
       }
 
       sync(CMD_FRAME_START_RPI, CMD_FRAME_START_GBA);
+
+      if (DEBUG)
+        std::cout << "Retrieving pixels...\n";
 
       uint8_t* rgbaPixels = frameBuffer->loadFrame();
       auto frame = imageQuantizer->quantize(rgbaPixels, RENDER_WIDTH,
@@ -36,21 +40,40 @@ class GBARemotePlay {
   }
 
   void send(Frame frame) {
+    if (DEBUG)
+      std::cout << "Sending palette command...\n";
+
     sync(CMD_PALETTE_START_RPI, CMD_PALETTE_START_GBA);
+
+    if (DEBUG)
+      std::cout << "Sending palette...\n";
 
     for (int i = 0; i < PALETTE_COLORS; i += COLORS_PER_PACKET) {
       spiMaster->transfer(frame.raw15bppPalette[i] |
                           frame.raw15bppPalette[i + 1]);
     }
 
+    if (DEBUG)
+      std::cout << "Sending pixels command...\n";
+
     sync(CMD_PIXELS_START_RPI, CMD_PIXELS_START_GBA);
+
+    if (DEBUG)
+      std::cout << "Sending pixels...\n";
+
     for (int i = 0; i < frame.totalPixels; i += PIXELS_PER_PACKET) {
       spiMaster->transfer(
           frame.raw8BitPixels[i] | frame.raw8BitPixels[i + 1] << 8 |
           frame.raw8BitPixels[i + 2] << 16 | frame.raw8BitPixels[i + 3] << 24);
     }
 
+    if (DEBUG)
+      std::cout << "Sending end command...\n";
+
     sync(CMD_FRAME_END_RPI, CMD_FRAME_END_GBA);
+
+    if (DEBUG)
+      std::cout << "Frame end!\n";
   }
 
   ~GBARemotePlay() {
@@ -65,8 +88,10 @@ class GBARemotePlay {
   ImageQuantizer* imageQuantizer;
 
   void sync(uint32_t local, uint32_t remote) {
-    while (spiMaster->transfer(local) != remote)
-      ;
+    uint32_t packet = 0;
+    while ((packet = spiMaster->transfer(local)) != remote)
+      if (DEBUG)
+        std::cout << std::to_string(packet) + "\n";
   }
 };
 
