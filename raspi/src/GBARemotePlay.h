@@ -92,7 +92,8 @@ class GBARemotePlay {
     uint32_t packet = 0;
     while ((packet = spiMaster->transfer(local)) != remote) {
       if (packet == CMD_RESET) {
-        std::cout << "Reset!\n";
+        if (DEBUG)
+          std::cout << "Reset!\n";
         return false;
       }
     }
