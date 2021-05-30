@@ -10,7 +10,9 @@
         "/opt/vc/include/interface/vmcs_host",
         "/opt/vc/include/interface/vmcs_host/linux"
       ],
-      "defines": [],
+      "defines": [
+        "BENCHMARK"
+      ],
       "intelliSenseMode": "gcc-arm",
       "browse": {
         "path": [

@@ -9,7 +9,7 @@
 #include <sys/ioctl.h>
 #include <unistd.h>
 #include <iostream>
-#include "Utils.h"
+#include "Config.h"
 
 #define FB_DEVFILE "/dev/fb0"
 #define FB_BYTES_PER_PIXEL 4

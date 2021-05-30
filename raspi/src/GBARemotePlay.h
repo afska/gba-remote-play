@@ -1,11 +1,11 @@
 #ifndef GBA_REMOTE_PLAY_H
 #define GBA_REMOTE_PLAY_H
 
+#include "Config.h"
 #include "FrameBuffer.h"
 #include "ImageQuantizer.h"
 #include "Protocol.h"
 #include "SPIMaster.h"
-#include "Utils.h"
 
 class GBARemotePlay {
  public:
