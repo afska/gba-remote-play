@@ -1,8 +1,9 @@
 #include <tonc.h>
 
+#include "Benchmark.h"
+#include "Config.h"
 #include "LinkSPI.h"
 #include "Protocol.h"
-#include "Utils.h"
 
 void init();
 void mainLoop();
@@ -13,16 +14,17 @@ u32 y();
 
 LinkSPI* linkSPI = new LinkSPI();
 
-u32 frame = 0;
 u32 cursor = 0;
 bool isReady = false;
 u32 blindFrames = 0;
 
-int main() {
+CODE_IWRAM int main() {
+#ifdef BENCHMARK
+  Benchmark::main();
+#endif
+
   init();
-
   mainLoop();
-
   return 0;
 }
 
