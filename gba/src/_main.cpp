@@ -2,8 +2,8 @@
 
 #include "Benchmark.h"
 #include "Config.h"
-#include "LinkSPI.h"
 #include "Protocol.h"
+#include "SPISlave.h"
 
 void init();
 void mainLoop();
@@ -12,7 +12,7 @@ bool sync(u32 local, u32 remote);
 u32 x();
 u32 y();
 
-LinkSPI* linkSPI = new LinkSPI();
+SPISlave* spiSlave = new SPISlave();
 
 u32 cursor = 0;
 bool isReady = false;
@@ -45,7 +45,7 @@ CODE_IWRAM void mainLoop() {
   while (true) {
   reset:
 
-    linkSPI->transfer(CMD_RESET);
+    spiSlave->transfer(CMD_RESET);
 
     if (isReady)
       VBlankIntrWait();
@@ -54,7 +54,7 @@ CODE_IWRAM void mainLoop() {
       goto reset;
 
     for (u32 i = 0; i < PALETTE_COLORS; i += COLORS_PER_PACKET) {
-      u32 packet = linkSPI->transfer(0);
+      u32 packet = spiSlave->transfer(0);
       pal_obj_mem[i] = packet & 0xffff;
       pal_obj_mem[i + 1] = (packet >> 16) & 0xffff;
     }
@@ -64,7 +64,7 @@ CODE_IWRAM void mainLoop() {
 
     cursor = 0;
     u32 packet = 0;
-    while ((packet = linkSPI->transfer(0)) != CMD_FRAME_END_RPI) {
+    while ((packet = spiSlave->transfer(0)) != CMD_FRAME_END_RPI) {
       if (x() >= RENDER_WIDTH || y() >= RENDER_HEIGHT)
         break;
 
@@ -89,7 +89,7 @@ inline void onVBlank() {
 }
 
 inline bool sync(u32 local, u32 remote) {
-  while (linkSPI->transfer(local) != remote) {
+  while (spiSlave->transfer(local) != remote) {
     if (blindFrames >= MAX_BLIND_FRAMES) {
       blindFrames = 0;
       return false;

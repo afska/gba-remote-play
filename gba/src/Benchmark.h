@@ -1,5 +1,5 @@
 #include "Config.h"
-#include "LinkSPI.h"
+#include "SPISlave.h"
 
 #ifdef BENCHMARK
 
@@ -20,7 +20,7 @@ inline void log(std::string text) {
 
 CODE_IWRAM void mainLoop() {
   while (true) {
-    u32 receivedPacket = linkSPI->transfer(0x12345678);
+    u32 receivedPacket = spiSlave->transfer(0x12345678);
 
     if (receivedPacket == 0x98765432)
       goodPackets++;

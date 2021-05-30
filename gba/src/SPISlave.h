@@ -1,5 +1,5 @@
-#ifndef LINK_SPI_H
-#define LINK_SPI_H
+#ifndef SPI_SLAVE_H
+#define SPI_SLAVE_H
 
 #include <tonc.h>
 
@@ -14,7 +14,7 @@
 
 // A Link Port connection for Normal mode (slave, 32bit packets)
 
-class LinkSPI {
+class SPISlave {
  public:
   u32 transfer(u32 value) {
     setNormalMode();
@@ -55,6 +55,6 @@ class LinkSPI {
   void setSlaveMode() { SPI_SET_LOW(REG_SIOCNT, SPI_BIT_CLOCK); }
 };
 
-extern LinkSPI* linkSPI;
+extern SPISlave* spiSlave;
 
-#endif  // LINK_SPI_H
+#endif  // SPI_SLAVE_H
