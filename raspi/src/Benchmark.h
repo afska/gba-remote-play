@@ -12,8 +12,6 @@ uint32_t goodPackets = 0;
 uint32_t badPackets = 0;
 
 inline void main() {
-  std::cout << "Benchmarking...\n\n";
-
   while (true) {
     uint32_t receivedPacket = spiMaster->transfer(0x98765432);
 

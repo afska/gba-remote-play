@@ -2,6 +2,6 @@
 #define CONFIG_H
 
 #define DEBUG false
-#define BENCHMARK false
+// #define BENCHMARK
 
 #endif  // CONFIG_H
