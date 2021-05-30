@@ -2,6 +2,6 @@
 #define CONFIG_H
 
 #define CODE_IWRAM __attribute__((section(".iwram"), target("arm")))
-#define BENCHMARK false
+// #define BENCHMARK
 
 #endif  // CONFIG_H

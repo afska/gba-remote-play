@@ -18,6 +18,7 @@
 - Add to `~/.bash_profile`:
 ```bash
 export GBA_DIR="/c/Work/gba" # <<< CHANGE THIS PATH
+export GBARP_OUT_DIR="//192.168.0.199/pi/gba-remote-play/raspi/out" # <<< CHANGE THIS PATH
 
 export DEVKITPRO="$GBA_DIR/tools/devkitPro"
 export PATH="$PATH:$GBA_DIR/tools/devkitPro/bin"
@@ -37,4 +38,4 @@ export PATH="$PATH:$GBA_DIR/tools/devkitPro/tools/bin"
 - `make build`: Compiles and generates a `.gba` file
 - `make start`: Starts the compiled ROM
 - `make rebuild`: Recompiles (clean+build) a ROM
-- `make restart`: Recompiles and starts the ROM
+- `make restart`: Recompiles and copies the rom to `GBARP_OUT_DIR`
