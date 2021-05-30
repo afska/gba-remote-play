@@ -18,15 +18,21 @@ u32 cursor = 0;
 bool isReady = false;
 u32 blindFrames = 0;
 
-CODE_IWRAM int main() {
-#ifdef BENCHMARK
-  Benchmark::main();
-#endif
-
+#ifndef BENCHMARK
+int main() {
   init();
   mainLoop();
   return 0;
 }
+#endif
+
+#ifdef BENCHMARK
+int main() {
+  Benchmark::init();
+  Benchmark::mainLoop();
+  return 0;
+}
+#endif
 
 inline void init() {
   REG_DISPCNT = DCNT_MODE4 | DCNT_BG2;

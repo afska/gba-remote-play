@@ -18,7 +18,7 @@ inline void log(std::string text) {
   tte_write(text.c_str());
 }
 
-inline void mainLoop() {
+CODE_IWRAM void mainLoop() {
   while (true) {
     u32 receivedPacket = linkSPI->transfer(0x12345678);
 
@@ -45,11 +45,6 @@ inline void init() {
 
   irq_init(NULL);
   irq_add(II_VBLANK, (fnptr)onVBlank);
-}
-
-inline void main() {
-  init();
-  mainLoop();
 }
 
 }  // namespace Benchmark

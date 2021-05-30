@@ -14,8 +14,7 @@
         "UNICODE",
         "_UNICODE",
         "ARM7",
-        "WIN32",
-        "BENCHMARK"
+        "WIN32"
       ],
       "compilerPath": "${workspaceFolder}\\..\\..\\..\\tools\\devkitPro\\devkitARM\\bin\\arm-none-eabi-g++.exe",
       "intelliSenseMode": "gcc-x64",
