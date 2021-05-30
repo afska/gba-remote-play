@@ -17,30 +17,37 @@ namespace Benchmark {
 //   tte_write(text.c_str());
 // }
 
-CODE_IWRAM void mainLoop() {
-  bool wasVBlank = false;
-
+typedef struct {
   u32 frame = 0;
   u32 goodPackets = 0;
   u32 badPackets = 0;
+} State;
+
+inline void onVBlank(State& state) {
+  state.frame++;
+  if (state.frame >= 60) {
+    // log(
+    //   std::to_string(goodPackets) + " vs " + std::to_string(badPackets)
+    // );
+    m3_plot(20, 80,
+            state.goodPackets >= BENCHMARK_MIN_SUCCESS ? CLR_GREEN : CLR_RED);
+    m3_plot(220, 80,
+            state.badPackets > BENCHMARK_MAX_ERROR ? CLR_RED : CLR_GREEN);
+    state.frame = 0;
+    state.goodPackets = 0;
+    state.badPackets = 0;
+  }
+}
+
+CODE_IWRAM void mainLoop() {
+  bool wasVBlank = false;
+
+  State state;
 
   while (true) {
     bool isVBlank = REG_VCOUNT >= 160;
     if (!wasVBlank && isVBlank) {
-      frame++;
-      if (frame >= 60) {
-        // log(
-        //   std::to_string(goodPackets) + " vs " + std::to_string(badPackets)
-        // );
-        m3_plot(20, 80,
-                goodPackets >= BENCHMARK_MIN_SUCCESS ? CLR_GREEN : CLR_RED);
-        m3_plot(220, 80,
-                badPackets > BENCHMARK_MAX_ERROR ? CLR_RED : CLR_GREEN);
-        frame = 0;
-        goodPackets = 0;
-        badPackets = 0;
-      }
-
+      onVBlank(state);
       wasVBlank = true;
     } else if (wasVBlank && !isVBlank) {
       wasVBlank = false;
@@ -49,9 +56,9 @@ CODE_IWRAM void mainLoop() {
     u32 receivedPacket = spiSlave->transfer(0x12345678);
 
     if (receivedPacket == 0x98765432)
-      goodPackets++;
+      state.goodPackets++;
     else
-      badPackets++;
+      state.badPackets++;
   }
 }
 
