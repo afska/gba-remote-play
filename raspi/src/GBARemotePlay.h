@@ -57,10 +57,8 @@ class GBARemotePlay {
     //   return;
 
     DEBULOG("Sending palette...");
-    for (int i = 0; i < PALETTE_COLORS; i += COLORS_PER_PACKET)
-      spiMaster->transfer(
-          frame.raw15bppPalette[i] |
-          (frame.raw15bppPalette[i + 1] << 16));  // TODO: READ AS 32BIT ARRAY
+    for (int i = 0; i < PALETTE_COLORS / COLORS_PER_PACKET; i++)
+      spiMaster->transfer(((uint32_t*)frame.raw15bppPalette)[i]);
 
     DEBULOG("Sending pixels command...");
     if (!sync(CMD_PIXELS_START_RPI, CMD_PIXELS_START_GBA))
