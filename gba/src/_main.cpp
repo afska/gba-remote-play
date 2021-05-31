@@ -120,8 +120,7 @@ inline void onVBlank(State& state) {
 inline bool sync(State& state, u32 local, u32 remote) {
   bool wasVBlank = IS_VBLANK;
 
-  u32 packet = 0;
-  while ((packet = spiSlave->transfer(local)) != remote) {
+  while (spiSlave->transfer(local) != remote) {
     bool isVBlank = IS_VBLANK;
     if (!wasVBlank && isVBlank) {
       onVBlank(state);
@@ -129,7 +128,7 @@ inline bool sync(State& state, u32 local, u32 remote) {
     } else if (wasVBlank && !isVBlank)
       wasVBlank = false;
 
-    if (packet == CMD_RESET || state.blindFrames >= MAX_BLIND_FRAMES) {
+    if (state.blindFrames >= MAX_BLIND_FRAMES) {
       state.isReady = false;
       state.blindFrames = 0;
       return false;
