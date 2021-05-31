@@ -35,6 +35,8 @@ int main() {
 
 void init();
 void mainLoop();
+void receivePalette();
+void receivePixels(State& state);
 void onVBlank(State& state);
 bool sync(State& state, u32 local, u32 remote);
 u32 x(State& state);
@@ -73,28 +75,37 @@ CODE_IWRAM void mainLoop() {
     if (!sync(state, CMD_FRAME_START_GBA, CMD_FRAME_START_RPI))
       continue;
 
-    for (u32 i = 0; i < PALETTE_COLORS; i += COLORS_PER_PACKET) {
-      u32 packet = spiSlave->transfer(0);
-      pal_obj_mem[i] = packet & 0xffff;
-      pal_obj_mem[i + 1] = (packet >> 16) & 0xffff;
-    }
+    receivePalette();
 
     if (!sync(state, CMD_PIXELS_START_GBA, CMD_PIXELS_START_RPI))
       continue;
 
-    state.cursor = 0;
-    u32 packet = 0;
-    while ((packet = spiSlave->transfer(0)) != CMD_FRAME_END_RPI) {
-      if (x(state) >= RENDER_WIDTH || y(state) >= RENDER_HEIGHT)
-        break;
-
-      u32 address = (y(state) * RENDER_WIDTH + x(state)) / PIXELS_PER_PACKET;
-      ((u32*)vid_page)[address] = packet;
-      state.cursor += PIXELS_PER_PACKET;
-    }
+    receivePixels(state);
 
     sync(state, CMD_FRAME_END_GBA, CMD_FRAME_END_RPI);
     state.isReady = true;
+  }
+}
+
+inline void receivePalette() {
+  for (u32 i = 0; i < PALETTE_COLORS; i += COLORS_PER_PACKET) {
+    u32 packet = spiSlave->transfer(0);
+    pal_obj_mem[i] = packet & 0xffff;
+    pal_obj_mem[i + 1] = (packet >> 16) & 0xffff;
+  }
+}
+
+inline void receivePixels(State& state) {
+  state.cursor = 0;
+  u32 packet = 0;
+
+  while ((packet = spiSlave->transfer(0)) != CMD_FRAME_END_RPI) {
+    if (x(state) >= RENDER_WIDTH || y(state) >= RENDER_HEIGHT)
+      break;
+
+    u32 address = (y(state) * RENDER_WIDTH + x(state)) / PIXELS_PER_PACKET;
+    ((u32*)vid_page)[address] = packet;
+    state.cursor += PIXELS_PER_PACKET;
   }
 }
 
