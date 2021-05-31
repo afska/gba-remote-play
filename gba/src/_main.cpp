@@ -60,6 +60,9 @@ inline void init() {
 
 CODE_IWRAM void mainLoop() {
   State state;
+  state.cursor = 0;
+  state.blindFrames = 0;
+  state.isReady = false;
 
   while (true) {
     spiSlave->transfer(CMD_RESET);

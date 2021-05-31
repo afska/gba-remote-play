@@ -43,6 +43,9 @@ inline void onVBlank(State& state) {
 CODE_IWRAM void mainLoop() {
   bool wasVBlank = false;
   State state;
+  state.frame = 0;
+  state.goodPackets = 0;
+  state.badPackets = 0;
 
   while (true) {
     bool isVBlank = IS_VBLANK;
