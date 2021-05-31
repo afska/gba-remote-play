@@ -1,5 +1,4 @@
 #include <stdint.h>
-#include <iostream>
 #include "Config.h"
 #include "SPIMaster.h"
 
@@ -21,8 +20,8 @@ inline void main() {
       badPackets++;
 
     if (goodPackets + badPackets >= 60000) {
-      std::cout << std::to_string(goodPackets) + " vs " +
-                       std::to_string(badPackets) + "\n";
+      LOG(std::to_string(goodPackets) + " vs " +
+                       std::to_string(badPackets);
       goodPackets = 0;
       badPackets = 0;
     }

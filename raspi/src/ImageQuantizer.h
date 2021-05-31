@@ -25,7 +25,7 @@ class ImageQuantizer {
 
     liq_result* result;
     if (liq_image_quantize(inputImage, handle, &result) != LIQ_OK)
-      return Frame{};
+      return Frame{0};
 
     auto frame = Frame{};
     frame.totalPixels = width * height;

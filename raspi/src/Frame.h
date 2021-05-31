@@ -5,18 +5,22 @@
 #include <stdlib.h>
 
 typedef struct {
-  uint32_t totalPixels = 0;
-  uint8_t* raw8BitPixels = NULL;
-  uint16_t* raw15bppPalette = NULL;
+  uint32_t totalPixels;
+  uint8_t* raw8BitPixels;
+  uint16_t* raw15bppPalette;
 
-  bool isValid() { return raw8BitPixels != NULL && raw15bppPalette != NULL; }
+  uint16_t getColorOf(uint32_t pixelId) {
+    return raw15bppPalette[raw8BitPixels[pixelId]];
+  }
+
+  bool hasData() { return totalPixels > 0; }
 
   void clean() {
-    if (raw8BitPixels)
-      free(raw8BitPixels);
+    if (!hasData())
+      return;
 
-    if (raw15bppPalette)
-      free(raw15bppPalette);
+    free(raw8BitPixels);
+    free(raw15bppPalette);
   }
 } Frame;
 
