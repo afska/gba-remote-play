@@ -112,7 +112,7 @@ inline void receivePixels(State& state) {
 inline void onVBlank(State& state) {
   if (state.isReady) {
     state.blindFrames = 0;
-    tonccpy(pal_bg_mem, pal_obj_mem, sizeof(COLOR) * PALETTE_COLORS);
+    memcpy32(pal_bg_mem, pal_obj_mem, sizeof(COLOR) * PALETTE_COLORS / 2);
     vid_flip();
   } else
     state.blindFrames++;
@@ -128,9 +128,8 @@ inline bool sync(State& state, u32 local, u32 remote) {
     if (!wasVBlank && isVBlank) {
       onVBlank(state);
       wasVBlank = true;
-    } else if (wasVBlank && !isVBlank) {
+    } else if (wasVBlank && !isVBlank)
       wasVBlank = false;
-    }
 
     if (state.blindFrames >= MAX_BLIND_FRAMES) {
       state.isReady = false;

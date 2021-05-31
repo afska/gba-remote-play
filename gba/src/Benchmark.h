@@ -49,9 +49,8 @@ CODE_IWRAM void mainLoop() {
     if (!wasVBlank && isVBlank) {
       onVBlank(state);
       wasVBlank = true;
-    } else if (wasVBlank && !isVBlank) {
+    } else if (wasVBlank && !isVBlank)
       wasVBlank = false;
-    }
 
     u32 receivedPacket = spiSlave->transfer(0x12345678);
 
