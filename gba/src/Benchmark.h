@@ -27,7 +27,8 @@ inline void onVBlank(State& state) {
   state.frame++;
   if (state.frame >= 60) {
     // log(
-    //   std::to_string(goodPackets) + " vs " + std::to_string(badPackets)
+    //   std::to_string(state.goodPackets) + " vs " +
+    //   std::to_string(state.badPackets)
     // );
     m3_plot(20, 80,
             state.goodPackets >= BENCHMARK_MIN_SUCCESS ? CLR_GREEN : CLR_RED);
@@ -41,11 +42,10 @@ inline void onVBlank(State& state) {
 
 CODE_IWRAM void mainLoop() {
   bool wasVBlank = false;
-
   State state;
 
   while (true) {
-    bool isVBlank = REG_VCOUNT >= 160;
+    bool isVBlank = IS_VBLANK;
     if (!wasVBlank && isVBlank) {
       onVBlank(state);
       wasVBlank = true;

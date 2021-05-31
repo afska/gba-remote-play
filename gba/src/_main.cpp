@@ -5,26 +5,21 @@
 #include "Protocol.h"
 #include "SPISlave.h"
 
-void init();
-void mainLoop();
-void onVBlank();
-bool sync(u32 local, u32 remote);
-u32 x();
-u32 y();
+// -----
+// STATE
+// -----
 
 SPISlave* spiSlave = new SPISlave();
 
-u32 cursor = 0;
-bool isReady = false;
-u32 blindFrames = 0;
+typedef struct {
+  u32 cursor = 0;
+  bool isReady = false;
+  u32 blindFrames = 0;
+} State;
 
-#ifndef BENCHMARK
-int main() {
-  init();
-  mainLoop();
-  return 0;
-}
-#endif
+// ---------
+// BENCHMARK
+// ---------
 
 #ifdef BENCHMARK
 int main() {
@@ -34,24 +29,49 @@ int main() {
 }
 #endif
 
+// ------------
+// DECLARATIONS
+// ------------
+
+void init();
+void mainLoop();
+void onVBlank(State& state);
+bool sync(State& state, u32 local, u32 remote);
+u32 x(State& state);
+u32 y(State& state);
+
+// -----------
+// DEFINITIONS
+// -----------
+
+#ifndef BENCHMARK
+int main() {
+  init();
+  mainLoop();
+  return 0;
+}
+#endif
+
 inline void init() {
   REG_DISPCNT = DCNT_MODE4 | DCNT_BG2;
 
   irq_init(NULL);
-  irq_add(II_VBLANK, (fnptr)onVBlank);
+  irq_add(II_VBLANK, []() {
+
+  });
 }
 
 CODE_IWRAM void mainLoop() {
+  State state;
+
   while (true) {
-  reset:
+    VBlankIntrWait();
+    onVBlank(state);
 
     spiSlave->transfer(CMD_RESET);
 
-    if (isReady)
-      VBlankIntrWait();
-
-    if (!sync(CMD_FRAME_START_GBA, CMD_FRAME_START_RPI))
-      goto reset;
+    if (!sync(state, CMD_FRAME_START_GBA, CMD_FRAME_START_RPI))
+      continue;
 
     for (u32 i = 0; i < PALETTE_COLORS; i += COLORS_PER_PACKET) {
       u32 packet = spiSlave->transfer(0);
@@ -59,39 +79,51 @@ CODE_IWRAM void mainLoop() {
       pal_obj_mem[i + 1] = (packet >> 16) & 0xffff;
     }
 
-    if (!sync(CMD_PIXELS_START_GBA, CMD_PIXELS_START_RPI))
-      goto reset;
+    if (!sync(state, CMD_PIXELS_START_GBA, CMD_PIXELS_START_RPI))
+      continue;
 
-    cursor = 0;
+    state.cursor = 0;
     u32 packet = 0;
     while ((packet = spiSlave->transfer(0)) != CMD_FRAME_END_RPI) {
-      if (x() >= RENDER_WIDTH || y() >= RENDER_HEIGHT)
+      if (x(state) >= RENDER_WIDTH || y(state) >= RENDER_HEIGHT)
         break;
 
-      ((u32*)vid_page)[(y() * RENDER_WIDTH + x()) / PIXELS_PER_PACKET] = packet;
-      cursor += PIXELS_PER_PACKET;
+      u32 address = (y(state) * RENDER_WIDTH + x(state)) / PIXELS_PER_PACKET;
+      ((u32*)vid_page)[address] = packet;
+      state.cursor += PIXELS_PER_PACKET;
     }
 
-    isReady = true;
-    sync(CMD_FRAME_END_GBA, CMD_FRAME_END_RPI);
+    sync(state, CMD_FRAME_END_GBA, CMD_FRAME_END_RPI);
+    state.isReady = true;
   }
 }
 
-inline void onVBlank() {
-  if (isReady) {
-    blindFrames = 0;
+inline void onVBlank(State& state) {
+  if (state.isReady) {
+    state.blindFrames = 0;
     tonccpy(pal_bg_mem, pal_obj_mem, sizeof(COLOR) * PALETTE_COLORS);
     vid_flip();
   } else
-    blindFrames++;
+    state.blindFrames++;
 
-  isReady = false;
+  state.isReady = false;
 }
 
-inline bool sync(u32 local, u32 remote) {
+inline bool sync(State& state, u32 local, u32 remote) {
+  bool wasVBlank = IS_VBLANK;
+
   while (spiSlave->transfer(local) != remote) {
-    if (blindFrames >= MAX_BLIND_FRAMES) {
-      blindFrames = 0;
+    bool isVBlank = IS_VBLANK;
+    if (!wasVBlank && isVBlank) {
+      onVBlank(state);
+      wasVBlank = true;
+    } else if (wasVBlank && !isVBlank) {
+      wasVBlank = false;
+    }
+
+    if (state.blindFrames >= MAX_BLIND_FRAMES) {
+      state.isReady = false;
+      state.blindFrames = 0;
       return false;
     }
   }
@@ -99,10 +131,10 @@ inline bool sync(u32 local, u32 remote) {
   return true;
 }
 
-inline u32 x() {
-  return cursor % RENDER_WIDTH;
+inline u32 x(State& state) {
+  return state.cursor % RENDER_WIDTH;
 }
 
-inline u32 y() {
-  return cursor / RENDER_WIDTH;
+inline u32 y(State& state) {
+  return state.cursor / RENDER_WIDTH;
 }
