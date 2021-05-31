@@ -17,7 +17,6 @@ class GBARemotePlay {
 
   void run() {
     while (true) {
-    reset:
       if (DEBUG) {
         int ret;
         std::cout << "Waiting...\n";
@@ -28,7 +27,7 @@ class GBARemotePlay {
       spiMaster->transfer(CMD_RESET);
 
       if (!sync(CMD_FRAME_START_RPI, CMD_FRAME_START_GBA))
-        goto reset;
+        continue;
 
       if (DEBUG)
         std::cout << "Loading frame...\n";
