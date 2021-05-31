@@ -14,7 +14,6 @@ SPISlave* spiSlave = new SPISlave();
 typedef struct {
   u32 cursor;
   u32 blindFrames;
-  bool isReady;
 } State;
 
 // ---------
@@ -62,9 +61,9 @@ CODE_IWRAM void mainLoop() {
   State state;
   state.cursor = 0;
   state.blindFrames = 0;
-  state.isReady = false;
 
   while (true) {
+    state.blindFrames = 0;
     spiSlave->transfer(CMD_RESET);
 
     if (!sync(state, CMD_FRAME_START_GBA, CMD_FRAME_START_RPI))
@@ -78,7 +77,6 @@ CODE_IWRAM void mainLoop() {
     receivePixels(state);
 
     sync(state, CMD_FRAME_END_GBA, CMD_FRAME_END_RPI);
-    state.isReady = true;
 
     onVBlank(state);
   }
@@ -107,14 +105,8 @@ inline void receivePixels(State& state) {
 }
 
 inline void onVBlank(State& state) {
-  if (state.isReady) {
-    state.blindFrames = 0;
-    memcpy32(pal_bg_mem, pal_obj_mem, sizeof(COLOR) * PALETTE_COLORS / 2);
-    vid_flip();
-  } else
-    state.blindFrames++;
-
-  state.isReady = false;
+  memcpy32(pal_bg_mem, pal_obj_mem, sizeof(COLOR) * PALETTE_COLORS / 2);
+  vid_flip();
 }
 
 inline bool sync(State& state, u32 local, u32 remote) {
@@ -123,13 +115,12 @@ inline bool sync(State& state, u32 local, u32 remote) {
   while (spiSlave->transfer(local) != remote) {
     bool isVBlank = IS_VBLANK;
     if (!wasVBlank && isVBlank) {
-      onVBlank(state);
+      state.blindFrames++;
       wasVBlank = true;
     } else if (wasVBlank && !isVBlank)
       wasVBlank = false;
 
     if (state.blindFrames >= MAX_BLIND_FRAMES) {
-      state.isReady = false;
       state.blindFrames = 0;
       return false;
     }
