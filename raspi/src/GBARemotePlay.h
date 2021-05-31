@@ -10,7 +10,7 @@
 class GBARemotePlay {
  public:
   GBARemotePlay() {
-    spiMaster = new SPIMaster();
+    spiMaster = new SPIMaster(SPI_MODE, SPI_FREQUENCY, SPI_DELAY_MICROSECONDS);
     frameBuffer = new FrameBuffer();
     imageQuantizer = new ImageQuantizer();
   }
