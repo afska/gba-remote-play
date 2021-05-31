@@ -56,20 +56,12 @@ int main() {
 
 inline void init() {
   REG_DISPCNT = DCNT_MODE4 | DCNT_BG2;
-
-  irq_init(NULL);
-  irq_add(II_VBLANK, []() {
-
-  });
 }
 
 CODE_IWRAM void mainLoop() {
   State state;
 
   while (true) {
-    VBlankIntrWait();
-    onVBlank(state);
-
     spiSlave->transfer(CMD_RESET);
 
     if (!sync(state, CMD_FRAME_START_GBA, CMD_FRAME_START_RPI))
@@ -84,6 +76,8 @@ CODE_IWRAM void mainLoop() {
 
     sync(state, CMD_FRAME_END_GBA, CMD_FRAME_END_RPI);
     state.isReady = true;
+
+    onVBlank(state);
   }
 }
 
