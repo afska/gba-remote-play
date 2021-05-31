@@ -102,10 +102,12 @@ inline void receivePixels(State& state) {
   state.cursor = 0;
   u32 packet = 0;
 
+  // TODO: POSSIBLE LOCK HERE
   while ((packet = spiSlave->transfer(0)) != CMD_FRAME_END_RPI) {
     if (x(state) >= RENDER_WIDTH || y(state) >= RENDER_HEIGHT)
       break;
 
+    // TODO: SIMPLY USE CURSOR?
     u32 address = (y(state) * RENDER_WIDTH + x(state)) / PIXELS_PER_PACKET;
     ((u32*)vid_page)[address] = packet;
     state.cursor += PIXELS_PER_PACKET;
