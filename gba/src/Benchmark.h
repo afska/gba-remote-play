@@ -18,9 +18,9 @@ namespace Benchmark {
 // }
 
 typedef struct {
-  u32 frame = 0;
-  u32 goodPackets = 0;
-  u32 badPackets = 0;
+  u32 frame;
+  u32 goodPackets;
+  u32 badPackets;
 } State;
 
 inline void onVBlank(State& state) {

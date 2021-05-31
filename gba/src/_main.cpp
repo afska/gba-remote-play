@@ -12,9 +12,9 @@
 SPISlave* spiSlave = new SPISlave();
 
 typedef struct {
-  u32 cursor = 0;
-  u32 blindFrames = 0;
-  bool isReady = false;
+  u32 cursor;
+  u32 blindFrames;
+  bool isReady;
 } State;
 
 // ---------
