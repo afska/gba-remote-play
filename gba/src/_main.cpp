@@ -14,6 +14,7 @@ SPISlave* spiSlave = new SPISlave();
 typedef struct {
   u32 cursor;
   u32 blindFrames;
+  bool isReady;
 } State;
 
 // ---------
@@ -61,8 +62,16 @@ CODE_IWRAM void mainLoop() {
   State state;
   state.cursor = 0;
   state.blindFrames = 0;
+  state.isReady = false;
 
   while (true) {
+    if (state.isReady) {
+      if (IS_VBLANK)
+        onVBlank(state);
+      else
+        continue;
+    }
+
     state.blindFrames = 0;
     spiSlave->transfer(CMD_RESET);
 
@@ -77,8 +86,7 @@ CODE_IWRAM void mainLoop() {
     receivePixels(state);
 
     sync(state, CMD_FRAME_END_GBA, CMD_FRAME_END_RPI);
-
-    onVBlank(state);
+    state.isReady = true;
   }
 }
 
@@ -105,8 +113,12 @@ inline void receivePixels(State& state) {
 }
 
 inline void onVBlank(State& state) {
-  memcpy32(pal_bg_mem, pal_obj_mem, sizeof(COLOR) * PALETTE_COLORS / 2);
-  vid_flip();
+  if (state.isReady) {
+    memcpy32(pal_bg_mem, pal_obj_mem, sizeof(COLOR) * PALETTE_COLORS / 2);
+    vid_flip();
+  }
+
+  state.isReady = false;
 }
 
 inline bool sync(State& state, u32 local, u32 remote) {
