@@ -64,12 +64,21 @@ class GBARemotePlay {
     if (!sync(CMD_PIXELS_START_RPI, CMD_PIXELS_START_GBA))
       return;
 
-    DEBULOG("Sending pixels...");  // TODO: ONLY SEND CHANGED PIXELS
-    for (int i = 0; i < frame.totalPixels; i += PIXELS_PER_PACKET)
-      spiMaster->transfer(frame.raw8BitPixels[i] |
-                          (frame.raw8BitPixels[i + 1] << 8) |
-                          (frame.raw8BitPixels[i + 2] << 16) |
-                          (frame.raw8BitPixels[i + 3] << 24));
+    DEBULOG("Sending pixels...");
+    uint32_t outgoingPacket = 0;
+    uint8_t position = 0;
+    for (int i = 0; i < frame.totalPixels; i++) {
+      if (frame.hasPixelChanged(i, lastFrame)) {
+        outgoingPacket |= frame.raw8BitPixels[i] << (position * 8);
+
+        position++;
+        if (position == PIXELS_PER_PACKET || i == frame.totalPixels - 1) {
+          spiMaster->transfer(outgoingPacket);
+          outgoingPacket = 0;
+          position = 0;
+        }
+      }
+    }
 
     DEBULOG("Sending end command...");
     if (!sync(CMD_FRAME_END_RPI, CMD_FRAME_END_GBA))
