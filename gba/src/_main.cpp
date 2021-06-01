@@ -2,8 +2,12 @@
 
 #include "Benchmark.h"
 #include "Config.h"
+#include "HammingWeight.h"
 #include "Protocol.h"
 #include "SPISlave.h"
+
+#define DIFFS_BUFFER ((u32*)MEM_VRAM_OBJ)
+#define PALETTE_BUFFER pal_obj_mem
 
 // -----
 // STATE
@@ -12,8 +16,8 @@
 SPISlave* spiSlave = new SPISlave();
 
 typedef struct {
-  u32 cursor;
   u32 blindFrames;
+  u32 expectedPixels;
   bool isReady;
 } State;
 
@@ -35,12 +39,14 @@ int main() {
 
 void init();
 void mainLoop();
+void receiveDiffs(State& state);
 void receivePalette();
 void receivePixels(State& state);
 void onVBlank(State& state);
 bool sync(State& state, u32 local, u32 remote);
-u32 x(State& state);
-u32 y(State& state);
+bool hasPixelChanged(u32 cursor);
+u32 x(u32 cursor);
+u32 y(u32 cursor);
 
 // -----------
 // DEFINITIONS
@@ -60,8 +66,8 @@ inline void init() {
 
 CODE_IWRAM void mainLoop() {
   State state;
-  state.cursor = 0;
   state.blindFrames = 0;
+  state.expectedPixels = 0;
   state.isReady = false;
 
   while (true) {
@@ -73,9 +79,15 @@ CODE_IWRAM void mainLoop() {
     }
 
     state.blindFrames = 0;
+    state.expectedPixels = 0;
     spiSlave->transfer(CMD_RESET);
 
     if (!sync(state, CMD_FRAME_START_GBA, CMD_FRAME_START_RPI))
+      continue;
+
+    receiveDiffs(state);
+
+    if (!sync(state, CMD_PALETTE_START_GBA, CMD_PALETTE_START_RPI))
       continue;
 
     receivePalette();
@@ -90,33 +102,39 @@ CODE_IWRAM void mainLoop() {
   }
 }
 
+inline void receiveDiffs(State& state) {
+  for (u32 i = 0; i < TEMPORAL_DIFF_SIZE; i += COLORS_PER_PACKET) {
+    u32 packet = spiSlave->transfer(0);
+    DIFFS_BUFFER[i] = packet;
+    state.expectedPixels += HammingWeight(packet);
+  }
+}
+
 inline void receivePalette() {
   for (u32 i = 0; i < PALETTE_COLORS; i += COLORS_PER_PACKET) {
     u32 packet = spiSlave->transfer(0);
-    pal_obj_mem[i] = packet & 0xffff;
-    pal_obj_mem[i + 1] = (packet >> 16) & 0xffff;
+    PALETTE_BUFFER[i] = packet & 0xffff;
+    PALETTE_BUFFER[i + 1] = (packet >> 16) & 0xffff;
   }
 }
 
 inline void receivePixels(State& state) {
-  state.cursor = 0;
-  u32 packet = 0;
+  u32 cursor = 0;
 
-  // TODO: POSSIBLE LOCK HERE
-  while ((packet = spiSlave->transfer(0)) != CMD_FRAME_END_RPI) {
-    if (x(state) >= RENDER_WIDTH || y(state) >= RENDER_HEIGHT)
-      break;
+  for (u32 i = 0; i < state.expectedPixels; i += PIXELS_PER_PACKET) {
+    u32 packet = spiSlave->transfer(0);
 
-    // TODO: SIMPLY USE CURSOR?
-    u32 address = (y(state) * RENDER_WIDTH + x(state)) / PIXELS_PER_PACKET;
-    ((u32*)vid_page)[address] = packet;
-    state.cursor += PIXELS_PER_PACKET;
+    for (u32 byte = 0; byte < PIXELS_PER_PACKET; byte++) {
+      u8 color = (packet >> (byte * 8)) & 0xff;  // :( :( :(
+      m4_plot(x(cursor), y(cursor), color);
+      cursor++;
+    }
   }
 }
 
 inline void onVBlank(State& state) {
   if (state.isReady) {
-    memcpy32(pal_bg_mem, pal_obj_mem, sizeof(COLOR) * PALETTE_COLORS / 2);
+    memcpy32(pal_bg_mem, PALETTE_BUFFER, sizeof(COLOR) * PALETTE_COLORS / 2);
     vid_flip();
   }
 
@@ -143,10 +161,17 @@ inline bool sync(State& state, u32 local, u32 remote) {
   return true;
 }
 
-inline u32 x(State& state) {
-  return state.cursor % RENDER_WIDTH;
+inline bool hasPixelChanged(u32 cursor) {
+  uint32_t byte = cursor / 8;
+  uint32_t bit = cursor % 8;
+
+  return DIFFS_BUFFER[byte] >> bit & 1;
 }
 
-inline u32 y(State& state) {
-  return state.cursor / RENDER_WIDTH;
+inline u32 x(u32 cursor) {
+  return cursor % RENDER_WIDTH;
+}
+
+inline u32 y(u32 cursor) {
+  return cursor / RENDER_WIDTH;
 }
