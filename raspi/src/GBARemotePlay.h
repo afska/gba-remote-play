@@ -25,8 +25,6 @@ class GBARemotePlay {
         DEBULOG("Sending start command...");
       }
 
-      spiMaster->transfer(CMD_RESET);
-
       if (!sync(CMD_FRAME_START_RPI, CMD_FRAME_START_GBA))
         continue;
 
