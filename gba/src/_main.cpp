@@ -125,8 +125,13 @@ inline void receivePixels(State& state) {
     u32 packet = spiSlave->transfer(0);
 
     for (u32 byte = 0; byte < PIXELS_PER_PACKET; byte++) {
+      u32 xPos = x(cursor);
+      u32 yPos = y(cursor);
+      if (xPos >= RENDER_WIDTH || yPos >= RENDER_HEIGHT)
+        break;
+
       u8 color = (packet >> (byte * 8)) & 0xff;  // :( :( :(
-      m4_plot(x(cursor), y(cursor), color);
+      m4_plot(xPos, yPos, color);
       cursor++;
     }
   }
