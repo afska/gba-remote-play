@@ -46,13 +46,13 @@ class GBARemotePlay {
     TemporalDiffBitArray diffs;
     diffs.initialize(frame, lastFrame);
 
-    // DEBULOG("Sending diffs...");
-    // for (int i = 0; i < TEMPORAL_DIFF_SIZE / PACKET_SIZE; i++)
-    //   spiMaster->transfer(((uint32_t*)diffs.data)[i]);
+    DEBULOG("Sending diffs...");
+    for (int i = 0; i < TEMPORAL_DIFF_SIZE / PACKET_SIZE; i++)
+      spiMaster->transfer(((uint32_t*)diffs.data)[i]);
 
-    // DEBULOG("Sending palette command...");
-    // if (!sync(CMD_PALETTE_START_RPI, CMD_PALETTE_START_GBA))
-    //   return;
+    DEBULOG("Sending palette command...");
+    if (!sync(CMD_PALETTE_START_RPI, CMD_PALETTE_START_GBA))
+      return;
 
     DEBULOG("Sending palette...");
     for (int i = 0; i < PALETTE_COLORS / COLORS_PER_PACKET; i++)
