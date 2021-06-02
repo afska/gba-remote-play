@@ -61,7 +61,8 @@ int main() {
 #endif
 
 inline void init() {
-  REG_DISPCNT = DCNT_MODE4 | DCNT_BG2;
+  REG_DISPCNT = DCNT_MODE4 | DCNT_BG2;  // Enable Background 2 and Bitmap mode 4
+  *((u32*)0x4000800) = (0x0E << 24) | (1 << 5);  // Overclock EWRAM
 }
 
 CODE_IWRAM void mainLoop() {
