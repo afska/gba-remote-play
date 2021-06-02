@@ -4,6 +4,7 @@
 #include "Config.h"
 #include "FrameBuffer.h"
 #include "ImageQuantizer.h"
+#include "PNGWriter.h"
 #include "Protocol.h"
 #include "SPIMaster.h"
 #include "TemporalDiffBitArray.h"
@@ -17,6 +18,9 @@ class GBARemotePlay {
   }
 
   void run() {
+  reset:
+    spiMaster->transfer(CMD_RESET);
+
     while (true) {
       if (DEBUG) {
         int ret;
@@ -26,22 +30,25 @@ class GBARemotePlay {
       }
 
       if (!sync(CMD_FRAME_START_RPI, CMD_FRAME_START_GBA))
-        continue;
+        goto reset;
 
       DEBULOG("Loading frame...");
       uint8_t* rgbaPixels = frameBuffer->loadFrame();
       auto frame = imageQuantizer->quantize(rgbaPixels, RENDER_WIDTH,
                                             RENDER_HEIGHT, QUANTIZER_SPEED);
 
-      if (frame.hasData())
-        send(frame);
+      if (!send(frame))
+        goto reset;
 
       lastFrame.clean();
       lastFrame = frame;
     }
   }
 
-  void send(Frame frame) {
+  bool send(Frame frame) {
+    if (!frame.hasData())
+      return false;
+
     DEBULOG("Calculating diffs...");
     TemporalDiffBitArray diffs;
     diffs.initialize(frame, lastFrame);
@@ -52,7 +59,7 @@ class GBARemotePlay {
 
     DEBULOG("Sending palette command...");
     if (!sync(CMD_PALETTE_START_RPI, CMD_PALETTE_START_GBA))
-      return;
+      return false;
 
     DEBULOG("Sending palette...");
     for (int i = 0; i < PALETTE_COLORS / COLORS_PER_PACKET; i++)
@@ -60,7 +67,7 @@ class GBARemotePlay {
 
     DEBULOG("Sending pixels command...");
     if (!sync(CMD_PIXELS_START_RPI, CMD_PIXELS_START_GBA))
-      return;
+      return false;
 
     DEBULOG("Sending pixels...");
     uint32_t outgoingPacket = 0;
@@ -80,9 +87,16 @@ class GBARemotePlay {
 
     DEBULOG("Sending end command...");
     if (!sync(CMD_FRAME_END_RPI, CMD_FRAME_END_GBA))
-      return;
+      return false;
+
+    if (DEBUG) {
+      DEBULOG("Writing debug PNG file...");
+      WritePNG("debug.png", frame.raw8BitPixels, frame.raw15bppPalette,
+               RENDER_WIDTH, RENDER_HEIGHT);
+    }
 
     DEBULOG("Frame end!");
+    return true;
   }
 
   ~GBARemotePlay() {

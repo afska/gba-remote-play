@@ -4,6 +4,7 @@
 #include <iostream>
 #include <string>
 
+// TODO: MAKE `DEBUG` STATIC, LIKE `BENCHMARK`
 #define DEBUG false
 // #define BENCHMARK
 

@@ -15,7 +15,7 @@ typedef struct {
 
  private:
   void setBit(uint32_t n, bool value) {
-    uint8_t byte = n / 8;
+    uint32_t byte = n / 8;
     uint8_t bit = n % 8;
 
     data[byte] = value ? data[byte] | (1 << bit) : data[byte] & ~(1 << bit);
