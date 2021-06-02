@@ -135,14 +135,14 @@ inline void receivePixels(State& state) {
     }
 
     if (hasPixelChanged(state, cursor)) {
-      u8 newColor = (packet >> (offset * 8)) & 0xff;
-      m4_plot(x(cursor), y(cursor), newColor);
+      u8 newColorIndex = (packet >> (offset * 8)) & 0xff;
+      m4_plot(x(cursor), y(cursor), newColorIndex);
       offset++;
     } else {
       u8 oldColorIndex = state.lastBuffer[cursor];
-      COLOR oldColor = pal_bg_mem[oldColorIndex];
+      COLOR repeatedColor = pal_bg_mem[oldColorIndex];
       for (u32 i = 0; i < PALETTE_COLORS; i++) {
-        if (state.palette[i] == oldColor) {
+        if (state.palette[i] == repeatedColor) {
           m4_plot(x(cursor), y(cursor), i);
           break;
         }
