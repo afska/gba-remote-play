@@ -6,9 +6,6 @@
 #include "Protocol.h"
 #include "SPISlave.h"
 
-#define DIFFS_BUFFER ((u32*)MEM_VRAM_OBJ)
-#define PALETTE_BUFFER pal_obj_mem
-
 // -----
 // STATE
 // -----
