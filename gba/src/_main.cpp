@@ -18,6 +18,9 @@ SPISlave* spiSlave = new SPISlave();
 typedef struct {
   u32 blindFrames;
   u32 expectedPixels;
+  COLOR palette[PALETTE_COLORS];
+  u8 diffs[TEMPORAL_DIFF_SIZE];
+  u8* lastBuffer;
   bool isReady;
 } State;
 
@@ -40,11 +43,11 @@ int main() {
 void init();
 void mainLoop();
 void receiveDiffs(State& state);
-void receivePalette();
+void receivePalette(State& state);
 void receivePixels(State& state);
 void onVBlank(State& state);
 bool sync(State& state, u32 local, u32 remote);
-bool hasPixelChanged(u32 cursor);
+bool hasPixelChanged(State& state, u32 cursor);
 u32 x(u32 cursor);
 u32 y(u32 cursor);
 
@@ -65,10 +68,13 @@ inline void init() {
 }
 
 CODE_IWRAM void mainLoop() {
+reset:
   State state;
   state.blindFrames = 0;
   state.expectedPixels = 0;
+  state.lastBuffer = (u8*)vid_page;
   state.isReady = false;
+  spiSlave->transfer(CMD_RESET);
 
   while (true) {
     if (state.isReady) {
@@ -80,66 +86,80 @@ CODE_IWRAM void mainLoop() {
 
     state.blindFrames = 0;
     state.expectedPixels = 0;
-    spiSlave->transfer(CMD_RESET);
 
     if (!sync(state, CMD_FRAME_START_GBA, CMD_FRAME_START_RPI))
-      continue;
+      goto reset;
 
     receiveDiffs(state);
 
     if (!sync(state, CMD_PALETTE_START_GBA, CMD_PALETTE_START_RPI))
-      continue;
+      goto reset;
 
-    receivePalette();
+    receivePalette(state);
 
     if (!sync(state, CMD_PIXELS_START_GBA, CMD_PIXELS_START_RPI))
-      continue;
+      goto reset;
 
     receivePixels(state);
 
-    sync(state, CMD_FRAME_END_GBA, CMD_FRAME_END_RPI);
+    if (!sync(state, CMD_FRAME_END_GBA, CMD_FRAME_END_RPI))
+      goto reset;
+
     state.isReady = true;
   }
 }
 
 inline void receiveDiffs(State& state) {
-  for (u32 i = 0; i < TEMPORAL_DIFF_SIZE; i += COLORS_PER_PACKET) {
+  for (u32 i = 0; i < TEMPORAL_DIFF_SIZE / PACKET_SIZE; i++) {
     u32 packet = spiSlave->transfer(0);
-    DIFFS_BUFFER[i] = packet;
+    ((u32*)state.diffs)[i] = packet;
     state.expectedPixels += HammingWeight(packet);
   }
 }
 
-inline void receivePalette() {
+inline void receivePalette(State& state) {
   for (u32 i = 0; i < PALETTE_COLORS; i += COLORS_PER_PACKET) {
     u32 packet = spiSlave->transfer(0);
-    PALETTE_BUFFER[i] = packet & 0xffff;
-    PALETTE_BUFFER[i + 1] = (packet >> 16) & 0xffff;
+    state.palette[i] = packet & 0xffff;  // TODO: RECEIVE PALETTE AS U32?
+    state.palette[i + 1] = (packet >> 16) & 0xffff;
   }
 }
 
 inline void receivePixels(State& state) {
   u32 cursor = 0;
+  u32 packet = 0;
+  u32 offset = PIXELS_PER_PACKET;
 
-  for (u32 i = 0; i < state.expectedPixels; i += PIXELS_PER_PACKET) {
-    u32 packet = spiSlave->transfer(0);
-
-    for (u32 byte = 0; byte < PIXELS_PER_PACKET; byte++) {
-      u32 xPos = x(cursor);
-      u32 yPos = y(cursor);
-      if (xPos >= RENDER_WIDTH || yPos >= RENDER_HEIGHT)
-        break;
-
-      u8 color = (packet >> (byte * 8)) & 0xff;  // :( :( :(
-      m4_plot(xPos, yPos, color);
-      cursor++;
+  // TODO: FOR INSTEAD OF WHILE?
+  while (cursor < TOTAL_PIXELS) {
+    if (offset == PIXELS_PER_PACKET) {
+      packet = spiSlave->transfer(0);
+      offset = 0;
     }
+
+    if (hasPixelChanged(state, cursor)) {
+      u8 newColor = (packet >> (offset * 8)) & 0xff;
+      m4_plot(x(cursor), y(cursor), newColor);
+      offset++;
+    } else {
+      u8 oldColorIndex = state.lastBuffer[cursor];
+      COLOR oldColor = pal_bg_mem[oldColorIndex];
+      for (u32 i = 0; i < PALETTE_COLORS; i++) {
+        if (state.palette[i] == oldColor) {
+          m4_plot(x(cursor), y(cursor), i);
+          break;
+        }
+      }
+    }
+
+    cursor++;
   }
 }
 
 inline void onVBlank(State& state) {
   if (state.isReady) {
-    memcpy32(pal_bg_mem, PALETTE_BUFFER, sizeof(COLOR) * PALETTE_COLORS / 2);
+    memcpy32(pal_bg_mem, state.palette, sizeof(COLOR) * PALETTE_COLORS / 2);
+    state.lastBuffer = (u8*)vid_page;
     vid_flip();
   }
 
@@ -166,11 +186,11 @@ inline bool sync(State& state, u32 local, u32 remote) {
   return true;
 }
 
-inline bool hasPixelChanged(u32 cursor) {
+inline bool hasPixelChanged(State& state, u32 cursor) {
   uint32_t byte = cursor / 8;
-  uint32_t bit = cursor % 8;
+  uint8_t bit = cursor % 8;
 
-  return DIFFS_BUFFER[byte] >> bit & 1;
+  return (state.diffs[byte] >> bit) & 1;
 }
 
 inline u32 x(u32 cursor) {
