@@ -1,6 +1,7 @@
 #ifndef GBA_REMOTE_PLAY_H
 #define GBA_REMOTE_PLAY_H
 
+#include <stdlib.h>
 #include "Config.h"
 #include "FrameBuffer.h"
 #include "ImageQuantizer.h"
@@ -29,9 +30,10 @@ class GBARemotePlay {
       std::cin >> _input;
 #endif
 
-      uint8_t* rgbaPixels = frameBuffer->loadFrame();
-      auto frame = imageQuantizer->quantize(rgbaPixels, RENDER_WIDTH,
+      uint8_t* rgbaPixels = getRgbaPixels();
+      auto frame = imageQuantizer->quantize((uint8_t*)rgbaPixels, RENDER_WIDTH,
                                             RENDER_HEIGHT, QUANTIZER_SPEED);
+      free(rgbaPixels);
 
       if (!send(frame))
         goto reset;
@@ -39,6 +41,31 @@ class GBARemotePlay {
       lastFrame.clean();
       lastFrame = frame;
     }
+  }
+
+  ~GBARemotePlay() {
+    lastFrame.clean();
+    delete spiMaster;
+    delete frameBuffer;
+    delete imageQuantizer;
+  }
+
+ private:
+  SPIMaster* spiMaster;
+  FrameBuffer* frameBuffer;
+  ImageQuantizer* imageQuantizer;
+  Frame lastFrame = Frame{0};
+
+  uint8_t* getRgbaPixels() {
+    uint32_t* rgbaPixels = (uint32_t*)malloc(RENDER_WIDTH * RENDER_HEIGHT * 4);
+
+    frameBuffer->forEachPixel(
+        [rgbaPixels](int x, int y, uint8_t r, uint8_t g, uint8_t b) {
+          rgbaPixels[y * RENDER_WIDTH + x] =
+              (0xff << 24) | (b << 16) | (g << 8) | r;
+        });
+
+    return (uint8_t*)rgbaPixels;
   }
 
   bool send(Frame frame) {
@@ -107,19 +134,6 @@ class GBARemotePlay {
 
     return true;
   }
-
-  ~GBARemotePlay() {
-    lastFrame.clean();
-    delete spiMaster;
-    delete frameBuffer;
-    delete imageQuantizer;
-  }
-
- private:
-  SPIMaster* spiMaster;
-  FrameBuffer* frameBuffer;
-  ImageQuantizer* imageQuantizer;
-  Frame lastFrame = Frame{0};
 
   bool sync(uint32_t local, uint32_t remote) {
     uint32_t packet = 0;

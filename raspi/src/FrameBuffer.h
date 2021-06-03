@@ -12,7 +12,7 @@
 
 #define FB_DEVFILE "/dev/fb0"
 #define FB_BYTES_PER_PIXEL 4
-#define FB_IMAGE_MODE VC_IMAGE_RGBA32
+#define FB_IMAGE_MODE VC_IMAGE_ARGB8888
 
 class FrameBuffer {
  public:
@@ -33,6 +33,27 @@ class FrameBuffer {
                                    variableInfo.xres * FB_BYTES_PER_PIXEL);
 
     return buffer;
+  }
+
+  template <typename F>
+  inline void forEachPixel(F action) {
+    loadFrame();
+
+    for (int y = 0; y < variableInfo.yres; y++) {
+      for (int x = 0; x < variableInfo.xres; x++) {
+        size_t offset = x * FB_BYTES_PER_PIXEL + y * fixedInfo.line_length;
+        uint32_t pixel = *(uint32_t*)(buffer + offset);
+
+        uint32_t rMask = (1 << variableInfo.red.length) - 1;
+        uint32_t gMask = (1 << variableInfo.green.length) - 1;
+        uint32_t bMask = (1 << variableInfo.blue.length) - 1;
+        uint8_t r = (pixel >> variableInfo.red.offset) & rMask;
+        uint8_t g = (pixel >> variableInfo.green.offset) & gMask;
+        uint8_t b = (pixel >> variableInfo.blue.offset) & bMask;
+
+        action(x, y, r, g, b);
+      }
+    }
   }
 
   ~FrameBuffer() {

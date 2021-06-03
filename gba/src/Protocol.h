@@ -1,8 +1,8 @@
 #ifndef PROTOCOL_H
 #define PROTOCOL_H
 
-#define RENDER_WIDTH 240
-#define RENDER_HEIGHT 160
+#define RENDER_WIDTH 120
+#define RENDER_HEIGHT 80
 #define PALETTE_COLORS 256
 #define PACKET_SIZE 4
 #define COLOR_SIZE 2
