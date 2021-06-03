@@ -147,12 +147,8 @@ inline void receivePixels(State& state) {
 inline void onVBlank(State& state) {
   // TODO: EXPAND PIXELS
   for (int cursor = TOTAL_PIXELS - 1; cursor >= 0; cursor--) {
-    u16* dst = &vid_page[cursor >> 1];
-    if (cursor & 1) {
-      m4_plot(x(cursor), y(cursor), (*dst >> 8) & 0xff);
-    } else {
-      m4_plot(x(cursor), y(cursor), *dst & 0xff);
-    }
+    u8 colorIndex = m4Get(cursor);
+    m4Draw(cursor, colorIndex);
   }
 
   dma3_cpy(pal_bg_mem, state.palette, sizeof(COLOR) * PALETTE_COLORS);
