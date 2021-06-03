@@ -156,7 +156,7 @@ inline void receivePixels(State& state) {
 
 inline void onVBlank(State& state) {
   if (state.isReady) {
-    memcpy32(pal_bg_mem, state.palette, sizeof(COLOR) * PALETTE_COLORS / 4);
+    dma3_cpy(pal_bg_mem, state.palette, sizeof(COLOR) * PALETTE_COLORS);
     state.lastBuffer = (u8*)vid_page;
     vid_flip();
   }
