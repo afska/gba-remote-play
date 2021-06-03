@@ -109,26 +109,19 @@ reset:
 }
 
 inline void receiveDiffs(State& state) {
-  u32 i = 0;
-
-  while (i < TEMPORAL_DIFF_SIZE / PACKET_SIZE) {
+  for (u32 i = 0; i < TEMPORAL_DIFF_SIZE / PACKET_SIZE; i++) {
     u32 packet = spiSlave->transfer(0);
     ((u32*)state.diffs)[i] = packet;
     state.expectedPixels += HammingWeight(packet);
-    i++;
   }
 }
 
 inline void receivePalette(State& state) {
-  u32 i = 0;
-
-  while (i < PALETTE_COLORS) {
+  for (u32 i = 0; i < PALETTE_COLORS; i += COLORS_PER_PACKET) {
     u32 packet = spiSlave->transfer(0);
-    state.palette[i] = FIRST_COLOR(packet);
-    state.palette[i + 1] = SECOND_COLOR(packet);
+    ((u32*)state.palette)[i / 2] = packet;
     colorIndexBuffer[FIRST_COLOR(packet)] = i;
     colorIndexBuffer[SECOND_COLOR(packet)] = i + 1;
-    i += COLORS_PER_PACKET;
   }
 }
 
