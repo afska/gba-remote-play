@@ -83,6 +83,8 @@ class FrameBuffer {
         variableInfo.yres != expectedYRes) {
       std::cout
           << "Error: frame buffer resolution doesn't match render resolution\n";
+      std::cout << "(frame buffer is " + std::to_string(variableInfo.xres) +
+                       "x" + std::to_string(variableInfo.yres) + ")\n";
       exit(25);
     }
 
