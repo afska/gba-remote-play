@@ -157,19 +157,21 @@ inline void receiveDiffs(State& state) {
 }
 
 inline void receivePalette(State& state) {
-  for (u32 i = 0; i < PALETTE_COLORS / COLORS_PER_PACKET; i++) {
+  for (u32 i = 0; i < PALETTE_COLORS; i += COLORS_PER_PACKET) {
     u32 packet = spiSlave->transfer(0);
-    ((u32*)state.palette)[i] = packet;
+    state.palette[i] = packet & 0xffff;  // TODO: RECEIVE PALETTE AS U32?
+    state.palette[i + 1] = (packet >> 16) & 0xffff;
     colorIndexBuffer[packet & 0xffff] = i;
     colorIndexBuffer[(packet >> 16) & 0xffff] = i + 1;
   }
 }
 
 inline void receivePixels(State& state) {
+  u32 cursor = 0;
   u32 packet = 0;
   u32 byte = PIXELS_PER_PACKET;
 
-  for (u32 cursor = 0; cursor < TOTAL_PIXELS; cursor++) {
+  while (cursor < TOTAL_PIXELS) {
     if (byte == PIXELS_PER_PACKET) {
       packet = spiSlave->transfer(0);
       byte = 0;
@@ -184,6 +186,8 @@ inline void receivePixels(State& state) {
       COLOR repeatedColor = pal_bg_mem[oldColorIndex];
       m4_plot(x(cursor), y(cursor), colorIndexBuffer[repeatedColor]);
     }
+
+    cursor++;
   }
 }
 
