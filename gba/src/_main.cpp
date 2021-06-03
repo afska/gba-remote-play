@@ -44,6 +44,7 @@ void receiveDiffs(State& state);
 void receivePalette(State& state);
 void receivePixels(State& state);
 void onVBlank(State& state);
+void decompressImage(State& state);
 bool sync(State& state, u32 local, u32 remote);
 bool hasPixelChanged(State& state, u32 cursor);
 u32 addressOf(u32 cursor);
@@ -138,6 +139,14 @@ inline void receivePixels(State& state) {
 }
 
 inline void onVBlank(State& state) {
+  decompressImage(state);
+  dma3_cpy(pal_bg_mem, state.palette, sizeof(COLOR) * PALETTE_COLORS);
+  state.lastBuffer = (u8*)vid_page;
+  vid_flip();
+  state.isReadyToDraw = false;
+}
+
+inline void decompressImage(State& state) {
   u32 compressedBufferEnd = state.expectedPixels - 1;
   for (int cursor = TOTAL_PIXELS - 1; cursor >= 0;
        cursor -= PIXELS_PER_PACKET) {
@@ -157,11 +166,6 @@ inline void onVBlank(State& state) {
 
     ((u32*)vid_page)[addressOf(cursor - 3)] = value;
   }
-
-  dma3_cpy(pal_bg_mem, state.palette, sizeof(COLOR) * PALETTE_COLORS);
-  state.lastBuffer = (u8*)vid_page;
-  vid_flip();
-  state.isReadyToDraw = false;
 }
 
 inline bool sync(State& state, u32 local, u32 remote) {
