@@ -22,12 +22,12 @@ class GBARemotePlay {
     spiMaster->transfer(CMD_RESET);
 
     while (true) {
-      if (DEBUG) {
-        int ret;
-        DEBULOG("Waiting...");
-        std::cin >> ret;
-        DEBULOG("Sending start command...");
-      }
+#ifdef DEBUG
+      DEBULOG("Waiting...");
+      int _input;
+      std::cin >> _input;
+      DEBULOG("Sending start command...");
+#endif
 
       if (!sync(CMD_FRAME_START_RPI, CMD_FRAME_START_GBA))
         goto reset;
@@ -89,11 +89,11 @@ class GBARemotePlay {
     if (!sync(CMD_FRAME_END_RPI, CMD_FRAME_END_GBA))
       return false;
 
-    if (DEBUG) {
-      DEBULOG("Writing debug PNG file...");
-      WritePNG("debug.png", frame.raw8BitPixels, frame.raw15bppPalette,
-               RENDER_WIDTH, RENDER_HEIGHT);
-    }
+#ifdef DEBUG
+    DEBULOG("Writing debug PNG file...");
+    WritePNG("debug.png", frame.raw8BitPixels, frame.raw15bppPalette,
+             RENDER_WIDTH, RENDER_HEIGHT);
+#endif
 
     DEBULOG("Frame end!");
     return true;
