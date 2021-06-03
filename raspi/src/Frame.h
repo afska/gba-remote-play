@@ -14,8 +14,6 @@ typedef struct Frame {
   }
 
   bool hasPixelChanged(uint32_t pixelId, Frame previousFrame) {
-    return true;  // TODO: FIX
-
     return !previousFrame.hasData() ||
            areDifferent(getColorOf(pixelId), previousFrame.getColorOf(pixelId));
   }
