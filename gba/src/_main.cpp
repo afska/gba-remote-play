@@ -196,7 +196,7 @@ inline bool hasPixelChanged(State& state, u32 cursor) {
 }
 
 inline u32 addressOf(u32 cursor) {
-  return (y(cursor) * RENDER_WIDTH + x(cursor)) / PIXELS_PER_PACKET;
+  return cursor / PIXELS_PER_PACKET;
 }
 
 inline u32 x(u32 cursor) {
