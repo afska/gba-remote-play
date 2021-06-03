@@ -8,10 +8,4 @@ inline void LOG(std::string STR) {
   std::cout << STR + "\n";
 }
 
-inline void DEBULOG(std::string STR) {
-#ifdef DEBUG
-  LOG(STR);
-#endif
-}
-
 #endif  // UTILS_H

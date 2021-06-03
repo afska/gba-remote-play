@@ -23,12 +23,14 @@ class GBARemotePlay {
 
     while (true) {
 #ifdef DEBUG
-      DEBULOG("Waiting...");
+      LOG("Waiting...");
       int _input;
       std::cin >> _input;
 #endif
 
-      DEBULOG("Loading frame...");
+#ifdef DEBUG
+      LOG("Loading frame...");
+#endif
       uint8_t* rgbaPixels = frameBuffer->loadFrame();
       auto frame = imageQuantizer->quantize(rgbaPixels, RENDER_WIDTH,
                                             RENDER_HEIGHT, QUANTIZER_SPEED);
@@ -45,30 +47,52 @@ class GBARemotePlay {
     if (!frame.hasData())
       return false;
 
-    DEBULOG("Calculating diffs...");
+#ifdef DEBUG
+    LOG("Calculating diffs...");
+#endif
+
     TemporalDiffBitArray diffs;
     diffs.initialize(frame, lastFrame);
+
+#ifdef DEBUG
+    LOG("Sending frame start command...");
+#endif
 
     if (!sync(CMD_FRAME_START_RPI, CMD_FRAME_START_GBA))
       return false;
 
-    DEBULOG("Sending diffs...");
+#ifdef DEBUG
+    LOG("Sending diffs...");
+#endif
+
     for (int i = 0; i < TEMPORAL_DIFF_SIZE / PACKET_SIZE; i++)
       spiMaster->transfer(((uint32_t*)diffs.data)[i]);
 
-    DEBULOG("Sending palette command...");
+#ifdef DEBUG
+    LOG("Sending palette command...");
+#endif
+
     if (!sync(CMD_PALETTE_START_RPI, CMD_PALETTE_START_GBA))
       return false;
 
-    DEBULOG("Sending palette...");
+#ifdef DEBUG
+    LOG("Sending palette...");
+#endif
+
     for (int i = 0; i < PALETTE_COLORS / COLORS_PER_PACKET; i++)
       spiMaster->transfer(((uint32_t*)frame.raw15bppPalette)[i]);
 
-    DEBULOG("Sending pixels command...");
+#ifdef DEBUG
+    LOG("Sending pixels command...");
+#endif
+
     if (!sync(CMD_PIXELS_START_RPI, CMD_PIXELS_START_GBA))
       return false;
 
-    DEBULOG("Sending pixels...");
+#ifdef DEBUG
+    LOG("Sending pixels...");
+#endif
+
     uint32_t outgoingPacket = 0;
     uint8_t byte = 0;
     for (int i = 0; i < frame.totalPixels; i++) {
@@ -84,17 +108,23 @@ class GBARemotePlay {
       }
     }
 
-    DEBULOG("Sending end command...");
+#ifdef DEBUG
+    LOG("Sending end command...");
+#endif
+
     if (!sync(CMD_FRAME_END_RPI, CMD_FRAME_END_GBA))
       return false;
 
 #ifdef DEBUG
-    DEBULOG("Writing debug PNG file...");
+    LOG("Writing debug PNG file...");
     WritePNG("debug.png", frame.raw8BitPixels, frame.raw15bppPalette,
              RENDER_WIDTH, RENDER_HEIGHT);
 #endif
 
-    DEBULOG("Frame end!");
+#ifdef DEBUG
+    LOG("Frame end!");
+#endif
+
     return true;
   }
 
@@ -115,7 +145,7 @@ class GBARemotePlay {
     uint32_t packet = 0;
     while ((packet = spiMaster->transfer(local)) != remote) {
       if (packet == CMD_RESET) {
-        DEBULOG("Reset!");
+        LOG("Reset!");
         return false;
       }
     }
