@@ -24,6 +24,7 @@ typedef struct Frame {
     if (!hasData())
       return;
 
+    totalPixels = 0;
     free(raw8BitPixels);
     free(raw15bppPalette);
   }

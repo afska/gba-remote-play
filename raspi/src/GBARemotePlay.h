@@ -19,6 +19,7 @@ class GBARemotePlay {
 
   void run() {
   reset:
+    lastFrame.clean();
     spiMaster->transfer(CMD_RESET);
 
     while (true) {
