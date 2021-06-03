@@ -11,6 +11,7 @@
 // -----
 
 SPISlave* spiSlave = new SPISlave();
+DATA_EWRAM u8 colorIndexBuffer[GBA_MAX_COLORS];
 
 typedef struct {
   u32 blindFrames;
@@ -61,8 +62,8 @@ int main() {
 #endif
 
 inline void init() {
-  REG_DISPCNT = DCNT_MODE4 | DCNT_BG2;  // Enable Background 2 and Bitmap mode 4
-  *((u32*)0x4000800) = (0x0E << 24) | (1 << 5);  // Overclock EWRAM
+  ENABLE_MODE4_AND_BG2();
+  OVERCLOCK_IWRAM();
 }
 
 CODE_IWRAM void mainLoop() {
@@ -120,13 +121,15 @@ inline void receivePalette(State& state) {
     u32 packet = spiSlave->transfer(0);
     state.palette[i] = packet & 0xffff;  // TODO: RECEIVE PALETTE AS U32?
     state.palette[i + 1] = (packet >> 16) & 0xffff;
+    colorIndexBuffer[packet & 0xffff] = i;
+    colorIndexBuffer[(packet >> 16) & 0xffff] = i + 1;
   }
 }
 
 inline void receivePixels(State& state) {
   u32 cursor = 0;
   u32 packet = 0;
-  u32 offset = PIXELS_PER_PACKET;
+  u32 offset = PIXELS_PER_PACKET;  // TODO: Position, like raspi?
 
   // TODO: FOR INSTEAD OF WHILE?
   while (cursor < TOTAL_PIXELS) {
@@ -142,12 +145,7 @@ inline void receivePixels(State& state) {
     } else {
       u8 oldColorIndex = state.lastBuffer[cursor];
       COLOR repeatedColor = pal_bg_mem[oldColorIndex];
-      for (u32 i = 0; i < PALETTE_COLORS; i++) {
-        if (state.palette[i] == repeatedColor) {
-          m4_plot(x(cursor), y(cursor), i);
-          break;
-        }
-      }
+      m4_plot(x(cursor), y(cursor), colorIndexBuffer[repeatedColor]);
     }
 
     cursor++;
