@@ -133,45 +133,28 @@ inline void receivePalette(State& state) {
 }
 
 inline void receivePixels(State& state) {
-  // u32 cursor = 0;
-  // u32 packet = 0;
-
-  // TODO: FAST
-  // while (cursor < TOTAL_PIXELS) { // TODO: state.expectedPixels
-  //   packet = spiSlave->transfer(0);
-  //   u32 address = (y(cursor) * RENDER_WIDTH + x(cursor)) / PIXELS_PER_PACKET;
-  //   if (hasPixelChanged(state, cursor))
-  //     ((u32*)vid_page)[address] = packet;
-  //   else
-  //     ((u32*)vid_page)[address] = packet; // ...
-  //   cursor += PIXELS_PER_PACKET;
-  // }
-
   u32 cursor = 0;
   u32 packet = 0;
-  u32 byte = PIXELS_PER_PACKET;
 
-  while (cursor < TOTAL_PIXELS) {
-    if (byte == PIXELS_PER_PACKET) {
-      packet = spiSlave->transfer(0);
-      byte = 0;
-    }
-
-    if (hasPixelChanged(state, cursor)) {
-      u8 newColorIndex = (packet >> (byte * 8)) & 0xff;
-      m4_plot(x(cursor), y(cursor), newColorIndex);
-      byte++;
-    } else {
-      u8 oldColorIndex = state.lastBuffer[cursor];
-      COLOR repeatedColor = pal_bg_mem[oldColorIndex];
-      m4_plot(x(cursor), y(cursor), colorIndexBuffer[repeatedColor]);
-    }
-
-    cursor++;
+  while (cursor < state.expectedPixels) {
+    packet = spiSlave->transfer(0);
+    u32 address = (y(cursor) * RENDER_WIDTH + x(cursor)) / PIXELS_PER_PACKET;
+    ((u32*)vid_page)[address] = packet;
+    cursor += PIXELS_PER_PACKET;
   }
 }
 
 inline void onVBlank(State& state) {
+  // TODO: EXPAND PIXELS
+  for (int cursor = TOTAL_PIXELS - 1; cursor >= 0; cursor--) {
+    u16* dst = &vid_page[cursor >> 1];
+    if (cursor & 1) {
+      m4_plot(x(cursor), y(cursor), (*dst >> 8) & 0xff);
+    } else {
+      m4_plot(x(cursor), y(cursor), *dst & 0xff);
+    }
+  }
+
   dma3_cpy(pal_bg_mem, state.palette, sizeof(COLOR) * PALETTE_COLORS);
   state.lastBuffer = (u8*)vid_page;
   vid_flip();
