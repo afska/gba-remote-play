@@ -13,13 +13,24 @@
 SPISlave* spiSlave = new SPISlave();
 DATA_EWRAM u8 colorIndexBuffer[GBA_MAX_COLORS];
 
+enum Step {
+  SYNCING_START,
+  RECEIVING_DIFFS,
+  SYNCING_PALETTE,
+  RECEIVING_PALETTE,
+  SYNCING_PIXELS,
+  RECEIVING_PIXELS,
+  SYNCING_END,
+  READY_TO_DRAW
+};
+
 typedef struct {
   u32 blindFrames;
   u32 expectedPixels;
   COLOR palette[PALETTE_COLORS];
   u8 diffs[TEMPORAL_DIFF_SIZE];
   u8* lastBuffer;
-  bool isReady;
+  Step step;
 } State;
 
 // ---------
@@ -72,39 +83,68 @@ reset:
   state.blindFrames = 0;
   state.expectedPixels = 0;
   state.lastBuffer = (u8*)vid_page;
-  state.isReady = false;
+  state.step = Step::SYNCING_START;
   spiSlave->transfer(CMD_RESET);
 
   while (true) {
-    if (state.isReady) {
-      if (IS_VBLANK)
-        onVBlank(state);
-      else
-        continue;
+    switch (state.step) {
+      case Step::SYNCING_START: {
+        state.blindFrames = 0;
+        state.expectedPixels = 0;
+        if (!sync(state, CMD_FRAME_START_GBA, CMD_FRAME_START_RPI))
+          goto reset;
+
+        state.step = Step::RECEIVING_DIFFS;
+        break;
+      }
+      case Step::RECEIVING_DIFFS: {
+        receiveDiffs(state);
+
+        state.step = Step::SYNCING_PALETTE;
+        break;
+      }
+      case Step::SYNCING_PALETTE: {
+        if (!sync(state, CMD_PALETTE_START_GBA, CMD_PALETTE_START_RPI))
+          goto reset;
+
+        state.step = Step::RECEIVING_PALETTE;
+        break;
+      }
+      case Step::RECEIVING_PALETTE: {
+        receivePalette(state);
+
+        state.step = Step::SYNCING_PIXELS;
+        break;
+      }
+      case Step::SYNCING_PIXELS: {
+        if (!sync(state, CMD_PIXELS_START_GBA, CMD_PIXELS_START_RPI))
+          goto reset;
+
+        state.step = Step::RECEIVING_PIXELS;
+        break;
+      }
+      case Step::RECEIVING_PIXELS: {
+        receivePixels(state);
+
+        state.step = Step::SYNCING_END;
+        break;
+      }
+      case Step::SYNCING_END: {
+        if (!sync(state, CMD_FRAME_END_GBA, CMD_FRAME_END_RPI))
+          goto reset;
+
+        state.step = Step::READY_TO_DRAW;
+        break;
+      }
+      case Step::READY_TO_DRAW: {
+        if (IS_VBLANK) {
+          onVBlank(state);
+          state.step = Step::SYNCING_START;
+        }
+
+        break;
+      }
     }
-
-    state.blindFrames = 0;
-    state.expectedPixels = 0;
-
-    if (!sync(state, CMD_FRAME_START_GBA, CMD_FRAME_START_RPI))
-      goto reset;
-
-    receiveDiffs(state);
-
-    if (!sync(state, CMD_PALETTE_START_GBA, CMD_PALETTE_START_RPI))
-      goto reset;
-
-    receivePalette(state);
-
-    if (!sync(state, CMD_PIXELS_START_GBA, CMD_PIXELS_START_RPI))
-      goto reset;
-
-    receivePixels(state);
-
-    if (!sync(state, CMD_FRAME_END_GBA, CMD_FRAME_END_RPI))
-      goto reset;
-
-    state.isReady = true;
   }
 }
 
@@ -117,52 +157,44 @@ inline void receiveDiffs(State& state) {
 }
 
 inline void receivePalette(State& state) {
-  for (u32 i = 0; i < PALETTE_COLORS; i += COLORS_PER_PACKET) {
+  for (u32 i = 0; i < PALETTE_COLORS / COLORS_PER_PACKET; i++) {
     u32 packet = spiSlave->transfer(0);
-    state.palette[i] = packet & 0xffff;  // TODO: RECEIVE PALETTE AS U32?
-    state.palette[i + 1] = (packet >> 16) & 0xffff;
+    ((u32*)state.palette)[i] = packet;
     colorIndexBuffer[packet & 0xffff] = i;
     colorIndexBuffer[(packet >> 16) & 0xffff] = i + 1;
   }
 }
 
 inline void receivePixels(State& state) {
-  u32 cursor = 0;
   u32 packet = 0;
-  u32 offset = PIXELS_PER_PACKET;  // TODO: Position, like raspi?
+  u32 byte = PIXELS_PER_PACKET;
 
-  // TODO: FOR INSTEAD OF WHILE?
-  while (cursor < TOTAL_PIXELS) {
-    if (offset == PIXELS_PER_PACKET) {
+  for (u32 cursor = 0; cursor < TOTAL_PIXELS; cursor++) {
+    if (byte == PIXELS_PER_PACKET) {
       packet = spiSlave->transfer(0);
-      offset = 0;
+      byte = 0;
     }
 
     if (hasPixelChanged(state, cursor)) {
-      u8 newColorIndex = (packet >> (offset * 8)) & 0xff;
+      u8 newColorIndex = (packet >> (byte * 8)) & 0xff;
       m4_plot(x(cursor), y(cursor), newColorIndex);
-      offset++;
+      byte++;
     } else {
       u8 oldColorIndex = state.lastBuffer[cursor];
       COLOR repeatedColor = pal_bg_mem[oldColorIndex];
       m4_plot(x(cursor), y(cursor), colorIndexBuffer[repeatedColor]);
     }
-
-    cursor++;
   }
 }
 
 inline void onVBlank(State& state) {
-  if (state.isReady) {
-    memcpy32(pal_bg_mem, state.palette, sizeof(COLOR) * PALETTE_COLORS / 2);
-    state.lastBuffer = (u8*)vid_page;
-    vid_flip();
-  }
-
-  state.isReady = false;
+  memcpy32(pal_bg_mem, state.palette, sizeof(COLOR) * PALETTE_COLORS / 2);
+  state.lastBuffer = (u8*)vid_page;
+  vid_flip();
+  state.step = Step::SYNCING_START;
 }
 
-inline bool sync(State& state, u32 local, u32 remote) {
+CODE_IWRAM bool sync(State& state, u32 local, u32 remote) {
   bool wasVBlank = IS_VBLANK;
 
   while (spiSlave->transfer(local) != remote) {
