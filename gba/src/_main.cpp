@@ -46,6 +46,7 @@ void receivePixels(State& state);
 void onVBlank(State& state);
 bool sync(State& state, u32 local, u32 remote);
 bool hasPixelChanged(State& state, u32 cursor);
+u32 addressOf(u32 cursor);
 u32 x(u32 cursor);
 u32 y(u32 cursor);
 
@@ -131,23 +132,30 @@ inline void receivePixels(State& state) {
 
   while (cursor < state.expectedPixels) {
     packet = spiSlave->transfer(0);
-    u32 address = (y(cursor) * RENDER_WIDTH + x(cursor)) / PIXELS_PER_PACKET;
-    ((u32*)vid_page)[address] = packet;
+    ((u32*)vid_page)[addressOf(cursor)] = packet;
     cursor += PIXELS_PER_PACKET;
   }
 }
 
 inline void onVBlank(State& state) {
   u32 compressedBufferEnd = state.expectedPixels - 1;
-  for (int cursor = TOTAL_PIXELS - 1; cursor >= 0; cursor--) {
-    if (hasPixelChanged(state, cursor)) {
-      m4Draw(cursor, m4Get(compressedBufferEnd));
-      compressedBufferEnd--;
-    } else {
-      u8 oldColorIndex = state.lastBuffer[cursor];
-      COLOR repeatedColor = pal_bg_mem[oldColorIndex];
-      m4Draw(cursor, colorIndexBuffer[repeatedColor]);
+  for (int cursor = TOTAL_PIXELS - 1; cursor >= 0;
+       cursor -= PIXELS_PER_PACKET) {
+    u32 value = 0;
+
+    for (int byte = 0; byte < PIXELS_PER_PACKET; byte++) {
+      u32 shift = 8 * (PIXELS_PER_PACKET - 1 - byte);
+      if (hasPixelChanged(state, cursor - byte)) {
+        value |= m4Get(compressedBufferEnd) << shift;
+        compressedBufferEnd--;
+      } else {
+        u8 oldColorIndex = state.lastBuffer[cursor - byte];
+        COLOR repeatedColor = pal_bg_mem[oldColorIndex];
+        value |= colorIndexBuffer[repeatedColor] << shift;
+      }
     }
+
+    ((u32*)vid_page)[addressOf(cursor - 3)] = value;
   }
 
   dma3_cpy(pal_bg_mem, state.palette, sizeof(COLOR) * PALETTE_COLORS);
@@ -181,6 +189,10 @@ inline bool hasPixelChanged(State& state, u32 cursor) {
   uint8_t bit = cursor % 8;
 
   return (state.diffs[byte] >> bit) & 1;
+}
+
+inline u32 addressOf(u32 cursor) {
+  return (y(cursor) * RENDER_WIDTH + x(cursor)) / PIXELS_PER_PACKET;
 }
 
 inline u32 x(u32 cursor) {
