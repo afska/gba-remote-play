@@ -26,11 +26,7 @@ class GBARemotePlay {
       DEBULOG("Waiting...");
       int _input;
       std::cin >> _input;
-      DEBULOG("Sending start command...");
 #endif
-
-      if (!sync(CMD_FRAME_START_RPI, CMD_FRAME_START_GBA))
-        goto reset;
 
       DEBULOG("Loading frame...");
       uint8_t* rgbaPixels = frameBuffer->loadFrame();
@@ -52,6 +48,9 @@ class GBARemotePlay {
     DEBULOG("Calculating diffs...");
     TemporalDiffBitArray diffs;
     diffs.initialize(frame, lastFrame);
+
+    if (!sync(CMD_FRAME_START_RPI, CMD_FRAME_START_GBA))
+      return false;
 
     DEBULOG("Sending diffs...");
     for (int i = 0; i < TEMPORAL_DIFF_SIZE / PACKET_SIZE; i++)
