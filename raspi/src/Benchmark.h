@@ -1,12 +1,13 @@
 #include <stdint.h>
 #include "Config.h"
+#include "Protocol.h"
 #include "SPIMaster.h"
 
 #ifdef BENCHMARK
 
 namespace Benchmark {
 
-auto spiMaster = new SPIMaster();
+auto spiMaster = new SPIMaster(SPI_MODE, SPI_FREQUENCY, SPI_DELAY_MICROSECONDS);
 uint32_t goodPackets = 0;
 uint32_t badPackets = 0;
 
@@ -20,8 +21,7 @@ inline void main() {
       badPackets++;
 
     if (goodPackets + badPackets >= 60000) {
-      LOG(std::to_string(goodPackets) + " vs " +
-                       std::to_string(badPackets);
+      LOG(std::to_string(goodPackets) + " vs " + std::to_string(badPackets));
       goodPackets = 0;
       badPackets = 0;
     }
