@@ -159,10 +159,10 @@ inline void receiveDiffs(State& state) {
 inline void receivePalette(State& state) {
   for (u32 i = 0; i < PALETTE_COLORS; i += COLORS_PER_PACKET) {
     u32 packet = spiSlave->transfer(0);
-    state.palette[i] = packet & 0xffff;  // TODO: RECEIVE PALETTE AS U32?
-    state.palette[i + 1] = (packet >> 16) & 0xffff;
-    colorIndexBuffer[packet & 0xffff] = i;
-    colorIndexBuffer[(packet >> 16) & 0xffff] = i + 1;
+    state.palette[i] = FIRST_COLOR(packet);
+    state.palette[i + 1] = SECOND_COLOR(packet);
+    colorIndexBuffer[FIRST_COLOR(packet)] = i;
+    colorIndexBuffer[SECOND_COLOR(packet)] = i + 1;
   }
 }
 
