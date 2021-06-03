@@ -145,10 +145,16 @@ inline void receivePixels(State& state) {
 }
 
 inline void onVBlank(State& state) {
-  // TODO: EXPAND PIXELS
+  u32 compressedBufferEnd = state.expectedPixels - 1;
   for (int cursor = TOTAL_PIXELS - 1; cursor >= 0; cursor--) {
-    u8 colorIndex = m4Get(cursor);
-    m4Draw(cursor, colorIndex);
+    if (hasPixelChanged(state, cursor)) {
+      m4Draw(cursor, m4Get(compressedBufferEnd));
+      compressedBufferEnd--;
+    } else {
+      u8 oldColorIndex = state.lastBuffer[cursor];
+      COLOR repeatedColor = pal_bg_mem[oldColorIndex];
+      m4Draw(cursor, colorIndexBuffer[repeatedColor]);
+    }
   }
 
   dma3_cpy(pal_bg_mem, state.palette, sizeof(COLOR) * PALETTE_COLORS);
