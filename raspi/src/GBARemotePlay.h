@@ -71,16 +71,16 @@ class GBARemotePlay {
 
     DEBULOG("Sending pixels...");
     uint32_t outgoingPacket = 0;
-    uint8_t position = 0;
+    uint8_t byte = 0;
     for (int i = 0; i < frame.totalPixels; i++) {
       if (frame.hasPixelChanged(i, lastFrame)) {
-        outgoingPacket |= frame.raw8BitPixels[i] << (position * 8);
+        outgoingPacket |= frame.raw8BitPixels[i] << (byte * 8);
 
-        position++;
-        if (position == PIXELS_PER_PACKET || i == frame.totalPixels - 1) {
+        byte++;
+        if (byte == PACKET_SIZE || i == frame.totalPixels - 1) {
           spiMaster->transfer(outgoingPacket);
           outgoingPacket = 0;
-          position = 0;
+          byte = 0;
         }
       }
     }

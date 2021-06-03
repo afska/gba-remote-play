@@ -45,7 +45,7 @@ void WritePNG(std::string fileName,
   fwrite(outputFileData, 1, outputFileSize, fp);
   fclose(fp);
 
-  printf("Written %s\n", outputPath);
+  printf("Written %s!\n", outputPath);
   lodepng_state_cleanup(&state);
 }
 
