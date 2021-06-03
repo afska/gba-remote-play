@@ -76,8 +76,8 @@ reset:
   spiSlave->transfer(CMD_RESET);
 
   while (true) {
-    if (IS_VBLANK) {
-      if (state.isReadyToDraw)
+    if (state.isReadyToDraw) {
+      if (IS_VBLANK)
         onVBlank(state);
       else
         continue;
@@ -164,7 +164,7 @@ inline void onVBlank(State& state) {
   state.isReadyToDraw = false;
 }
 
-CODE_IWRAM bool sync(State& state, u32 local, u32 remote) {
+inline bool sync(State& state, u32 local, u32 remote) {
   bool wasVBlank = IS_VBLANK;
 
   while (spiSlave->transfer(local) != remote) {
