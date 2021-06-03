@@ -133,6 +133,20 @@ inline void receivePalette(State& state) {
 }
 
 inline void receivePixels(State& state) {
+  // u32 cursor = 0;
+  // u32 packet = 0;
+
+  // TODO: FAST
+  // while (cursor < TOTAL_PIXELS) { // TODO: state.expectedPixels
+  //   packet = spiSlave->transfer(0);
+  //   u32 address = (y(cursor) * RENDER_WIDTH + x(cursor)) / PIXELS_PER_PACKET;
+  //   if (hasPixelChanged(state, cursor))
+  //     ((u32*)vid_page)[address] = packet;
+  //   else
+  //     ((u32*)vid_page)[address] = packet; // ...
+  //   cursor += PIXELS_PER_PACKET;
+  // }
+
   u32 cursor = 0;
   u32 packet = 0;
   u32 byte = PIXELS_PER_PACKET;
