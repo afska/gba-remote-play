@@ -28,9 +28,6 @@ class GBARemotePlay {
       std::cin >> _input;
 #endif
 
-#ifdef DEBUG
-      LOG("Loading frame...");
-#endif
       uint8_t* rgbaPixels = frameBuffer->loadFrame();
       auto frame = imageQuantizer->quantize(rgbaPixels, RENDER_WIDTH,
                                             RENDER_HEIGHT, QUANTIZER_SPEED);
@@ -47,51 +44,37 @@ class GBARemotePlay {
     if (!frame.hasData())
       return false;
 
-#ifdef DEBUG
-    LOG("Calculating diffs...");
-#endif
-
-    TemporalDiffBitArray diffs;
-    diffs.initialize(frame, lastFrame);
-
-#ifdef DEBUG
-    LOG("Sending frame start command...");
-#endif
+    DEBULOG("Sending frame start command...");
 
     if (!sync(CMD_FRAME_START_RPI, CMD_FRAME_START_GBA))
       return false;
 
-#ifdef DEBUG
-    LOG("Sending diffs...");
-#endif
+    DEBULOG("Calculating diffs...");
+
+    TemporalDiffBitArray diffs;
+    diffs.initialize(frame, lastFrame);
+
+    DEBULOG("Sending diffs...");
 
     for (int i = 0; i < TEMPORAL_DIFF_SIZE / PACKET_SIZE; i++)
       spiMaster->transfer(((uint32_t*)diffs.data)[i]);
 
-#ifdef DEBUG
-    LOG("Sending palette command...");
-#endif
+    DEBULOG("Sending palette command...");
 
     if (!sync(CMD_PALETTE_START_RPI, CMD_PALETTE_START_GBA))
       return false;
 
-#ifdef DEBUG
-    LOG("Sending palette...");
-#endif
+    DEBULOG("Sending palette...");
 
     for (int i = 0; i < PALETTE_COLORS / COLORS_PER_PACKET; i++)
       spiMaster->transfer(((uint32_t*)frame.raw15bppPalette)[i]);
 
-#ifdef DEBUG
-    LOG("Sending pixels command...");
-#endif
+    DEBULOG("Sending pixels command...");
 
     if (!sync(CMD_PIXELS_START_RPI, CMD_PIXELS_START_GBA))
       return false;
 
-#ifdef DEBUG
-    LOG("Sending pixels...");
-#endif
+    DEBULOG("Sending pixels...");
 
     uint32_t outgoingPacket = 0;
     uint8_t byte = 0;
@@ -108,9 +91,7 @@ class GBARemotePlay {
       }
     }
 
-#ifdef DEBUG
-    LOG("Sending end command...");
-#endif
+    DEBULOG("Sending end command...");
 
     if (!sync(CMD_FRAME_END_RPI, CMD_FRAME_END_GBA))
       return false;
@@ -121,9 +102,7 @@ class GBARemotePlay {
              RENDER_WIDTH, RENDER_HEIGHT);
 #endif
 
-#ifdef DEBUG
-    LOG("Frame end!");
-#endif
+    DEBULOG("Frame end!");
 
     return true;
   }

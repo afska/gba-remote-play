@@ -1,9 +1,9 @@
 #ifndef CONFIG_H
 #define CONFIG_H
 
-#include "Utils.h"
-
 // #define DEBUG
 // #define BENCHMARK
+
+#include "Utils.h"
 
 #endif  // CONFIG_H
