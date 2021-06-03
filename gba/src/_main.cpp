@@ -11,6 +11,7 @@
 // -----
 
 SPISlave* spiSlave = new SPISlave();
+DATA_EWRAM u8 colorIndexBuffer[GBA_MAX_COLORS];
 
 typedef struct {
   u32 blindFrames;
@@ -18,7 +19,7 @@ typedef struct {
   COLOR palette[PALETTE_COLORS];
   u8 diffs[TEMPORAL_DIFF_SIZE];
   u8* lastBuffer;
-  bool isReady;
+  bool isReadyToDraw;
 } State;
 
 // ---------
@@ -61,8 +62,8 @@ int main() {
 #endif
 
 inline void init() {
-  REG_DISPCNT = DCNT_MODE4 | DCNT_BG2;  // Enable Background 2 and Bitmap mode 4
-  *((u32*)0x4000800) = (0x0E << 24) | (1 << 5);  // Overclock EWRAM
+  ENABLE_MODE4_AND_BG2();
+  OVERCLOCK_IWRAM();
 }
 
 CODE_IWRAM void mainLoop() {
@@ -71,11 +72,11 @@ reset:
   state.blindFrames = 0;
   state.expectedPixels = 0;
   state.lastBuffer = (u8*)vid_page;
-  state.isReady = false;
+  state.isReadyToDraw = false;
   spiSlave->transfer(CMD_RESET);
 
   while (true) {
-    if (state.isReady) {
+    if (state.isReadyToDraw) {
       if (IS_VBLANK)
         onVBlank(state);
       else
@@ -103,51 +104,53 @@ reset:
     if (!sync(state, CMD_FRAME_END_GBA, CMD_FRAME_END_RPI))
       goto reset;
 
-    state.isReady = true;
+    state.isReadyToDraw = true;
   }
 }
 
 inline void receiveDiffs(State& state) {
-  for (u32 i = 0; i < TEMPORAL_DIFF_SIZE / PACKET_SIZE; i++) {
+  u32 i = 0;
+
+  while (i < TEMPORAL_DIFF_SIZE / PACKET_SIZE) {
     u32 packet = spiSlave->transfer(0);
     ((u32*)state.diffs)[i] = packet;
     state.expectedPixels += HammingWeight(packet);
+    i++;
   }
 }
 
 inline void receivePalette(State& state) {
-  for (u32 i = 0; i < PALETTE_COLORS; i += COLORS_PER_PACKET) {
+  u32 i = 0;
+
+  while (i < PALETTE_COLORS) {
     u32 packet = spiSlave->transfer(0);
-    state.palette[i] = packet & 0xffff;  // TODO: RECEIVE PALETTE AS U32?
-    state.palette[i + 1] = (packet >> 16) & 0xffff;
+    state.palette[i] = FIRST_COLOR(packet);
+    state.palette[i + 1] = SECOND_COLOR(packet);
+    colorIndexBuffer[FIRST_COLOR(packet)] = i;
+    colorIndexBuffer[SECOND_COLOR(packet)] = i + 1;
+    i += COLORS_PER_PACKET;
   }
 }
 
 inline void receivePixels(State& state) {
   u32 cursor = 0;
   u32 packet = 0;
-  u32 offset = PIXELS_PER_PACKET;
+  u32 byte = PIXELS_PER_PACKET;
 
-  // TODO: FOR INSTEAD OF WHILE?
   while (cursor < TOTAL_PIXELS) {
-    if (offset == PIXELS_PER_PACKET) {
+    if (byte == PIXELS_PER_PACKET) {
       packet = spiSlave->transfer(0);
-      offset = 0;
+      byte = 0;
     }
 
     if (hasPixelChanged(state, cursor)) {
-      u8 newColorIndex = (packet >> (offset * 8)) & 0xff;
+      u8 newColorIndex = (packet >> (byte * 8)) & 0xff;
       m4_plot(x(cursor), y(cursor), newColorIndex);
-      offset++;
+      byte++;
     } else {
       u8 oldColorIndex = state.lastBuffer[cursor];
       COLOR repeatedColor = pal_bg_mem[oldColorIndex];
-      for (u32 i = 0; i < PALETTE_COLORS; i++) {
-        if (state.palette[i] == repeatedColor) {
-          m4_plot(x(cursor), y(cursor), i);
-          break;
-        }
-      }
+      m4_plot(x(cursor), y(cursor), colorIndexBuffer[repeatedColor]);
     }
 
     cursor++;
@@ -155,13 +158,10 @@ inline void receivePixels(State& state) {
 }
 
 inline void onVBlank(State& state) {
-  if (state.isReady) {
-    dma3_cpy(pal_bg_mem, state.palette, sizeof(COLOR) * PALETTE_COLORS);
-    state.lastBuffer = (u8*)vid_page;
-    vid_flip();
-  }
-
-  state.isReady = false;
+  dma3_cpy(pal_bg_mem, state.palette, sizeof(COLOR) * PALETTE_COLORS);
+  state.lastBuffer = (u8*)vid_page;
+  vid_flip();
+  state.isReadyToDraw = false;
 }
 
 inline bool sync(State& state, u32 local, u32 remote) {
