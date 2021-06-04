@@ -87,15 +87,30 @@ class GBARemotePlay {
     TemporalDiffBitArray diffs;
     diffs.initialize(frame, lastFrame);
 
-    DEBULOG("Sending diffs...");
+    DEBULOG("Exchanging diffs for keys...");
 
+    uint32_t pressedKeys = 0;
+    uint32_t pressedKeysCount = 0;
     uint32_t expectedPixels = 0;
     for (int i = 0; i < TEMPORAL_DIFF_SIZE / PACKET_SIZE; i++) {
       uint32_t packet = ((uint32_t*)diffs.data)[i];
-      spiMaster->transfer(packet);
+      uint32_t receivedKeys = spiMaster->transfer(packet);
+
       expectedPixels += HammingWeight(packet);
+      if (pressedKeysCount < PRESSED_KEYS_MIN_VALIDATIONS) {
+        if (pressedKeys != receivedKeys) {
+          pressedKeys = receivedKeys;
+          pressedKeysCount = 0;
+        } else
+          pressedKeysCount++;
+      }
     }
     spiMaster->transfer(expectedPixels);
+
+    if (pressedKeysCount == PRESSED_KEYS_MIN_VALIDATIONS) {
+      DEBULOG("Updating pressed keys...");
+      virtualGamepad->setKeys(pressedKeys);
+    }
 
     DEBULOG("Sending palette command...");
 
