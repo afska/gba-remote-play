@@ -3,7 +3,7 @@
 
 #include <stdint.h>
 #include <stdio.h>
-#include "lodepng.h"
+#include "../lib/code/lodepng.h"
 
 void WritePNG(std::string fileName,
               uint8_t* raw8BitPixels,

@@ -90,7 +90,7 @@ static void lodepng_free(void* ptr) {
   free(ptr);
 }
 #else  /*LODEPNG_COMPILE_ALLOCATORS*/
-/* TODO: support giving additional void* payload to the custom allocators */
+/* TO-DO: support giving additional void* payload to the custom allocators */
 void* lodepng_malloc(size_t size);
 void* lodepng_realloc(void* ptr, size_t new_size);
 void lodepng_free(void* ptr);
@@ -451,7 +451,7 @@ static void LodePNGBitWriter_init(LodePNGBitWriter* writer, ucvector* data) {
   writer->bp = 0;
 }
 
-/*TODO: this ignores potential out of memory errors*/
+/*TO-DO: this ignores potential out of memory errors*/
 #define WRITEBIT(writer, bit)                                     \
   {                                                               \
     /* append new byte */                                         \
@@ -471,7 +471,7 @@ static void writeBits(LodePNGBitWriter* writer, unsigned value, size_t nbits) {
       1) { /* compiler should statically compile this case if nbits == 1 */
     WRITEBIT(writer, value);
   } else {
-    /* TODO: increase output size only once here rather than in each WRITEBIT */
+    /* TO-DO: increase output size only once here rather than in each WRITEBIT */
     size_t i;
     for (i = 0; i != nbits; ++i) {
       WRITEBIT(writer, (unsigned char)((value >> i) & 1));
@@ -486,7 +486,7 @@ static void writeBitsReversed(LodePNGBitWriter* writer,
                               size_t nbits) {
   size_t i;
   for (i = 0; i != nbits; ++i) {
-    /* TODO: increase output size only once here rather than in each WRITEBIT */
+    /* TO-DO: increase output size only once here rather than in each WRITEBIT */
     WRITEBIT(writer, (unsigned char)((value >> (nbits - 1u - i)) & 1u));
   }
 }
@@ -683,7 +683,7 @@ unsigned lode_png_test_bitreader(const unsigned char* data,
 #endif /*LODEPNG_COMPILE_DECODER*/
 
 static unsigned reverseBits(unsigned bits, unsigned num) {
-  /*TODO: implement faster lookup table based version when needed*/
+  /*TO-DO: implement faster lookup table based version when needed*/
   unsigned i, result = 0;
   for (i = 0; i < num; i++)
     result |= ((bits >> (num - i - 1u)) & 1u) << i;
@@ -1454,7 +1454,7 @@ static unsigned getTreeInflateDynamic(HuffmanTree* tree_ll,
       if (reader->bp > reader->bitsize) {
         /*return error code 10 or 11 depending on the situation that happened in
         huffmanDecodeSymbol (10=no endcode, 11=wrong jump outside of tree)*/
-        /* TODO: revise error codes 10,11,50: the above comment is no longer
+        /* TO-DO: revise error codes 10,11,50: the above comment is no longer
          * valid */
         ERROR_BREAK(50); /*error, bit pointer jumps past memory*/
       }
@@ -1577,7 +1577,7 @@ static unsigned inflateHuffmanBlock(ucvector* out,
     if (reader->bp > reader->bitsize) {
       /*return error code 10 or 11 depending on the situation that happened in
       huffmanDecodeSymbol (10=no endcode, 11=wrong jump outside of tree)*/
-      /* TODO: revise error codes 10,11,50: the above comment is no longer valid
+      /* TO-DO: revise error codes 10,11,50: the above comment is no longer valid
        */
       ERROR_BREAK(51); /*error, bit pointer jumps past memory*/
     }
@@ -1721,7 +1721,7 @@ given array)*/
 static size_t searchCodeIndex(const unsigned* array,
                               size_t array_size,
                               size_t value) {
-  /*binary search (only small gain over linear). TODO: use CPU log2 instruction
+  /*binary search (only small gain over linear). TO-DO: use CPU log2 instruction
    * for getting symbols instead*/
   size_t left = 1;
   size_t right = array_size - 1;
@@ -1753,7 +1753,7 @@ static void addLengthDistance(uivector* values,
   unsigned extra_distance = (unsigned)(distance - DISTANCEBASE[dist_code]);
 
   size_t pos = values->size;
-  /*TODO: return error when this fails (out of memory)*/
+  /*TO-DO: return error when this fails (out of memory)*/
   unsigned ok = uivector_resize(values, values->size + 4);
   if (ok) {
     values->data[pos + 0] = length_code + FIRST_LENGTH_CODE_INDEX;
@@ -1776,7 +1776,7 @@ typedef struct Hash {
   unsigned short* chain;
   int* val; /*circular pos to hash value*/
 
-  /*TODO: do this not only for zeros but for any repeated byte. However for PNG
+  /*TO-DO: do this not only for zeros but for any repeated byte. However for PNG
   it's always going to be the zeros that dominate, so not important for PNG*/
   int* headz;             /*similar to head, but for chainz*/
   unsigned short* chainz; /*those with same amount of zeros*/
@@ -2921,7 +2921,7 @@ static unsigned char readBitFromReversedStream(size_t* bitpointer,
   return result;
 }
 
-/* TODO: make this faster */
+/* TO-DO: make this faster */
 static unsigned readBitsFromReversedStream(size_t* bitpointer,
                                            const unsigned char* bitstream,
                                            size_t nbits) {
@@ -4875,7 +4875,7 @@ unsigned lodepng_inspect(unsigned* w,
 
   /*when decoding a new PNG image, make sure all parameters created after
    * previous decoding are reset*/
-  /* TODO: remove this. One should use a new LodePNGState for new sessions */
+  /* TO-DO: remove this. One should use a new LodePNGState for new sessions */
   lodepng_info_cleanup(info);
   lodepng_info_init(info);
 
@@ -4897,7 +4897,7 @@ unsigned lodepng_inspect(unsigned* w,
   /*read the values given in the header*/
   width = lodepng_read32bitInt(&in[16]);
   height = lodepng_read32bitInt(&in[20]);
-  /*TODO: remove the undocumented feature that allows to give null pointers to
+  /*TO-DO: remove the undocumented feature that allows to give null pointers to
    * width or height*/
   if (w)
     *w = width;
@@ -5234,7 +5234,7 @@ static unsigned postProcessScanlines(unsigned char* out,
       CERROR_TRY_RETURN(unfilter(&in[padded_passstart[i]],
                                  &in[filter_passstart[i]], passw[i], passh[i],
                                  bpp));
-      /*TODO: possible efficiency improvement: if in this reduced image the bits
+      /*TO-DO: possible efficiency improvement: if in this reduced image the bits
       fit nicely in 1 scanline, move bytes instead of bits or move not at all*/
       if (bpp < 8) {
         /*remove padding bits in scanlines; after this there still may be
@@ -6036,7 +6036,7 @@ unsigned lodepng_decode(unsigned char** out,
     unsigned char* data = *out;
     size_t outsize;
 
-    /*TODO: check if this works according to the statement in the documentation:
+    /*TO-DO: check if this works according to the statement in the documentation:
     "The converter can convert from grayscale input color type, to 8-bit
     grayscale or grayscale with alpha"*/
     if (!(state->info_raw.colortype == LCT_RGB ||

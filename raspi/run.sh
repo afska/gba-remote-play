@@ -14,6 +14,7 @@ g++ \
   -L./lib \
   -L/opt/vc/lib \
   -lbcm_host \
+  ./lib/code/** \
   ./src/** \
   ./lib/libbcm2835.a \
   ./lib/libimagequant.a \

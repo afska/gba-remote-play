@@ -746,7 +746,7 @@ typedef struct LodePNGDecoderSettings {
   unsigned ignore_critical; /*ignore unknown critical chunks*/
   unsigned ignore_end; /*ignore issues at end of file if possible (missing IEND
                           chunk, too large chunk, ...)*/
-  /* TODO: make a system involving warnings with levels and a strict mode
+  /* TO-DO: make a system involving warnings with levels and a strict mode
      instead. Other potentially recoverable errors: srgb rendering intent value,
      size of content of ancillary chunks, more than 79 characters for some
      strings, placement/combination rules for ancillary chunks, crc of unknown
@@ -1251,7 +1251,7 @@ unsigned compress(std::vector<unsigned char>& out,
 #endif /*LODEPNG_COMPILE_CPP*/
 
 /*
-TODO:
+TO-DO:
 [.] test if there are no memory leaks or security exploits - done a lot but
 needs to be checked often
 [.] check compatibility with various compilers  - done but needs to be redone
