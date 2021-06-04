@@ -151,15 +151,12 @@ inline void decompressImage(State& state) {
   u32 compressedBufferEnd = state.expectedPixels - 1;
   for (int cursor = TOTAL_PIXELS - 1; cursor >= 0; cursor--) {
     if (hasPixelChanged(state, cursor)) {
-      m4_plot(x(cursor) * RENDER_SCALE, y(cursor) * RENDER_SCALE,
-              m4Get(compressedBufferEnd));
+      m4_plot(x(cursor), y(cursor), m4Get(compressedBufferEnd));
       compressedBufferEnd--;
     } else {
-      u8 oldColorIndex = m4GetXYFrom(state.lastBuffer, x(cursor) * RENDER_SCALE,
-                                     y(cursor) * RENDER_SCALE);
+      u8 oldColorIndex = m4GetXYFrom(state.lastBuffer, x(cursor), y(cursor));
       COLOR repeatedColor = pal_bg_mem[oldColorIndex];
-      m4_plot(x(cursor) * RENDER_SCALE, y(cursor) * RENDER_SCALE,
-              colorIndexBuffer[repeatedColor]);
+      m4_plot(x(cursor), y(cursor), colorIndexBuffer[repeatedColor]);
     }
   }
 }
@@ -196,9 +193,9 @@ inline u32 addressOf(u32 cursor) {
 }
 
 inline u32 x(u32 cursor) {
-  return cursor % RENDER_WIDTH;
+  return (cursor % RENDER_WIDTH) * RENDER_SCALE;
 }
 
 inline u32 y(u32 cursor) {
-  return cursor / RENDER_WIDTH;
+  return (cursor / RENDER_WIDTH) * RENDER_SCALE;
 }
