@@ -10,6 +10,7 @@
 #include "Protocol.h"
 #include "SPIMaster.h"
 #include "TemporalDiffBitArray.h"
+#include "VirtualGamepad.h"
 
 class GBARemotePlay {
  public:
@@ -17,6 +18,7 @@ class GBARemotePlay {
     spiMaster = new SPIMaster(SPI_MODE, SPI_FREQUENCY, SPI_DELAY_MICROSECONDS);
     frameBuffer = new FrameBuffer(RENDER_WIDTH, RENDER_HEIGHT);
     imageQuantizer = new ImageQuantizer();
+    virtualGamepad = new VirtualGamepad(VIRTUAL_GAMEPAD_NAME);
   }
 
   void run() {
@@ -49,12 +51,14 @@ class GBARemotePlay {
     delete spiMaster;
     delete frameBuffer;
     delete imageQuantizer;
+    delete virtualGamepad;
   }
 
  private:
   SPIMaster* spiMaster;
   FrameBuffer* frameBuffer;
   ImageQuantizer* imageQuantizer;
+  VirtualGamepad* virtualGamepad;
   Frame lastFrame = Frame{0};
 
   uint8_t* getRgbaPixels() {
@@ -83,15 +87,30 @@ class GBARemotePlay {
     TemporalDiffBitArray diffs;
     diffs.initialize(frame, lastFrame);
 
-    DEBULOG("Sending diffs...");
+    DEBULOG("Exchanging diffs for keys...");
 
+    uint32_t pressedKeys = 0;
+    uint32_t pressedKeysCount = 0;
     uint32_t expectedPixels = 0;
     for (int i = 0; i < TEMPORAL_DIFF_SIZE / PACKET_SIZE; i++) {
       uint32_t packet = ((uint32_t*)diffs.data)[i];
-      spiMaster->transfer(packet);
+      uint32_t receivedKeys = spiMaster->transfer(packet);
+
       expectedPixels += HammingWeight(packet);
+      if (pressedKeysCount < PRESSED_KEYS_MIN_VALIDATIONS) {
+        if (pressedKeys != receivedKeys) {
+          pressedKeys = receivedKeys;
+          pressedKeysCount = 0;
+        } else
+          pressedKeysCount++;
+      }
     }
     spiMaster->transfer(expectedPixels);
+
+    if (pressedKeysCount == PRESSED_KEYS_MIN_VALIDATIONS) {
+      DEBULOG("Updating pressed keys...");
+      virtualGamepad->setKeys(pressedKeys);
+    }
 
     DEBULOG("Sending palette command...");
 

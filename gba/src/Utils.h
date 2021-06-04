@@ -1,6 +1,8 @@
 #ifndef UTILS_H
 #define UTILS_H
 
+#include <tonc.h>
+
 #define CODE_IWRAM __attribute__((section(".iwram"), target("arm")))
 #define DATA_EWRAM __attribute__((section(".ewram")))
 #define GBA_MAX_COLORS 32768
@@ -27,6 +29,10 @@ inline u8 m4Get(u32 cursor) {
 inline u8 m4GetXYFrom(u16* buffer, u32 x, u32 y) {
   u16* dst = &buffer[(y * M4_WIDTH + x) >> 1];
   return x & 1 ? (*dst >> 8) & 0xff : *dst & 0xff;
+}
+
+inline u16 pressedKeys() {
+  return ~REG_KEYS & KEY_ANY;
 }
 
 #endif  // UTILS_H
