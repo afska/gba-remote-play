@@ -112,17 +112,19 @@ reset:
 }
 
 inline void receiveDiffs(State& state) {
-  for (u32 i = 0; i < TEMPORAL_DIFF_SIZE / PACKET_SIZE; i++) {
-    u32 packet = spiSlave->transfer(0);
-    ((u32*)state.diffs)[i] = packet;
-    state.expectedPixels += HammingWeight(packet);
-  }
+  for (u32 i = 0; i < TEMPORAL_DIFF_SIZE / PACKET_SIZE; i++)
+    ((u32*)state.diffs)[i] = spiSlave->transfer(0);
+
+  for (u32 i = 0; i < TEMPORAL_DIFF_SIZE / PACKET_SIZE; i++)
+    state.expectedPixels += HammingWeight(((u32*)state.diffs)[i]);
 }
 
 inline void receivePalette(State& state) {
+  for (u32 i = 0; i < PALETTE_COLORS; i += COLORS_PER_PACKET)
+    ((u32*)state.palette)[i / 2] = spiSlave->transfer(0);
+
   for (u32 i = 0; i < PALETTE_COLORS; i += COLORS_PER_PACKET) {
-    u32 packet = spiSlave->transfer(0);
-    ((u32*)state.palette)[i / 2] = packet;
+    u32 packet = ((u32*)state.palette)[i / 2];
     colorIndexBuffer[FIRST_COLOR(packet)] = i;
     colorIndexBuffer[SECOND_COLOR(packet)] = i + 1;
   }
@@ -137,10 +139,11 @@ inline void receivePixels(State& state) {
     ((u32*)vid_page)[addressOf(cursor)] = packet;
     cursor += PIXELS_PER_PACKET;
   }
+
+  decompressImage(state);
 }
 
 inline void onVBlank(State& state) {
-  decompressImage(state);
   dma3_cpy(pal_bg_mem, state.palette, sizeof(COLOR) * PALETTE_COLORS);
   state.lastBuffer = (u16*)vid_page;
   vid_flip();
