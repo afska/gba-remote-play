@@ -110,8 +110,9 @@ reset:
 }
 
 inline void receiveDiffs(State& state) {
+  u16 keys = pressedKeys();
   for (u32 i = 0; i < TEMPORAL_DIFF_SIZE / PACKET_SIZE; i++)
-    ((u32*)state.diffs)[i] = spiSlave->transfer(0);
+    ((u32*)state.diffs)[i] = spiSlave->transfer(keys);
   state.expectedPixels = spiSlave->transfer(0);
 }
 
