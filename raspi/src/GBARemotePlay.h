@@ -10,6 +10,7 @@
 #include "Protocol.h"
 #include "SPIMaster.h"
 #include "TemporalDiffBitArray.h"
+#include "VirtualGamepad.h"
 
 class GBARemotePlay {
  public:
@@ -17,6 +18,7 @@ class GBARemotePlay {
     spiMaster = new SPIMaster(SPI_MODE, SPI_FREQUENCY, SPI_DELAY_MICROSECONDS);
     frameBuffer = new FrameBuffer(RENDER_WIDTH, RENDER_HEIGHT);
     imageQuantizer = new ImageQuantizer();
+    virtualGamepad = new VirtualGamepad(VIRTUAL_GAMEPAD_NAME);
   }
 
   void run() {
@@ -49,12 +51,14 @@ class GBARemotePlay {
     delete spiMaster;
     delete frameBuffer;
     delete imageQuantizer;
+    delete virtualGamepad;
   }
 
  private:
   SPIMaster* spiMaster;
   FrameBuffer* frameBuffer;
   ImageQuantizer* imageQuantizer;
+  VirtualGamepad* virtualGamepad;
   Frame lastFrame = Frame{0};
 
   uint8_t* getRgbaPixels() {

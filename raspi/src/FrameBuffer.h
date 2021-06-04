@@ -75,14 +75,14 @@ class FrameBuffer {
 
   void openFrameBuffer() {
     fileDescriptor = open(FB_DEVFILE, O_RDWR);
-    if (fileDescriptor == -1) {
+    if (fileDescriptor < 0) {
       std::cout << "Error: cannot open framebuffer device\n";
       exit(21);
     }
   }
 
   void retrieveFixedScreenInformation() {
-    if (ioctl(fileDescriptor, FBIOGET_FSCREENINFO, &fixedInfo) == -1) {
+    if (ioctl(fileDescriptor, FBIOGET_FSCREENINFO, &fixedInfo) < 0) {
       std::cout << "Error: cannot read fixed information\n";
       exit(22);
     }
@@ -90,7 +90,7 @@ class FrameBuffer {
 
   void retrieveVariableScreenInformation(uint32_t expectedXRes,
                                          uint32_t expectedYRes) {
-    if (ioctl(fileDescriptor, FBIOGET_VSCREENINFO, &variableInfo) == -1) {
+    if (ioctl(fileDescriptor, FBIOGET_VSCREENINFO, &variableInfo) < 0) {
       std::cout << "Error: cannot read variable information\n";
       exit(23);
     }
