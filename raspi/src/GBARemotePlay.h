@@ -4,6 +4,7 @@
 #include <stdlib.h>
 #include "Config.h"
 #include "FrameBuffer.h"
+#include "HammingWeight.h"
 #include "ImageQuantizer.h"
 #include "PNGWriter.h"
 #include "Protocol.h"
@@ -84,8 +85,13 @@ class GBARemotePlay {
 
     DEBULOG("Sending diffs...");
 
-    for (int i = 0; i < TEMPORAL_DIFF_SIZE / PACKET_SIZE; i++)
-      spiMaster->transfer(((uint32_t*)diffs.data)[i]);
+    uint32_t expectedPixels = 0;
+    for (int i = 0; i < TEMPORAL_DIFF_SIZE / PACKET_SIZE; i++) {
+      uint32_t packet = ((uint32_t*)diffs.data)[i];
+      spiMaster->transfer(packet);
+      expectedPixels += HammingWeight(packet);
+    }
+    spiMaster->transfer(expectedPixels);
 
     DEBULOG("Sending palette command...");
 

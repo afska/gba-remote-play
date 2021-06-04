@@ -1,9 +1,9 @@
 #ifndef HAMMING_WEIGHT_H
 #define HAMMING_WEIGHT_H
 
-#include <tonc.h>
+#include <stdint.h>
 
-const u32 HAMMING_WEIGHT_LUT[] = {
+const uint32_t HAMMING_WEIGHT_LUT[] = {
     0, 1, 1, 2, 1, 2, 2, 3, 1, 2, 2, 3, 2, 3, 3, 4, 1, 2, 2, 3, 2, 3, 3, 4,
     2, 3, 3, 4, 3, 4, 4, 5, 1, 2, 2, 3, 2, 3, 3, 4, 2, 3, 3, 4, 3, 4, 4, 5,
     2, 3, 3, 4, 3, 4, 4, 5, 3, 4, 4, 5, 4, 5, 5, 6, 1, 2, 2, 3, 2, 3, 3, 4,
@@ -16,7 +16,7 @@ const u32 HAMMING_WEIGHT_LUT[] = {
     4, 5, 5, 6, 5, 6, 6, 7, 3, 4, 4, 5, 4, 5, 5, 6, 4, 5, 5, 6, 5, 6, 6, 7,
     4, 5, 5, 6, 5, 6, 6, 7, 5, 6, 6, 7, 6, 7, 7, 8};
 
-inline u32 HammingWeight(u32 value) {
+inline uint32_t HammingWeight(uint32_t value) {
   return HAMMING_WEIGHT_LUT[value & 0xff] +
          HAMMING_WEIGHT_LUT[(value >> 8) & 0xff] +
          HAMMING_WEIGHT_LUT[(value >> 16) & 0xff] +
