@@ -3,6 +3,7 @@
 
 #define RENDER_WIDTH 120
 #define RENDER_HEIGHT 80
+#define RENDER_SCALE 2
 #define PALETTE_COLORS 256
 #define PACKET_SIZE 4
 #define COLOR_SIZE 2

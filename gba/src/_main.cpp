@@ -18,7 +18,7 @@ typedef struct {
   u32 expectedPixels;
   COLOR palette[PALETTE_COLORS];
   u8 diffs[TEMPORAL_DIFF_SIZE];
-  u8* lastBuffer;
+  u16* lastBuffer;
   bool isReadyToDraw;
 } State;
 
@@ -64,8 +64,9 @@ int main() {
 #endif
 
 inline void init() {
-  ENABLE_MODE4_AND_BG2();
-  OVERCLOCK_IWRAM();
+  enableMode4AndBackground2();
+  overclockIWRAM();
+  enable2xMosaic();
 }
 
 CODE_IWRAM void mainLoop() {
@@ -73,7 +74,7 @@ reset:
   State state;
   state.blindFrames = 0;
   state.expectedPixels = 0;
-  state.lastBuffer = (u8*)vid_page;
+  state.lastBuffer = (u16*)vid_page;
   state.isReadyToDraw = false;
   spiSlave->transfer(CMD_RESET);
 
@@ -141,30 +142,25 @@ inline void receivePixels(State& state) {
 inline void onVBlank(State& state) {
   decompressImage(state);
   dma3_cpy(pal_bg_mem, state.palette, sizeof(COLOR) * PALETTE_COLORS);
-  state.lastBuffer = (u8*)vid_page;
+  state.lastBuffer = (u16*)vid_page;
   vid_flip();
   state.isReadyToDraw = false;
 }
 
 inline void decompressImage(State& state) {
   u32 compressedBufferEnd = state.expectedPixels - 1;
-  for (int cursor = TOTAL_PIXELS - 1; cursor >= 0;
-       cursor -= PIXELS_PER_PACKET) {
-    u32 value = 0;
-
-    for (int byte = 0; byte < PIXELS_PER_PACKET; byte++) {
-      u32 shift = 8 * (PIXELS_PER_PACKET - 1 - byte);
-      if (hasPixelChanged(state, cursor - byte)) {
-        value |= m4Get(compressedBufferEnd) << shift;
-        compressedBufferEnd--;
-      } else {
-        u8 oldColorIndex = state.lastBuffer[cursor - byte];
-        COLOR repeatedColor = pal_bg_mem[oldColorIndex];
-        value |= colorIndexBuffer[repeatedColor] << shift;
-      }
+  for (int cursor = TOTAL_PIXELS - 1; cursor >= 0; cursor--) {
+    if (hasPixelChanged(state, cursor)) {
+      m4_plot(x(cursor) * RENDER_SCALE, y(cursor) * RENDER_SCALE,
+              m4Get(compressedBufferEnd));
+      compressedBufferEnd--;
+    } else {
+      u8 oldColorIndex = m4GetXYFrom(state.lastBuffer, x(cursor) * RENDER_SCALE,
+                                     y(cursor) * RENDER_SCALE);
+      COLOR repeatedColor = pal_bg_mem[oldColorIndex];
+      m4_plot(x(cursor) * RENDER_SCALE, y(cursor) * RENDER_SCALE,
+              colorIndexBuffer[repeatedColor]);
     }
-
-    ((u32*)vid_page)[addressOf(cursor - 3)] = value;
   }
 }
 
