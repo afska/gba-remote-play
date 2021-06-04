@@ -178,6 +178,7 @@ inline bool sync(State& state, u32 local, u32 remote) {
     }
   }
 
+  state.blindFrames = 0;
   return true;
 }
 
