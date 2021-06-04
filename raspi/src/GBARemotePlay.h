@@ -143,11 +143,15 @@ class GBARemotePlay {
 
   bool sync(uint32_t local, uint32_t remote) {
     uint32_t packet = 0;
+    uint32_t lastPacket = 0;
     while ((packet = spiMaster->transfer(local)) != remote) {
       if (packet == CMD_RESET) {
         LOG("Reset!");
+        std::cout << std::hex << local << "\n";
+        std::cout << std::hex << lastPacket << "\n\n";
         return false;
       }
+      lastPacket = packet;
     }
 
     return true;
