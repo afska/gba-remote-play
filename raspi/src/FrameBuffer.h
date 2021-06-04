@@ -9,27 +9,18 @@
 #include <sys/ioctl.h>
 #include <unistd.h>
 #include <iostream>
-#include "Config.h"
 
 #define FB_DEVFILE "/dev/fb0"
 #define FB_BYTES_PER_PIXEL 4
-#define FB_IMAGE_MODE VC_IMAGE_RGBA32
+#define FB_IMAGE_MODE VC_IMAGE_ARGB8888
 
 class FrameBuffer {
  public:
-  FrameBuffer() {
+  FrameBuffer(uint32_t expectedXRes, uint32_t expectedYRes) {
     openFrameBuffer();
     retrieveFixedScreenInformation();
-    retrieveVariableScreenInformation();
+    retrieveVariableScreenInformation(expectedXRes, expectedYRes);
     allocateBuffer();
-
-    if (DEBUG) {
-      std::cout << "Resolution: " + std::to_string(variableInfo.xres) + "x" +
-                       std::to_string(variableInfo.yres) + "\n";
-      std::cout << "Buffer size: " + std::to_string(fixedInfo.smem_len) + "\n";
-      std::cout << "Line length: " + std::to_string(fixedInfo.line_length) +
-                       "\n";
-    }
 
     openPrimaryDisplay();
     createScreenResource();
@@ -42,6 +33,27 @@ class FrameBuffer {
                                    variableInfo.xres * FB_BYTES_PER_PIXEL);
 
     return buffer;
+  }
+
+  template <typename F>
+  inline void forEachPixel(F action) {
+    loadFrame();
+
+    for (int y = 0; y < variableInfo.yres; y++) {
+      for (int x = 0; x < variableInfo.xres; x++) {
+        size_t offset = x * FB_BYTES_PER_PIXEL + y * fixedInfo.line_length;
+        uint32_t pixel = *(uint32_t*)(buffer + offset);
+
+        uint32_t rMask = (1 << variableInfo.red.length) - 1;
+        uint32_t gMask = (1 << variableInfo.green.length) - 1;
+        uint32_t bMask = (1 << variableInfo.blue.length) - 1;
+        uint8_t r = (pixel >> variableInfo.red.offset) & rMask;
+        uint8_t g = (pixel >> variableInfo.green.offset) & gMask;
+        uint8_t b = (pixel >> variableInfo.blue.offset) & bMask;
+
+        action(x, y, r, g, b);
+      }
+    }
   }
 
   ~FrameBuffer() {
@@ -76,7 +88,8 @@ class FrameBuffer {
     }
   }
 
-  void retrieveVariableScreenInformation() {
+  void retrieveVariableScreenInformation(uint32_t expectedXRes,
+                                         uint32_t expectedYRes) {
     if (ioctl(fileDescriptor, FBIOGET_VSCREENINFO, &variableInfo) == -1) {
       std::cout << "Error: cannot read variable information\n";
       exit(23);
@@ -87,10 +100,19 @@ class FrameBuffer {
       exit(24);
     }
 
+    if (variableInfo.xres != expectedXRes ||
+        variableInfo.yres != expectedYRes) {
+      std::cout
+          << "Error: frame buffer resolution doesn't match render resolution\n";
+      std::cout << "(frame buffer is " + std::to_string(variableInfo.xres) +
+                       "x" + std::to_string(variableInfo.yres) + ")\n";
+      exit(25);
+    }
+
     if (variableInfo.xres % FB_BYTES_PER_PIXEL != 0 ||
         variableInfo.yres % FB_BYTES_PER_PIXEL != 0) {
       std::cout << "Error: resolution must be word-aligned\n";
-      exit(25);
+      exit(26);
     }
   }
 
@@ -99,7 +121,7 @@ class FrameBuffer {
     if (buffer == NULL) {
       std::cout << "Error: malloc(" + std::to_string(fixedInfo.smem_len) +
                        ") failed\n";
-      exit(26);
+      exit(27);
     }
   }
 
@@ -109,7 +131,7 @@ class FrameBuffer {
     display = vc_dispmanx_display_open(0);
     if (display == DISPMANX_NO_HANDLE) {
       std::cout << "Error: cannot open primary display\n";
-      exit(27);
+      exit(28);
     }
   }
 
@@ -118,7 +140,7 @@ class FrameBuffer {
         FB_IMAGE_MODE, variableInfo.xres, variableInfo.yres, &image_prt);
     if (screenResource == DISPMANX_NO_HANDLE) {
       printf("Error: cannot create screen resource\n");
-      exit(28);
+      exit(29);
     }
   }
 

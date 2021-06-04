@@ -6,17 +6,13 @@
 #include <byteswap.h>
 #include "bcm2835.h"
 
-#define SPI_CHANNEL 0
-#define SPI_MODE 3
-#define SPI_FREQUENCY 1600000
-#define SPI_DELAY_MICROSECONDS 5
-
 class SPIMaster {
  public:
-  SPIMaster() {
+  SPIMaster(uint8_t mode, uint32_t frequency, uint32_t delayMicroseconds) {
     initialize();
-    bcm2835_spi_set_speed_hz(SPI_FREQUENCY);
-    bcm2835_spi_setDataMode(SPI_MODE);
+    bcm2835_spi_set_speed_hz(frequency);
+    bcm2835_spi_setDataMode(mode);
+    this->delayMicroseconds = delayMicroseconds;
   }
 
   uint32_t transfer(uint32_t value) {
@@ -26,7 +22,7 @@ class SPIMaster {
     } x;
 
     x.u32 = bswap_32(value);
-    bcm2835_delayMicroseconds(SPI_DELAY_MICROSECONDS);
+    bcm2835_delayMicroseconds(delayMicroseconds);
     bcm2835_spi_transfern(x.uc, 4);
     return bswap_32(x.u32);
   }
@@ -34,6 +30,8 @@ class SPIMaster {
   ~SPIMaster() { bcm2835_spi_end(); }
 
  private:
+  uint32_t delayMicroseconds;
+
   void initialize() {
     if (!bcm2835_init()) {
       std::cout << "Error: cannot initialize SPI\n";

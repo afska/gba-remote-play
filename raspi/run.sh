@@ -3,6 +3,7 @@
 OUTPUT="out/raspi.run"
 
 rm -f "$OUTPUT"
+
 g++ \
   -Ofast \
   -I./lib/include \
@@ -13,8 +14,10 @@ g++ \
   -L./lib \
   -L/opt/vc/lib \
   -lbcm_host \
+  ./lib/code/** \
   ./src/** \
   ./lib/libbcm2835.a \
   ./lib/libimagequant.a \
   -o "$OUTPUT"
+
 "$OUTPUT"

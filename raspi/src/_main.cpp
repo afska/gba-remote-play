@@ -1,9 +1,9 @@
-#include <iostream>
 #include "Benchmark.h"
+#include "Config.h"
 #include "GBARemotePlay.h"
 
 int main() {
-  std::cout << "Starting...\n\n";
+  LOG("Starting...\n");
 
 #ifdef BENCHMARK
   Benchmark::main();

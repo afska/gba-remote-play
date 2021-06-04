@@ -7,5 +7,6 @@ build/
 *.run
 *.gba
 *.sav
+debug.png
 
 src/data/_compiled_files
