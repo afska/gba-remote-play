@@ -19,11 +19,14 @@ class GBARemotePlay {
     frameBuffer = new FrameBuffer(RENDER_WIDTH, RENDER_HEIGHT);
     imageQuantizer = new ImageQuantizer();
     virtualGamepad = new VirtualGamepad(VIRTUAL_GAMEPAD_NAME);
+    lastFrame = Frame{0};
+    resetKeys();
   }
 
   void run() {
   reset:
     lastFrame.clean();
+    resetKeys();
     spiMaster->transfer(CMD_RESET);
 
     while (true) {
@@ -59,7 +62,9 @@ class GBARemotePlay {
   FrameBuffer* frameBuffer;
   ImageQuantizer* imageQuantizer;
   VirtualGamepad* virtualGamepad;
-  Frame lastFrame = Frame{0};
+  Frame lastFrame;
+  uint32_t input;
+  uint32_t inputValidations;
 
   uint8_t* getRgbaPixels() {
     uint32_t* rgbaPixels = (uint32_t*)malloc(RENDER_WIDTH * RENDER_HEIGHT * 4);
@@ -89,28 +94,15 @@ class GBARemotePlay {
 
     DEBULOG("Exchanging diffs for keys...");
 
-    uint32_t pressedKeys = 0;
-    uint32_t pressedKeysCount = 0;
     uint32_t expectedPixels = 0;
     for (int i = 0; i < TEMPORAL_DIFF_SIZE / PACKET_SIZE; i++) {
       uint32_t packet = ((uint32_t*)diffs.data)[i];
       uint32_t receivedKeys = spiMaster->transfer(packet);
 
       expectedPixels += HammingWeight(packet);
-      if (pressedKeysCount < PRESSED_KEYS_MIN_VALIDATIONS) {
-        if (pressedKeys != receivedKeys) {
-          pressedKeys = receivedKeys;
-          pressedKeysCount = 0;
-        } else
-          pressedKeysCount++;
-      }
+      processKeys(receivedKeys);
     }
     spiMaster->transfer(expectedPixels);
-
-    if (pressedKeysCount == PRESSED_KEYS_MIN_VALIDATIONS) {
-      DEBULOG("Updating pressed keys...");
-      virtualGamepad->setKeys(pressedKeys);
-    }
 
     DEBULOG("Sending palette command...");
 
@@ -119,8 +111,11 @@ class GBARemotePlay {
 
     DEBULOG("Sending palette...");
 
-    for (int i = 0; i < PALETTE_COLORS / COLORS_PER_PACKET; i++)
-      spiMaster->transfer(((uint32_t*)frame.raw15bppPalette)[i]);
+    for (int i = 0; i < PALETTE_COLORS / COLORS_PER_PACKET; i++) {
+      uint32_t packet = ((uint32_t*)frame.raw15bppPalette)[i];
+      uint32_t receivedKeys = spiMaster->transfer(packet);
+      processKeys(receivedKeys);
+    }
 
     DEBULOG("Sending pixels command...");
 
@@ -137,7 +132,8 @@ class GBARemotePlay {
 
         byte++;
         if (byte == PACKET_SIZE || i == frame.totalPixels - 1) {
-          spiMaster->transfer(outgoingPacket);
+          uint32_t receivedKeys = spiMaster->transfer(outgoingPacket);
+          processKeys(receivedKeys);
           outgoingPacket = 0;
           byte = 0;
         }
@@ -158,6 +154,24 @@ class GBARemotePlay {
     DEBULOG("Frame end!");
 
     return true;
+  }
+
+  void processKeys(uint16_t receivedKeys) {
+    if (input != receivedKeys) {
+      input = receivedKeys;
+      inputValidations = 0;
+    } else
+      inputValidations++;
+
+    if (inputValidations == PRESSED_KEYS_MIN_VALIDATIONS) {
+      virtualGamepad->setKeys(input);
+      resetKeys();
+    }
+  }
+
+  void resetKeys() {
+    input = 0xffffffff;
+    inputValidations = 0;
   }
 
   bool sync(uint32_t local, uint32_t remote) {
