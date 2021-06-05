@@ -2,6 +2,7 @@
 #define GBA_REMOTE_PLAY_H
 
 #include <stdlib.h>
+#include <chrono>
 #include "Config.h"
 #include "FrameBuffer.h"
 #include "HammingWeight.h"
@@ -29,6 +30,11 @@ class GBARemotePlay {
     resetKeys();
     spiMaster->transfer(CMD_RESET);
 
+#ifdef PROFILE
+    auto startTime = std::chrono::high_resolution_clock::now();
+    uint32_t frames = 0;
+#endif
+
     while (true) {
 #ifdef DEBUG
       LOG("Waiting...");
@@ -46,6 +52,19 @@ class GBARemotePlay {
 
       lastFrame.clean();
       lastFrame = frame;
+
+#ifdef PROFILE
+      frames++;
+      uint32_t elapsedTime =
+          std::chrono::duration_cast<std::chrono::milliseconds>(
+              std::chrono::high_resolution_clock::now() - startTime)
+              .count();
+      if (elapsedTime >= 1000) {
+        std::cout << "--- " + std::to_string(frames) + " frames ---\n";
+        startTime = std::chrono::high_resolution_clock::now();
+        frames = 0;
+      }
+#endif
     }
   }
 

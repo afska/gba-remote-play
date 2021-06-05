@@ -2,6 +2,7 @@
 #define CONFIG_H
 
 // #define DEBUG
+// #define PROFILE
 // #define BENCHMARK
 
 #include "Utils.h"
