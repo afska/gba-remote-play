@@ -83,17 +83,45 @@ class GBARemotePlay {
       return false;
 
     DEBULOG("Sending frame start command...");
-
     if (!sync(CMD_FRAME_START_RPI, CMD_FRAME_START_GBA))
       return false;
 
     DEBULOG("Calculating diffs...");
-
     TemporalDiffBitArray diffs;
     diffs.initialize(frame, lastFrame);
 
-    DEBULOG("Exchanging diffs for keys...");
+    DEBULOG("Sending diffs...");
+    sendDiffs(diffs);
 
+    DEBULOG("Sending palette command...");
+    if (!sync(CMD_PALETTE_START_RPI, CMD_PALETTE_START_GBA))
+      return false;
+
+    DEBULOG("Sending palette...");
+    sendPalette(frame);
+
+    DEBULOG("Sending pixels command...");
+    if (!sync(CMD_PIXELS_START_RPI, CMD_PIXELS_START_GBA))
+      return false;
+
+    DEBULOG("Sending pixels...");
+    sendPixels(frame);
+
+    DEBULOG("Sending end command...");
+    if (!sync(CMD_FRAME_END_RPI, CMD_FRAME_END_GBA))
+      return false;
+
+#ifdef DEBUG
+    LOG("Writing debug PNG file...");
+    WritePNG("debug.png", frame.raw8BitPixels, frame.raw15bppPalette,
+             RENDER_WIDTH, RENDER_HEIGHT);
+    LOG("Frame end!");
+#endif
+
+    return true;
+  }
+
+  void sendDiffs(TemporalDiffBitArray& diffs) {
     uint32_t expectedPixels = 0;
     for (int i = 0; i < TEMPORAL_DIFF_SIZE / PACKET_SIZE; i++) {
       uint32_t packet = ((uint32_t*)diffs.data)[i];
@@ -103,27 +131,17 @@ class GBARemotePlay {
       processKeys(receivedKeys);
     }
     spiMaster->transfer(expectedPixels);
+  }
 
-    DEBULOG("Sending palette command...");
-
-    if (!sync(CMD_PALETTE_START_RPI, CMD_PALETTE_START_GBA))
-      return false;
-
-    DEBULOG("Sending palette...");
-
+  void sendPalette(Frame& frame) {
     for (int i = 0; i < PALETTE_COLORS / COLORS_PER_PACKET; i++) {
       uint32_t packet = ((uint32_t*)frame.raw15bppPalette)[i];
       uint32_t receivedKeys = spiMaster->transfer(packet);
       processKeys(receivedKeys);
     }
+  }
 
-    DEBULOG("Sending pixels command...");
-
-    if (!sync(CMD_PIXELS_START_RPI, CMD_PIXELS_START_GBA))
-      return false;
-
-    DEBULOG("Sending pixels...");
-
+  void sendPixels(Frame& frame) {
     uint32_t outgoingPacket = 0;
     uint8_t byte = 0;
     for (int i = 0; i < frame.totalPixels; i++) {
@@ -139,21 +157,6 @@ class GBARemotePlay {
         }
       }
     }
-
-    DEBULOG("Sending end command...");
-
-    if (!sync(CMD_FRAME_END_RPI, CMD_FRAME_END_GBA))
-      return false;
-
-#ifdef DEBUG
-    LOG("Writing debug PNG file...");
-    WritePNG("debug.png", frame.raw8BitPixels, frame.raw15bppPalette,
-             RENDER_WIDTH, RENDER_HEIGHT);
-#endif
-
-    DEBULOG("Frame end!");
-
-    return true;
   }
 
   void processKeys(uint16_t receivedKeys) {
