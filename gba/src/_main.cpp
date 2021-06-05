@@ -117,13 +117,15 @@ inline void receiveDiffs(State& state) {
 }
 
 inline void receivePalette(State& state) {
+  u16 keys = pressedKeys();
   for (u32 i = 0; i < PALETTE_COLORS; i += COLORS_PER_PACKET)
-    ((u32*)state.palette)[i / COLORS_PER_PACKET] = spiSlave->transfer(0);
+    ((u32*)state.palette)[i / COLORS_PER_PACKET] = spiSlave->transfer(keys);
 }
 
 inline void receivePixels(State& state) {
+  u16 keys = pressedKeys();
   for (u32 i = 0; i < state.expectedPixels; i += PIXELS_PER_PACKET)
-    ((u32*)vid_page)[i / PIXELS_PER_PACKET] = spiSlave->transfer(0);
+    ((u32*)vid_page)[i / PIXELS_PER_PACKET] = spiSlave->transfer(keys);
 }
 
 inline void onVBlank(State& state) {
