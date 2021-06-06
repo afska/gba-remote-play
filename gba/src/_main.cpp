@@ -18,7 +18,6 @@ typedef struct {
   COLOR palette[PALETTE_COLORS];
   u8 diffs[TEMPORAL_DIFF_SIZE];
   u16* lastBuffer;
-  bool isReadyToDraw;
 } State;
 
 // ---------
@@ -42,7 +41,7 @@ void mainLoop();
 void receiveDiffs(State& state);
 void receivePalette(State& state);
 void receivePixels(State& state);
-void onVBlank(State& state);
+void draw(State& state);
 void decompressImage(State& state);
 bool sync(State& state, u32 local, u32 remote);
 bool hasPixelChanged(State& state, u32 cursor);
@@ -73,7 +72,6 @@ reset:
   state.blindFrames = 0;
   state.expectedPixels = 0;
   state.lastBuffer = (u16*)vid_page;
-  state.isReadyToDraw = false;
   spiSlave->transfer(CMD_RESET);
 
   while (true) {
@@ -98,8 +96,7 @@ reset:
     if (!sync(state, CMD_FRAME_END_GBA, CMD_FRAME_END_RPI))
       goto reset;
 
-    state.isReadyToDraw = true;
-    onVBlank(state);
+    draw(state);
   }
 }
 
@@ -121,12 +118,11 @@ inline void receivePixels(State& state) {
     ((u32*)vid_page)[i] = spiSlave->transfer(0);
 }
 
-inline void onVBlank(State& state) {
+inline void draw(State& state) {
   decompressImage(state);
   dma3_cpy(pal_bg_mem, state.palette, sizeof(COLOR) * PALETTE_COLORS);
   state.lastBuffer = (u16*)vid_page;
   vid_flip();
-  state.isReadyToDraw = false;
 }
 
 inline void decompressImage(State& state) {
