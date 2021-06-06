@@ -10,7 +10,7 @@
 // -----
 
 SPISlave* spiSlave = new SPISlave();
-DATA_EWRAM u8 colorIndexBuffer[GBA_MAX_COLORS];
+DATA_EWRAM u8 colorIndexByColor[GBA_MAX_COLORS];
 
 typedef struct {
   u32 blindFrames;
@@ -138,8 +138,8 @@ inline void onVBlank(State& state) {
 inline void decompressImage(State& state) {
   for (u32 i = 0; i < PALETTE_COLORS; i += COLORS_PER_PACKET) {
     u32 packet = ((u32*)state.palette)[i / 2];
-    colorIndexBuffer[FIRST_COLOR(packet)] = i;
-    colorIndexBuffer[SECOND_COLOR(packet)] = i + 1;
+    colorIndexByColor[FIRST_COLOR(packet)] = i;
+    colorIndexByColor[SECOND_COLOR(packet)] = i + 1;
   }
 
   u32 compressedBufferEnd = state.expectedPixels - 1;
@@ -150,7 +150,7 @@ inline void decompressImage(State& state) {
     } else {
       u8 oldColorIndex = m4GetXYFrom(state.lastBuffer, x(cursor), y(cursor));
       COLOR repeatedColor = pal_bg_mem[oldColorIndex];
-      m4_plot(x(cursor), y(cursor), colorIndexBuffer[repeatedColor]);
+      m4_plot(x(cursor), y(cursor), colorIndexByColor[repeatedColor]);
     }
   }
 }
