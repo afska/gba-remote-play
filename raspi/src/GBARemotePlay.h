@@ -43,12 +43,14 @@ class GBARemotePlay {
       std::cin >> _input;
 #endif
 
-      uint8_t* rgbaPixels = getRgbaPixels();
+      uint32_t rgbaPixels[TOTAL_PIXELS];
+      fillRGBAPixels(rgbaPixels);
       auto frame = imageQuantizer->quantize((uint8_t*)rgbaPixels, RENDER_WIDTH,
                                             RENDER_HEIGHT, QUANTIZER_SPEED);
-      free(rgbaPixels);
+      TemporalDiffBitArray diffs;
+      diffs.initialize(frame, lastFrame);
 
-      if (!send(frame))
+      if (!send(frame, diffs))
         goto reset;
 
       lastFrame.clean();
@@ -86,29 +88,13 @@ class GBARemotePlay {
   uint32_t input;
   uint32_t inputValidations;
 
-  uint8_t* getRgbaPixels() {
-    uint32_t* rgbaPixels = (uint32_t*)malloc(RENDER_WIDTH * RENDER_HEIGHT * 4);
-
-    frameBuffer->forEachPixel(
-        [rgbaPixels](int x, int y, uint8_t r, uint8_t g, uint8_t b) {
-          rgbaPixels[y * RENDER_WIDTH + x] =
-              (0xff << 24) | (b << 16) | (g << 8) | r;
-        });
-
-    return (uint8_t*)rgbaPixels;
-  }
-
-  bool send(Frame frame) {
+  bool send(Frame& frame, TemporalDiffBitArray& diffs) {
     if (!frame.hasData())
       return false;
 
     DEBULOG("Sending frame start command...");
     if (!sync(CMD_FRAME_START_RPI, CMD_FRAME_START_GBA))
       return false;
-
-    DEBULOG("Calculating diffs...");
-    TemporalDiffBitArray diffs;
-    diffs.initialize(frame, lastFrame);
 
     DEBULOG("Sending diffs...");
     sendDiffs(diffs);
@@ -219,6 +205,14 @@ class GBARemotePlay {
     }
 
     return true;
+  }
+
+  void fillRGBAPixels(uint32_t* rgbaPixels) {
+    frameBuffer->forEachPixel(
+        [rgbaPixels](int x, int y, uint8_t r, uint8_t g, uint8_t b) {
+          rgbaPixels[y * RENDER_WIDTH + x] =
+              (0xff << 24) | (b << 16) | (g << 8) | r;
+        });
   }
 };
 
