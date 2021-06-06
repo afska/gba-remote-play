@@ -42,7 +42,7 @@ class GBARemotePlay {
       std::cin >> _input;
 #endif
 
-#ifdef PROFILE
+#ifdef PROFILE_VERBOSE
       auto frameGenerationStartTime = PROFILE_START();
 #endif
 
@@ -53,7 +53,7 @@ class GBARemotePlay {
       TemporalDiffBitArray diffs;
       diffs.initialize(frame, lastFrame);
 
-#ifdef PROFILE
+#ifdef PROFILE_VERBOSE
       auto frameGenerationElapsedTime = PROFILE_END(frameGenerationStartTime);
       auto frameTransferStartTime = PROFILE_START();
 #endif
@@ -64,13 +64,15 @@ class GBARemotePlay {
       lastFrame.clean();
       lastFrame = frame;
 
-#ifdef PROFILE
-      frames++;
+#ifdef PROFILE_VERBOSE
       auto frameTransferElapsedTime = PROFILE_END(frameTransferStartTime);
       std::cout << "(build: " + std::to_string(frameGenerationElapsedTime) +
                        "ms, transfer: " +
                        std::to_string(frameTransferElapsedTime) + "ms)\n";
+#endif
 
+#ifdef PROFILE
+      frames++;
       uint32_t elapsedTime = PROFILE_END(startTime);
       if (elapsedTime >= 1000) {
         std::cout << "--- " + std::to_string(frames) + " frames ---\n";
@@ -102,9 +104,18 @@ class GBARemotePlay {
     if (!frame.hasData())
       return false;
 
+#ifdef PROFILE_VERBOSE
+    auto idleStartTime = PROFILE_START();
+#endif
+
     DEBULOG("Sending frame start command...");
     if (!sync(CMD_FRAME_START_RPI, CMD_FRAME_START_GBA))
       return false;
+
+#ifdef PROFILE_VERBOSE
+    auto idleElapsedTime = PROFILE_END(idleStartTime);
+    std::cout << "  <" + std::to_string(idleElapsedTime) + "ms idle>\n";
+#endif
 
     DEBULOG("Sending diffs...");
     sendDiffs(diffs);

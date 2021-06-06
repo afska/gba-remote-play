@@ -2,6 +2,7 @@
 #define CONFIG_H
 
 #define PROFILE
+// #define PROFILE_VERBOSE
 // #define DEBUG
 // #define BENCHMARK
 
