@@ -123,9 +123,8 @@ inline void receivePalette(State& state) {
 }
 
 inline void receivePixels(State& state) {
-  u16 keys = pressedKeys();
   for (u32 i = 0; i < state.expectedPixels / PIXELS_PER_PACKET; i++)
-    ((u32*)vid_page)[i] = spiSlave->transfer(keys);
+    ((u32*)vid_page)[i] = spiSlave->transfer(0);
 }
 
 inline void onVBlank(State& state) {
