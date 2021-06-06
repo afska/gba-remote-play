@@ -16,12 +16,14 @@
 
 class SPISlave {
  public:
-  u32 transfer(u32 value) {
+  SPISlave() {
     setNormalMode();
     set32BitPackets();
     setSlaveMode();
     disableTransfer();
+  }
 
+  u32 transfer(u32 value) {
     setData(value);
     enableTransfer();
     startTransfer();
