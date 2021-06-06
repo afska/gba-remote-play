@@ -77,13 +77,6 @@ reset:
   spiSlave->transfer(CMD_RESET);
 
   while (true) {
-    if (state.isReadyToDraw) {
-      if (IS_VBLANK)
-        onVBlank(state);
-      else
-        continue;
-    }
-
     state.blindFrames = 0;
     state.expectedPixels = 0;
 
@@ -106,6 +99,7 @@ reset:
       goto reset;
 
     state.isReadyToDraw = true;
+    onVBlank(state);
   }
 }
 
