@@ -2,7 +2,6 @@
 #define GBA_REMOTE_PLAY_H
 
 #include <stdlib.h>
-#include <chrono>
 #include "Config.h"
 #include "FrameBuffer.h"
 #include "HammingWeight.h"
@@ -32,7 +31,7 @@ class GBARemotePlay {
     spiMaster->send(CMD_RESET);
 
 #ifdef PROFILE
-    auto startTime = std::chrono::high_resolution_clock::now();
+    auto startTime = PROFILE_START();
     uint32_t frames = 0;
 #endif
 
@@ -43,12 +42,21 @@ class GBARemotePlay {
       std::cin >> _input;
 #endif
 
+#ifdef PROFILE
+      auto frameGenerationStartTime = PROFILE_START();
+#endif
+
       uint32_t rgbaPixels[TOTAL_PIXELS];
       fillRGBAPixels(rgbaPixels);
       auto frame = imageQuantizer->quantize((uint8_t*)rgbaPixels, RENDER_WIDTH,
                                             RENDER_HEIGHT, QUANTIZER_SPEED);
       TemporalDiffBitArray diffs;
       diffs.initialize(frame, lastFrame);
+
+#ifdef PROFILE
+      auto frameGenerationElapsedTime = PROFILE_END(frameGenerationStartTime);
+      auto frameTransferStartTime = PROFILE_START();
+#endif
 
       if (!send(frame, diffs))
         goto reset;
@@ -58,13 +66,15 @@ class GBARemotePlay {
 
 #ifdef PROFILE
       frames++;
-      uint32_t elapsedTime =
-          std::chrono::duration_cast<std::chrono::milliseconds>(
-              std::chrono::high_resolution_clock::now() - startTime)
-              .count();
+      auto frameTransferElapsedTime = PROFILE_END(frameTransferStartTime);
+      std::cout << "(build: " + std::to_string(frameGenerationElapsedTime) +
+                       "ms, transfer: " +
+                       std::to_string(frameTransferElapsedTime) + "ms)\n";
+
+      uint32_t elapsedTime = PROFILE_END(startTime);
       if (elapsedTime >= 1000) {
         std::cout << "--- " + std::to_string(frames) + " frames ---\n";
-        startTime = std::chrono::high_resolution_clock::now();
+        startTime = PROFILE_START();
         frames = 0;
       }
 #endif
