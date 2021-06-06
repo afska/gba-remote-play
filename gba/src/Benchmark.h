@@ -6,9 +6,6 @@
 #include <tonc.h>
 #include <string>
 
-#define BENCHMARK_MIN_SUCCESS 50000
-#define BENCHMARK_MAX_ERROR 5
-
 namespace Benchmark {
 
 // inline void log(std::string text) {
@@ -30,20 +27,12 @@ inline void onVBlank(State& state) {
     //   std::to_string(state.goodPackets) + " vs " +
     //   std::to_string(state.badPackets)
     // );
-    m3_plot(20, 80,
-            state.goodPackets >= BENCHMARK_MIN_SUCCESS + 5000 ? CLR_GREEN
-                                                              : CLR_RED);
-    m3_plot(30, 80,
-            state.goodPackets >= BENCHMARK_MIN_SUCCESS + 10000 ? CLR_GREEN
-                                                               : CLR_RED);
-    m3_plot(40, 80,
-            state.goodPackets >= BENCHMARK_MIN_SUCCESS + 15000 ? CLR_GREEN
-                                                               : CLR_RED);
-    m3_plot(50, 80,
-            state.goodPackets >= BENCHMARK_MIN_SUCCESS + 20000 ? CLR_GREEN
-                                                               : CLR_RED);
-    m3_plot(220, 80,
-            state.badPackets > BENCHMARK_MAX_ERROR ? CLR_RED : CLR_GREEN);
+    m3_plot(20, 80, state.goodPackets >= 50000 ? CLR_GREEN : CLR_RED);
+    m3_plot(30, 80, state.goodPackets >= 55000 ? CLR_GREEN : CLR_RED);
+    m3_plot(40, 80, state.goodPackets >= 60000 ? CLR_GREEN : CLR_RED);
+    m3_plot(50, 80, state.goodPackets >= 65000 ? CLR_GREEN : CLR_RED);
+    m3_plot(60, 80, state.goodPackets >= 67500 ? CLR_GREEN : CLR_RED);
+    m3_plot(220, 80, state.badPackets > 5 ? CLR_RED : CLR_GREEN);
     state.frame = 0;
     state.goodPackets = 0;
     state.badPackets = 0;
