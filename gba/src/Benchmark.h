@@ -31,7 +31,17 @@ inline void onVBlank(State& state) {
     //   std::to_string(state.badPackets)
     // );
     m3_plot(20, 80,
-            state.goodPackets >= BENCHMARK_MIN_SUCCESS ? CLR_GREEN : CLR_RED);
+            state.goodPackets >= BENCHMARK_MIN_SUCCESS + 5000 ? CLR_GREEN
+                                                              : CLR_RED);
+    m3_plot(30, 80,
+            state.goodPackets >= BENCHMARK_MIN_SUCCESS + 10000 ? CLR_GREEN
+                                                               : CLR_RED);
+    m3_plot(40, 80,
+            state.goodPackets >= BENCHMARK_MIN_SUCCESS + 15000 ? CLR_GREEN
+                                                               : CLR_RED);
+    m3_plot(50, 80,
+            state.goodPackets >= BENCHMARK_MIN_SUCCESS + 20000 ? CLR_GREEN
+                                                               : CLR_RED);
     m3_plot(220, 80,
             state.badPackets > BENCHMARK_MAX_ERROR ? CLR_RED : CLR_GREEN);
     state.frame = 0;
