@@ -16,7 +16,8 @@
 class GBARemotePlay {
  public:
   GBARemotePlay() {
-    spiMaster = new SPIMaster(SPI_MODE, SPI_FREQUENCY, SPI_DELAY_MICROSECONDS);
+    spiMaster = new SPIMaster(SPI_MODE, SPI_SLOW_FREQUENCY, SPI_FAST_FREQUENCY,
+                              SPI_DELAY_MICROSECONDS);
     frameBuffer = new FrameBuffer(RENDER_WIDTH, RENDER_HEIGHT);
     imageQuantizer = new ImageQuantizer();
     virtualGamepad = new VirtualGamepad(VIRTUAL_GAMEPAD_NAME);
@@ -28,7 +29,7 @@ class GBARemotePlay {
   reset:
     lastFrame.clean();
     resetKeys();
-    spiMaster->transfer(CMD_RESET);
+    spiMaster->send(CMD_RESET);
 
 #ifdef PROFILE
     auto startTime = std::chrono::high_resolution_clock::now();
@@ -142,21 +143,30 @@ class GBARemotePlay {
 
   void sendDiffs(TemporalDiffBitArray& diffs) {
     uint32_t expectedPixels = 0;
+
     for (int i = 0; i < TEMPORAL_DIFF_SIZE / PACKET_SIZE; i++) {
       uint32_t packet = ((uint32_t*)diffs.data)[i];
-      uint32_t receivedKeys = spiMaster->transfer(packet);
-
       expectedPixels += HammingWeight(packet);
-      processKeys(receivedKeys);
+
+      if (i < PRESSED_KEYS_REPETITIONS) {
+        uint32_t receivedKeys = spiMaster->exchange(packet);
+        processKeys(receivedKeys);
+      } else
+        spiMaster->send(packet);
     }
-    spiMaster->transfer(expectedPixels);
+
+    spiMaster->send(expectedPixels);
   }
 
   void sendPalette(Frame& frame) {
     for (int i = 0; i < PALETTE_COLORS / COLORS_PER_PACKET; i++) {
       uint32_t packet = ((uint32_t*)frame.raw15bppPalette)[i];
-      uint32_t receivedKeys = spiMaster->transfer(packet);
-      processKeys(receivedKeys);
+
+      if (i < PRESSED_KEYS_REPETITIONS) {
+        uint32_t receivedKeys = spiMaster->exchange(packet);
+        processKeys(receivedKeys);
+      } else
+        spiMaster->send(packet);
     }
   }
 
@@ -169,8 +179,7 @@ class GBARemotePlay {
 
         byte++;
         if (byte == PACKET_SIZE || i == frame.totalPixels - 1) {
-          uint32_t receivedKeys = spiMaster->transfer(outgoingPacket);
-          processKeys(receivedKeys);
+          spiMaster->send(outgoingPacket);
           outgoingPacket = 0;
           byte = 0;
         }
@@ -199,7 +208,7 @@ class GBARemotePlay {
   bool sync(uint32_t local, uint32_t remote) {
     uint32_t packet = 0;
     uint32_t lastPacket = 0;
-    while ((packet = spiMaster->transfer(local)) != remote) {
+    while ((packet = spiMaster->exchange(local)) != remote) {
       if (packet == CMD_RESET) {
         LOG("Reset!");
         std::cout << std::hex << local << "\n";

@@ -7,13 +7,16 @@
 
 namespace Benchmark {
 
-auto spiMaster = new SPIMaster(SPI_MODE, SPI_FREQUENCY, SPI_DELAY_MICROSECONDS);
+auto spiMaster = new SPIMaster(SPI_MODE,
+                               SPI_SLOW_FREQUENCY,
+                               SPI_FAST_FREQUENCY,
+                               SPI_DELAY_MICROSECONDS);
 uint32_t goodPackets = 0;
 uint32_t badPackets = 0;
 
 inline void main() {
   while (true) {
-    uint32_t receivedPacket = spiMaster->transfer(0x98765432);
+    uint32_t receivedPacket = spiMaster->exchange(0x98765432);
 
     if (receivedPacket == 0x12345678)
       goodPackets++;
