@@ -46,7 +46,7 @@ class ImageQuantizer {
     size_t size = totalPixels;
     uint8_t* raw8bitPixels = (uint8_t*)malloc(size);
 
-    liq_set_dithering_level(result, 1.0);
+    liq_set_dithering_level(result, 0.0);
     liq_write_remapped_image(result, image, raw8bitPixels, size);
 
     return raw8bitPixels;
