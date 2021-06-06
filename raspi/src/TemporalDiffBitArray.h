@@ -7,10 +7,18 @@
 
 typedef struct {
   uint8_t data[TEMPORAL_DIFF_SIZE];
+  uint32_t expectedPixels;
 
   void initialize(Frame currentFrame, Frame previousFrame) {
-    for (int i = 0; i < TOTAL_PIXELS; i++)
-      setBit(i, currentFrame.hasPixelChanged(i, previousFrame));
+    expectedPixels = 0;
+
+    for (int i = 0; i < TOTAL_PIXELS; i++) {
+      if (currentFrame.hasPixelChanged(i, previousFrame)) {
+        setBit(i, true);
+        expectedPixels++;
+      } else
+        setBit(i, false);
+    }
   }
 
  private:

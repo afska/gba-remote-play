@@ -4,7 +4,6 @@
 #include <stdlib.h>
 #include "Config.h"
 #include "FrameBuffer.h"
-#include "HammingWeight.h"
 #include "ImageQuantizer.h"
 #include "PNGWriter.h"
 #include "Protocol.h"
@@ -149,11 +148,8 @@ class GBARemotePlay {
   }
 
   void sendDiffs(TemporalDiffBitArray& diffs) {
-    uint32_t expectedPixels = 0;
-
     for (int i = 0; i < TEMPORAL_DIFF_SIZE / PACKET_SIZE; i++) {
       uint32_t packet = ((uint32_t*)diffs.data)[i];
-      expectedPixels += HammingWeight(packet);
 
       if (i < PRESSED_KEYS_REPETITIONS) {
         uint32_t receivedKeys = spiMaster->exchange(packet);
@@ -162,7 +158,7 @@ class GBARemotePlay {
         spiMaster->send(packet);
     }
 
-    spiMaster->send(expectedPixels);
+    spiMaster->send(diffs.expectedPixels);
   }
 
   void sendPalette(Frame& frame) {
