@@ -7,7 +7,7 @@
 #include "libimagequant.h"
 
 #define QUANTIZER_MIN_SPEED 1
-#define QUANTIZER_MAX_SPEED 8
+#define QUANTIZER_MAX_SPEED 10
 #define QUANTIZER_8BIT_MAX_COLORS 256
 #define QUANTIZER_5BIT_MAX_COLORS 32
 
