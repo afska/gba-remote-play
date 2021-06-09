@@ -44,11 +44,17 @@ class GBARemotePlay {
 #endif
 
       auto frame = loadFrame();
+
+#ifdef PROFILE_VERBOSE
+      auto frameGenerationElapsedTime = PROFILE_END(frameGenerationStartTime);
+      auto frameDiffsStartTime = PROFILE_START();
+#endif
+
       TemporalDiffBitArray diffs;
       diffs.initialize(frame, lastFrame);
 
 #ifdef PROFILE_VERBOSE
-      auto frameGenerationElapsedTime = PROFILE_END(frameGenerationStartTime);
+      auto frameDiffsElapsedTime = PROFILE_END(frameDiffsStartTime);
       auto frameTransferStartTime = PROFILE_START();
 #endif
 
@@ -61,6 +67,7 @@ class GBARemotePlay {
 #ifdef PROFILE_VERBOSE
       auto frameTransferElapsedTime = PROFILE_END(frameTransferStartTime);
       std::cout << "(build: " + std::to_string(frameGenerationElapsedTime) +
+                       "ms, diffs: " + std::to_string(frameDiffsElapsedTime) +
                        "ms, transfer: " +
                        std::to_string(frameTransferElapsedTime) + "ms)\n";
 #endif
