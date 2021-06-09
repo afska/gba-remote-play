@@ -5,12 +5,11 @@
 #include <stdio.h>
 #include "../lib/code/lodepng.h"
 
-#define PNG_SOURCE_COLORS 32
 #define PNG_TARGET_COLORS 256
 
 void WritePNG(std::string fileName,
               uint8_t* raw8BitPixels,
-              uint16_t* raw15bppPalette,
+              const uint32_t* raw24bppPalette,
               uint32_t width,
               uint32_t height) {
   LodePNGState state;
@@ -21,10 +20,10 @@ void WritePNG(std::string fileName,
   state.info_png.color.bitdepth = 8;
 
   for (int i = 0; i < PNG_TARGET_COLORS; i++) {
-    uint16_t color = raw15bppPalette[i];
-    uint8_t r = ((color >> 0) & 0xff) * PNG_TARGET_COLORS / PNG_SOURCE_COLORS;
-    uint8_t g = ((color >> 5) & 0xff) * PNG_TARGET_COLORS / PNG_SOURCE_COLORS;
-    uint8_t b = ((color >> 10) & 0xff) * PNG_TARGET_COLORS / PNG_SOURCE_COLORS;
+    uint32_t color = raw24bppPalette[i];
+    uint8_t r = ((color >> 0) & 0xff);
+    uint8_t g = ((color >> 8) & 0xff);
+    uint8_t b = ((color >> 16) & 0xff);
     uint8_t a = 0xff;
     lodepng_palette_add(&state.info_png.color, r, g, b, a);
     lodepng_palette_add(&state.info_raw, r, g, b, a);
