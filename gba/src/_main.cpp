@@ -102,7 +102,9 @@ inline void receiveDiffs(State& state) {
 }
 
 inline void receivePixels(State& state) {
-  for (u32 i = 0; i < state.expectedPixels / PIXELS_PER_PACKET; i++)
+  u32 expectedPackets = state.expectedPixels / PIXELS_PER_PACKET +
+                        state.expectedPixels % PIXELS_PER_PACKET;
+  for (u32 i = 0; i < expectedPackets; i++)
     ((u32*)vid_page)[i] = spiSlave->transfer(0);
 }
 
