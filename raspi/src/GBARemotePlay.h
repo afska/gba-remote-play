@@ -10,7 +10,7 @@
 #include "TemporalDiffBitArray.h"
 #include "VirtualGamepad.h"
 
-uint8_t LUT_24BPP_TO_8BIT_PALETTE[16777216];
+uint8_t LUT_24BPP_TO_8BIT_PALETTE[PALETTE_24BIT_MAX_COLORS];
 
 class GBARemotePlay {
  public:
