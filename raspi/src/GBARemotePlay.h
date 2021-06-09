@@ -10,6 +10,8 @@
 #include "TemporalDiffBitArray.h"
 #include "VirtualGamepad.h"
 
+uint8_t LUT_24BPP_TO_8BIT_PALETTE[16777216];
+
 class GBARemotePlay {
  public:
   GBARemotePlay() {
@@ -19,6 +21,15 @@ class GBARemotePlay {
     virtualGamepad = new VirtualGamepad(VIRTUAL_GAMEPAD_NAME);
     lastFrame = Frame{0};
     resetKeys();
+
+    for (int i = 0; i < 16777216; i++) {
+      // TODO: SAVE AND LOAD
+      uint8_t r = (i >> 0) & 0xff;
+      uint8_t g = (i >> 8) & 0xff;
+      uint8_t b = (i >> 16) & 0xff;
+      LUT_24BPP_TO_8BIT_PALETTE[i] = PALETTE_getClosestColor(r, g, b);
+      std::cout << std::to_string(i) + "\n";
+    }
   }
 
   void run() {
@@ -213,7 +224,7 @@ class GBARemotePlay {
     frameBuffer->forEachPixel(
         [&frame](int x, int y, uint8_t r, uint8_t g, uint8_t b) {
           frame.raw8BitPixels[y * RENDER_WIDTH + x] =
-              PALETTE_getClosestColor(r, g, b);
+              LUT_24BPP_TO_8BIT_PALETTE[(r << 0) | (g << 8) | (b << 16)];
         });
 
     return frame;
