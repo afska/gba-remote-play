@@ -212,7 +212,7 @@ class GBARemotePlay {
   Frame loadFrame() {
     Frame frame;
     frame.totalPixels = TOTAL_PIXELS;
-    frame.raw8BitPixels = (uint8_t*)malloc(TOTAL_PIXELS * 1);
+    frame.raw8BitPixels = (uint8_t*)malloc(TOTAL_PIXELS);
 
     frameBuffer->forEachPixel(
         [&frame](int x, int y, uint8_t r, uint8_t g, uint8_t b) {

@@ -18,5 +18,3 @@ g++ \
   ./src/** \
   ./lib/libbcm2835.a \
   -o "$OUTPUT"
-
-"$OUTPUT"
