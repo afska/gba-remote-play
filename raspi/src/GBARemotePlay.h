@@ -164,15 +164,17 @@ class GBARemotePlay {
     for (int i = 0; i < frame.totalPixels; i++) {
       if (frame.hasPixelChanged(i, lastFrame)) {
         outgoingPacket |= frame.raw8BitPixels[i] << (byte * 8);
-
         byte++;
-        if (byte == PACKET_SIZE || i == frame.totalPixels - 1) {
+
+        if (byte == PACKET_SIZE) {
           spiMaster->send(outgoingPacket);
           outgoingPacket = 0;
           byte = 0;
         }
       }
     }
+    if (byte > 0)
+      spiMaster->send(outgoingPacket);
   }
 
   void processKeys(uint16_t receivedKeys) {
