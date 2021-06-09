@@ -2,6 +2,13 @@
 #define PALETTE_H
 
 #include <stdint.h>
+#include <stdio.h>
+#include <fstream>
+#include <iostream>
+
+#define PALETTE_24BIT_MAX_COLORS 16777216
+
+extern uint8_t LUT_24BPP_TO_8BIT_PALETTE[PALETTE_24BIT_MAX_COLORS];
 
 const uint32_t MAIN_PALETTE_24BPP[] = {
     0,        4194304,  8388608,  12517376, 16711680, 9216,     4203520,
@@ -59,6 +66,34 @@ inline uint8_t PALETTE_getClosestColor(uint8_t r, uint8_t g, uint8_t b) {
   }
 
   return bestColorIndex == 0 ? 255 : bestColorIndex;
+}
+
+inline void PALETTE_initializeCache(std::string fileName) {
+  FILE* file = fopen(fileName.c_str(), "r");
+
+  if (file != NULL) {
+    std::cout << "Loading cache... <= " + fileName + "\n";
+    fread(LUT_24BPP_TO_8BIT_PALETTE, 1, PALETTE_24BIT_MAX_COLORS, file);
+    std::cout << "Cache loaded!\n\n";
+    fclose(file);
+  } else {
+    for (int i = 0; i < PALETTE_24BIT_MAX_COLORS; i++) {
+      uint8_t r = (i >> 0) & 0xff;
+      uint8_t g = (i >> 8) & 0xff;
+      uint8_t b = (i >> 16) & 0xff;
+      LUT_24BPP_TO_8BIT_PALETTE[i] = PALETTE_getClosestColor(r, g, b);
+
+      if (i % 1000 == 0)
+        std::cout << "Creating cache (" + std::to_string(i) + "/" +
+                         std::to_string(PALETTE_24BIT_MAX_COLORS) + ")...\n";
+    }
+
+    FILE* newFile = fopen(fileName.c_str(), "w+");
+    fwrite(LUT_24BPP_TO_8BIT_PALETTE, 1, PALETTE_24BIT_MAX_COLORS, newFile);
+    fclose(newFile);
+
+    std::cout << "Cache saved => " + fileName + "\n\n";
+  }
 }
 
 /*

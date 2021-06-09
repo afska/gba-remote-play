@@ -22,14 +22,7 @@ class GBARemotePlay {
     lastFrame = Frame{0};
     resetKeys();
 
-    for (int i = 0; i < 16777216; i++) {
-      // TODO: SAVE AND LOAD
-      uint8_t r = (i >> 0) & 0xff;
-      uint8_t g = (i >> 8) & 0xff;
-      uint8_t b = (i >> 16) & 0xff;
-      LUT_24BPP_TO_8BIT_PALETTE[i] = PALETTE_getClosestColor(r, g, b);
-      std::cout << std::to_string(i) + "\n";
-    }
+    PALETTE_initializeCache(PALETTE_CACHE_FILENAME);
   }
 
   void run() {
