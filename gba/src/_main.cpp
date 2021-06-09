@@ -2,6 +2,7 @@
 
 #include "Benchmark.h"
 #include "Config.h"
+#include "Palette.h"
 #include "Protocol.h"
 #include "SPISlave.h"
 
@@ -10,12 +11,10 @@
 // -----
 
 SPISlave* spiSlave = new SPISlave();
-DATA_EWRAM u8 colorIndexByColor[GBA_MAX_COLORS];
 
 typedef struct {
   u32 blindFrames;
   u32 expectedPixels;
-  COLOR palette[PALETTE_COLORS];
   u8 diffs[TEMPORAL_DIFF_SIZE];
   u16* lastBuffer;
 } State;
@@ -39,7 +38,6 @@ int main() {
 void init();
 void mainLoop();
 void receiveDiffs(State& state);
-void receivePalette(State& state);
 void receivePixels(State& state);
 void draw(State& state);
 void decompressImage(State& state);
@@ -64,6 +62,7 @@ inline void init() {
   enableMode4AndBackground2();
   overclockIWRAM();
   enable2xMosaic();
+  dma3_cpy(pal_bg_mem, MAIN_PALETTE, sizeof(COLOR) * PALETTE_COLORS);
 }
 
 CODE_IWRAM void mainLoop() {
@@ -82,11 +81,6 @@ reset:
       goto reset;
 
     receiveDiffs(state);
-
-    if (!sync(state, CMD_PALETTE_START_GBA, CMD_PALETTE_START_RPI))
-      goto reset;
-
-    receivePalette(state);
 
     if (!sync(state, CMD_PIXELS_START_GBA, CMD_PIXELS_START_RPI))
       goto reset;
@@ -107,31 +101,20 @@ inline void receiveDiffs(State& state) {
   state.expectedPixels = spiSlave->transfer(0);
 }
 
-inline void receivePalette(State& state) {
-  u16 keys = pressedKeys();
-  for (u32 i = 0; i < PALETTE_COLORS / COLORS_PER_PACKET; i++)
-    ((u32*)state.palette)[i] = spiSlave->transfer(keys);
-}
-
 inline void receivePixels(State& state) {
-  for (u32 i = 0; i < state.expectedPixels / PIXELS_PER_PACKET; i++)
+  u32 expectedPackets = state.expectedPixels / PIXELS_PER_PACKET +
+                        state.expectedPixels % PIXELS_PER_PACKET;
+  for (u32 i = 0; i < expectedPackets; i++)
     ((u32*)vid_page)[i] = spiSlave->transfer(0);
 }
 
 inline void draw(State& state) {
   decompressImage(state);
-  dma3_cpy(pal_bg_mem, state.palette, sizeof(COLOR) * PALETTE_COLORS);
   state.lastBuffer = (u16*)vid_page;
   vid_flip();
 }
 
 inline void decompressImage(State& state) {
-  for (u32 i = 0; i < PALETTE_COLORS; i += COLORS_PER_PACKET) {
-    u32 packet = ((u32*)state.palette)[i / 2];
-    colorIndexByColor[FIRST_COLOR(packet)] = i;
-    colorIndexByColor[SECOND_COLOR(packet)] = i + 1;
-  }
-
   u32 compressedBufferEnd = state.expectedPixels - 1;
   for (int cursor = TOTAL_PIXELS - 1; cursor >= 0; cursor--) {
     if (hasPixelChanged(state, cursor)) {
@@ -139,8 +122,7 @@ inline void decompressImage(State& state) {
       compressedBufferEnd--;
     } else {
       u8 oldColorIndex = m4GetXYFrom(state.lastBuffer, x(cursor), y(cursor));
-      COLOR repeatedColor = pal_bg_mem[oldColorIndex];
-      m4_plot(x(cursor), y(cursor), colorIndexByColor[repeatedColor]);
+      m4_plot(x(cursor), y(cursor), oldColorIndex);
     }
   }
 }

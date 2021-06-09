@@ -17,7 +17,4 @@ g++ \
   ./lib/code/** \
   ./src/** \
   ./lib/libbcm2835.a \
-  ./lib/libimagequant.a \
   -o "$OUTPUT"
-
-"$OUTPUT"
