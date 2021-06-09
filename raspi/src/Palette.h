@@ -47,7 +47,7 @@ const uint32_t MAIN_PALETTE_24BPP[] = {
     4250623,  8444927,  12573695, 16767999, 65535,    4259839,  8454143,
     12582911, 16777215, 1118481,  2236962,  3355443,  4473924,  5592405,
     6710886,  7829367,  8947848,  10066329, 11184810, 12303291, 13421772,
-    14540253, 15658734, 0,        0};
+    14540253, 15658734, 16185078, 0};
 
 inline uint8_t PALETTE_getClosestColor(uint8_t r, uint8_t g, uint8_t b) {
   uint32_t minDistanceSquared = 0xff * 0xff + 0xff * 0xff + 0xff * 0xff + 1;
@@ -124,15 +124,16 @@ const colors = cartesian(
   [0x00, 0x33, 0x66, 0x99, 0xcc, 0xff],
   [0x00, 0x24, 0x49, 0x6d, 0x92, 0xb6, 0xdb, 0xff],
   [0x00, 0x40, 0x80, 0xbf, 0xff]
-).map(([r, g, b]) => build15bpp(r, g, b));
+).map(([r, g, b]) => build24bpp(r, g, b));
 
 const shadesOfGray = [
   0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77,
-  0x88, 0x99, 0xaa, 0xbb, 0xcc, 0xdd, 0xee
-].map((c) => build15bpp(c, c, c));
+  0x88, 0x99, 0xaa, 0xbb, 0xcc, 0xdd, 0xee,
+  0xf6, 0
+].map((c) => build24bpp(c, c, c));
 
-const palette = colors.concat(shadesOfGray).concat([0, 0]);
-// colors (240) + shades of gray (14) + padding (2)
+const palette = colors.concat(shadesOfGray);
+// colors (240) + shades of gray (16)
 */
 
 #endif  // PALETTE_H
