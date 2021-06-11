@@ -38,8 +38,6 @@ class SPISlave {
   }
 
  private:
-  bool isWaiting = false;
-
   void setNormalMode() {
     REG_RCNT = 0;
     REG_SIOCNT = 0;
