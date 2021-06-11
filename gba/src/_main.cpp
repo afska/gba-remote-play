@@ -13,13 +13,11 @@
 typedef struct {
   u32 expectedPixels;
   u8 diffs[TEMPORAL_DIFF_SIZE];
-  u8* frameBuffer;
-  u8* lastFrameBuffer;
 } State;
 
 SPISlave* spiSlave = new SPISlave();
-DATA_EWRAM u8 frameBufferA[TOTAL_SCREEN_PIXELS];
-DATA_EWRAM u8 frameBufferB[TOTAL_SCREEN_PIXELS];
+DATA_EWRAM u8 compressedPixels[TOTAL_PIXELS];
+DATA_EWRAM u8 frameBuffer[TOTAL_SCREEN_PIXELS];
 
 // ---------
 // BENCHMARK
@@ -71,8 +69,6 @@ CODE_IWRAM void mainLoop() {
 reset:
   State state;
   state.expectedPixels = 0;
-  state.frameBuffer = (u8*)frameBufferA;
-  state.lastFrameBuffer = (u8*)frameBufferB;
 
   spiSlave->transfer(CMD_RESET);
 
@@ -107,31 +103,23 @@ inline void receivePixels(State& state) {
   u32 expectedPackets = state.expectedPixels / PIXELS_PER_PACKET +
                         state.expectedPixels % PIXELS_PER_PACKET;
   for (u32 i = 0; i < expectedPackets; i++)
-    ((u32*)state.frameBuffer)[i] = spiSlave->transfer(0);
+    ((u32*)compressedPixels)[i] = spiSlave->transfer(0);
 }
 
 inline void draw(State& state) {
   decompressImage(state);
-  dma3_cpy(vid_page, state.frameBuffer, TOTAL_SCREEN_PIXELS);
-  vid_flip();
-
-  auto drawnFrameBuffer = state.frameBuffer;
-  state.frameBuffer = state.lastFrameBuffer;
-  state.lastFrameBuffer = drawnFrameBuffer;
+  dma3_cpy(vid_mem_front, frameBuffer, TOTAL_SCREEN_PIXELS);
 }
 
 inline void decompressImage(State& state) {
-  u32 compressedBufferEnd = state.expectedPixels - 1;
-  for (int cursor = TOTAL_PIXELS - 1; cursor >= 0; cursor--) {
-    u8 xPos = x(cursor);
-    u8 yPos = y(cursor);
-    u32 drawCursor = yPos * DRAW_WIDTH + xPos;
+  u32 compressedBufferEnd = 0;
 
+  for (u32 cursor = 0; cursor < TOTAL_PIXELS; cursor++) {
     if (hasPixelChanged(state, cursor)) {
-      state.frameBuffer[drawCursor] = state.frameBuffer[compressedBufferEnd];
-      compressedBufferEnd--;
-    } else
-      state.frameBuffer[drawCursor] = state.lastFrameBuffer[drawCursor];
+      u32 drawCursor = y(cursor) * DRAW_WIDTH + x(cursor);
+      frameBuffer[drawCursor] = compressedPixels[compressedBufferEnd];
+      compressedBufferEnd++;
+    }
   }
 }
 
