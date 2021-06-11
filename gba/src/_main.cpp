@@ -10,13 +10,14 @@
 // STATE
 // -----
 
-SPISlave* spiSlave = new SPISlave();
-
 typedef struct {
   u32 expectedPixels;
   u8 diffs[TEMPORAL_DIFF_SIZE];
-  u16* lastBuffer;
+  u8 compressedPixels[TOTAL_PIXELS];
 } State;
+
+SPISlave* spiSlave = new SPISlave();
+DATA_EWRAM u8 frameBuffer[TOTAL_SCREEN_PIXELS];
 
 // ---------
 // BENCHMARK
@@ -41,7 +42,6 @@ void receivePixels(State& state);
 void draw(State& state);
 void decompressImage(State& state);
 bool sync(State& state, u32 local, u32 remote);
-bool hasPixelChanged(State& state, u32 cursor);
 u32 x(u32 cursor);
 u32 y(u32 cursor);
 
@@ -59,7 +59,7 @@ int main() {
 
 inline void init() {
   enableMode4AndBackground2();
-  overclockIWRAM();
+  overclockEWRAM();
   enable2xMosaic();
   dma3_cpy(pal_bg_mem, MAIN_PALETTE, sizeof(COLOR) * PALETTE_COLORS);
 }
@@ -68,7 +68,7 @@ CODE_IWRAM void mainLoop() {
 reset:
   State state;
   state.expectedPixels = 0;
-  state.lastBuffer = (u16*)vid_page;
+
   spiSlave->transfer(CMD_RESET);
 
   while (true) {
@@ -102,24 +102,30 @@ inline void receivePixels(State& state) {
   u32 expectedPackets = state.expectedPixels / PIXELS_PER_PACKET +
                         state.expectedPixels % PIXELS_PER_PACKET;
   for (u32 i = 0; i < expectedPackets; i++)
-    ((u32*)vid_page)[i] = spiSlave->transfer(0);
+    ((u32*)state.compressedPixels)[i] = spiSlave->transfer(0);
 }
 
 inline void draw(State& state) {
   decompressImage(state);
-  state.lastBuffer = (u16*)vid_page;
-  vid_flip();
+  dma3_cpy(vid_mem_front, frameBuffer, TOTAL_SCREEN_PIXELS);
 }
 
 inline void decompressImage(State& state) {
-  u32 compressedBufferEnd = state.expectedPixels - 1;
-  for (int cursor = TOTAL_PIXELS - 1; cursor >= 0; cursor--) {
-    if (hasPixelChanged(state, cursor)) {
-      m4_plot(x(cursor), y(cursor), m4Get(compressedBufferEnd));
-      compressedBufferEnd--;
-    } else {
-      u8 oldColorIndex = m4GetXYFrom(state.lastBuffer, x(cursor), y(cursor));
-      m4_plot(x(cursor), y(cursor), oldColorIndex);
+  u32 compressedBufferEnd = 0;
+
+  for (u32 cursor = 0; cursor < TOTAL_PIXELS; cursor++) {
+    u32 byte = cursor / 8;
+    u32 bit = cursor % 8;
+    u32 diff = state.diffs[byte];
+
+    if (bit == 0 && diff == 0) {
+      // (no changes in the next 8 pixels)
+      cursor += 7;
+    } else if ((diff >> bit) & 1) {
+      // (a pixel changed)
+      u32 drawCursor = y(cursor) * DRAW_WIDTH + x(cursor);
+      frameBuffer[drawCursor] = state.compressedPixels[compressedBufferEnd];
+      compressedBufferEnd++;
     }
   }
 }
@@ -144,17 +150,10 @@ inline bool sync(State& state, u32 local, u32 remote) {
   return true;
 }
 
-inline bool hasPixelChanged(State& state, u32 cursor) {
-  uint32_t byte = cursor / 8;
-  uint8_t bit = cursor % 8;
-
-  return (state.diffs[byte] >> bit) & 1;
-}
-
 inline u32 x(u32 cursor) {
-  return (cursor % RENDER_WIDTH) * RENDER_SCALE;
+  return (cursor % RENDER_WIDTH) * DRAW_SCALE_X;
 }
 
 inline u32 y(u32 cursor) {
-  return (cursor / RENDER_WIDTH) * RENDER_SCALE;
+  return (cursor / RENDER_WIDTH) * DRAW_SCALE_Y;
 }
