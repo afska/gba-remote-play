@@ -42,7 +42,6 @@ void receivePixels(State& state);
 void draw(State& state);
 void decompressImage(State& state);
 bool sync(State& state, u32 local, u32 remote);
-bool hasPixelChanged(State& state, u32 cursor);
 u32 x(u32 cursor);
 u32 y(u32 cursor);
 
@@ -115,7 +114,15 @@ inline void decompressImage(State& state) {
   u32 compressedBufferEnd = 0;
 
   for (u32 cursor = 0; cursor < TOTAL_PIXELS; cursor++) {
-    if (hasPixelChanged(state, cursor)) {
+    u32 byte = cursor / 8;
+    u32 bit = cursor % 8;
+    u32 diff = state.diffs[byte];
+
+    if (bit == 0 && diff == 0) {
+      // (no changes in the next 8 pixels)
+      cursor += 7;
+    } else if ((diff >> bit) & 1) {
+      // (a pixel changed)
       u32 drawCursor = y(cursor) * DRAW_WIDTH + x(cursor);
       frameBuffer[drawCursor] = state.compressedPixels[compressedBufferEnd];
       compressedBufferEnd++;
@@ -141,13 +148,6 @@ inline bool sync(State& state, u32 local, u32 remote) {
   }
 
   return true;
-}
-
-inline bool hasPixelChanged(State& state, u32 cursor) {
-  uint32_t byte = cursor / 8;
-  uint8_t bit = cursor % 8;
-
-  return (state.diffs[byte] >> bit) & 1;
 }
 
 inline u32 x(u32 cursor) {
