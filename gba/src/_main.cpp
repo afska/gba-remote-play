@@ -13,7 +13,6 @@
 SPISlave* spiSlave = new SPISlave();
 
 typedef struct {
-  u32 blindFrames;
   u32 expectedPixels;
   u8 diffs[TEMPORAL_DIFF_SIZE];
   u16* lastBuffer;
@@ -68,13 +67,11 @@ inline void init() {
 CODE_IWRAM void mainLoop() {
 reset:
   State state;
-  state.blindFrames = 0;
   state.expectedPixels = 0;
   state.lastBuffer = (u16*)vid_page;
   spiSlave->transfer(CMD_RESET);
 
   while (true) {
-    state.blindFrames = 0;
     state.expectedPixels = 0;
 
     if (!sync(state, CMD_FRAME_START_GBA, CMD_FRAME_START_RPI))
@@ -128,23 +125,22 @@ inline void decompressImage(State& state) {
 }
 
 inline bool sync(State& state, u32 local, u32 remote) {
+  u32 blindFrames = 0;
   bool wasVBlank = IS_VBLANK;
 
   while (spiSlave->transfer(local) != remote) {
     bool isVBlank = IS_VBLANK;
+
     if (!wasVBlank && isVBlank) {
-      state.blindFrames++;
+      blindFrames++;
       wasVBlank = true;
     } else if (wasVBlank && !isVBlank)
       wasVBlank = false;
 
-    if (state.blindFrames >= MAX_BLIND_FRAMES) {
-      state.blindFrames = 0;
+    if (blindFrames >= MAX_BLIND_FRAMES)
       return false;
-    }
   }
 
-  state.blindFrames = 0;
   return true;
 }
 
