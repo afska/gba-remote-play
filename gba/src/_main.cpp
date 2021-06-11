@@ -10,13 +10,16 @@
 // STATE
 // -----
 
-SPISlave* spiSlave = new SPISlave();
-
 typedef struct {
   u32 expectedPixels;
   u8 diffs[TEMPORAL_DIFF_SIZE];
-  u16* lastBuffer;
+  u8* frameBuffer;
+  u8* lastFrameBuffer;
 } State;
+
+SPISlave* spiSlave = new SPISlave();
+DATA_EWRAM u8 frameBufferA[TOTAL_SCREEN_PIXELS];
+DATA_EWRAM u8 frameBufferB[TOTAL_SCREEN_PIXELS];
 
 // ---------
 // BENCHMARK
@@ -59,7 +62,7 @@ int main() {
 
 inline void init() {
   enableMode4AndBackground2();
-  overclockIWRAM();
+  overclockEWRAM();
   enable2xMosaic();
   dma3_cpy(pal_bg_mem, MAIN_PALETTE, sizeof(COLOR) * PALETTE_COLORS);
 }
@@ -68,7 +71,9 @@ CODE_IWRAM void mainLoop() {
 reset:
   State state;
   state.expectedPixels = 0;
-  state.lastBuffer = (u16*)vid_page;
+  state.frameBuffer = (u8*)frameBufferA;
+  state.lastFrameBuffer = (u8*)frameBufferB;
+
   spiSlave->transfer(CMD_RESET);
 
   while (true) {
@@ -102,25 +107,31 @@ inline void receivePixels(State& state) {
   u32 expectedPackets = state.expectedPixels / PIXELS_PER_PACKET +
                         state.expectedPixels % PIXELS_PER_PACKET;
   for (u32 i = 0; i < expectedPackets; i++)
-    ((u32*)vid_page)[i] = spiSlave->transfer(0);
+    ((u32*)state.frameBuffer)[i] = spiSlave->transfer(0);
 }
 
 inline void draw(State& state) {
   decompressImage(state);
-  state.lastBuffer = (u16*)vid_page;
+  dma3_cpy(vid_page, state.frameBuffer, TOTAL_SCREEN_PIXELS);
   vid_flip();
+
+  auto drawnFrameBuffer = state.frameBuffer;
+  state.frameBuffer = state.lastFrameBuffer;
+  state.lastFrameBuffer = drawnFrameBuffer;
 }
 
 inline void decompressImage(State& state) {
   u32 compressedBufferEnd = state.expectedPixels - 1;
   for (int cursor = TOTAL_PIXELS - 1; cursor >= 0; cursor--) {
+    u8 xPos = x(cursor);
+    u8 yPos = y(cursor);
+    u32 drawCursor = yPos * DRAW_WIDTH + xPos;
+
     if (hasPixelChanged(state, cursor)) {
-      m4_plot(x(cursor), y(cursor), m4Get(compressedBufferEnd));
+      state.frameBuffer[drawCursor] = state.frameBuffer[compressedBufferEnd];
       compressedBufferEnd--;
-    } else {
-      u8 oldColorIndex = m4GetXYFrom(state.lastBuffer, x(cursor), y(cursor));
-      m4_plot(x(cursor), y(cursor), oldColorIndex);
-    }
+    } else
+      state.frameBuffer[drawCursor] = state.lastFrameBuffer[drawCursor];
   }
 }
 
@@ -152,9 +163,9 @@ inline bool hasPixelChanged(State& state, u32 cursor) {
 }
 
 inline u32 x(u32 cursor) {
-  return (cursor % RENDER_WIDTH) * RENDER_SCALE;
+  return (cursor % RENDER_WIDTH) * DRAW_SCALE_X;
 }
 
 inline u32 y(u32 cursor) {
-  return (cursor / RENDER_WIDTH) * RENDER_SCALE;
+  return (cursor / RENDER_WIDTH) * DRAW_SCALE_Y;
 }
