@@ -13,10 +13,10 @@
 typedef struct {
   u32 expectedPixels;
   u8 diffs[TEMPORAL_DIFF_SIZE];
+  u8 compressedPixels[TOTAL_PIXELS];
 } State;
 
 SPISlave* spiSlave = new SPISlave();
-DATA_EWRAM u8 compressedPixels[TOTAL_PIXELS];
 DATA_EWRAM u8 frameBuffer[TOTAL_SCREEN_PIXELS];
 
 // ---------
@@ -103,7 +103,7 @@ inline void receivePixels(State& state) {
   u32 expectedPackets = state.expectedPixels / PIXELS_PER_PACKET +
                         state.expectedPixels % PIXELS_PER_PACKET;
   for (u32 i = 0; i < expectedPackets; i++)
-    ((u32*)compressedPixels)[i] = spiSlave->transfer(0);
+    ((u32*)state.compressedPixels)[i] = spiSlave->transfer(0);
 }
 
 inline void draw(State& state) {
@@ -117,7 +117,7 @@ inline void decompressImage(State& state) {
   for (u32 cursor = 0; cursor < TOTAL_PIXELS; cursor++) {
     if (hasPixelChanged(state, cursor)) {
       u32 drawCursor = y(cursor) * DRAW_WIDTH + x(cursor);
-      frameBuffer[drawCursor] = compressedPixels[compressedBufferEnd];
+      frameBuffer[drawCursor] = state.compressedPixels[compressedBufferEnd];
       compressedBufferEnd++;
     }
   }
