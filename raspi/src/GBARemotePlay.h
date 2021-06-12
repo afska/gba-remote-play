@@ -129,7 +129,7 @@ class GBARemotePlay {
       return false;
 
     DEBULOG("Sending pixels...");
-    sendPixels(frame);
+    sendPixels(frame, diffs);
 
     DEBULOG("Sending end command...");
     if (!sync(CMD_FRAME_END_RPI, CMD_FRAME_END_GBA))
@@ -156,14 +156,28 @@ class GBARemotePlay {
         spiMaster->send(packet);
     }
 
-    spiMaster->send(diffs.expectedPixels);
+    spiMaster->send(diffs.compressedPixels / PIXELS_PER_PACKET +
+                    diffs.compressedPixels % PIXELS_PER_PACKET);
+
+    for (int i = 0; i < SPATIAL_DIFF_SIZE / PACKET_SIZE; i++)
+      spiMaster->send(((uint32_t*)diffs.spatial)[i]);
   }
 
-  void sendPixels(Frame& frame) {
+  void sendPixels(Frame& frame, ImageDiffBitArray& diffs) {
+    uint32_t compressedPixelId = 0;
     uint32_t outgoingPacket = 0;
     uint8_t byte = 0;
+
     for (int i = 0; i < frame.totalPixels; i++) {
-      if (frame.hasPixelChanged(i, lastFrame)) {
+      if (diffs.hasPixelChanged(i)) {
+        uint32_t block = compressedPixelId / SPATIAL_DIFF_BLOCK_SIZE;
+        uint32_t blockPart = compressedPixelId % SPATIAL_DIFF_BLOCK_SIZE;
+
+        if (blockPart == 1 && diffs.isRepeatedBlock(block)) {
+          compressedPixelId += SPATIAL_DIFF_BLOCK_SIZE - 1;
+          continue;
+        }
+
         outgoingPacket |= frame.raw8BitPixels[i] << (byte * 8);
         byte++;
 
@@ -172,8 +186,11 @@ class GBARemotePlay {
           outgoingPacket = 0;
           byte = 0;
         }
+
+        compressedPixelId++;
       }
     }
+
     if (byte > 0)
       spiMaster->send(outgoingPacket);
   }

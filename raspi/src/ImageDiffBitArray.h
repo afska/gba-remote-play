@@ -7,34 +7,43 @@
 
 typedef struct {
   uint8_t temporal[TEMPORAL_DIFF_SIZE];
-  uint8_t spatial[SPATIAL_DIFF_MAX_SIZE];
-  uint32_t expectedPixels;
+  uint8_t spatial[SPATIAL_DIFF_SIZE];
+  uint32_t compressedPixels;
 
   void initialize(Frame currentFrame, Frame previousFrame) {
-    expectedPixels = 0;
     bool hasDifferentColors = false;
+    uint32_t omittedPixels = 0;
+    compressedPixels = 0;
 
     for (int i = 0; i < TOTAL_PIXELS; i++) {
-      uint8_t byte = expectedPixels % PIXELS_PER_PACKET;
+      uint32_t block = compressedPixels / SPATIAL_DIFF_BLOCK_SIZE;
+      uint32_t blockPart = compressedPixels % SPATIAL_DIFF_BLOCK_SIZE;
 
       if (currentFrame.hasPixelChanged(i, previousFrame)) {
-        if (byte > 0) {
+        if (blockPart > 0) {
           hasDifferentColors =
               hasDifferentColors ||
               currentFrame.arePixelsDifferent(&currentFrame, &currentFrame,
-                                              i - byte, i, false);
-        } else if (expectedPixels > 0) {
-          setBit(spatial, expectedPixels / PIXELS_PER_PACKET,
-                 hasDifferentColors);
+                                              i - blockPart, i, false);
+        } else if (compressedPixels > 0) {
+          setBit(spatial, block, hasDifferentColors);
+          if (!hasDifferentColors)
+            omittedPixels += SPATIAL_DIFF_BLOCK_SIZE - 1;
           hasDifferentColors = false;
         }
 
         setBit(temporal, i, true);
-        expectedPixels++;
+        compressedPixels++;
       } else
         setBit(temporal, i, false);
     }
+
+    compressedPixels -= omittedPixels;
   }
+
+  bool hasPixelChanged(uint32_t pixelId) { return getBit(temporal, pixelId); }
+
+  bool isRepeatedBlock(uint32_t blockId) { return getBit(spatial, blockId); }
 
  private:
   void setBit(uint8_t* bitarray, uint32_t n, bool value) {
@@ -43,6 +52,13 @@ typedef struct {
 
     bitarray[byte] =
         value ? bitarray[byte] | (1 << bit) : bitarray[byte] & ~(1 << bit);
+  }
+
+  bool getBit(uint8_t* bitarray, uint32_t n) {
+    uint32_t byte = n / 8;
+    uint8_t bit = n % 8;
+
+    return (bitarray[byte] >> bit) & 1;
   }
 } ImageDiffBitArray;
 
