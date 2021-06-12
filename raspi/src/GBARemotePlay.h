@@ -80,7 +80,7 @@ class GBARemotePlay {
 #ifdef PROFILE
       frames++;
       uint32_t elapsedTime = PROFILE_END(startTime);
-      if (elapsedTime >= 1000) {
+      if (elapsedTime >= ONE_SECOND) {
         std::cout << "--- " + std::to_string(frames) + " frames ---\n";
         startTime = PROFILE_START();
         frames = 0;
@@ -170,12 +170,14 @@ class GBARemotePlay {
 
     for (int i = 0; i < frame.totalPixels; i++) {
       if (diffs.hasPixelChanged(i)) {
+        // detect compression
         uint32_t block = compressedPixelId / SPATIAL_DIFF_BLOCK_SIZE;
         uint32_t blockPart = compressedPixelId % SPATIAL_DIFF_BLOCK_SIZE;
         compressedPixelId++;
-        if (blockPart > 1 && diffs.isRepeatedBlock(block))
+        if (blockPart > 0 && diffs.isRepeatedBlock(block))
           continue;
 
+        // send pixels
         outgoingPacket |= frame.raw8BitPixels[i] << (byte * 8);
         byte++;
         if (byte == PACKET_SIZE) {

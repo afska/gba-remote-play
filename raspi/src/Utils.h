@@ -21,4 +21,6 @@ inline void DEBULOG(std::string STR) {
 #endif
 }
 
+#define ONE_SECOND 1000
+
 #endif  // UTILS_H

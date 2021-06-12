@@ -11,13 +11,15 @@ typedef struct {
   uint32_t compressedPixels;
 
   void initialize(Frame currentFrame, Frame previousFrame) {
-    bool hasDifferentColors = false;
+    uint32_t block = 0;
+    uint32_t blockPart = 0;
     uint32_t omittedPixels = 0;
+    bool hasDifferentColors = false;
     compressedPixels = 0;
 
     for (int i = 0; i < TOTAL_PIXELS; i++) {
-      uint32_t block = compressedPixels / SPATIAL_DIFF_BLOCK_SIZE;
-      uint32_t blockPart = compressedPixels % SPATIAL_DIFF_BLOCK_SIZE;
+      block = compressedPixels / SPATIAL_DIFF_BLOCK_SIZE;
+      blockPart = compressedPixels % SPATIAL_DIFF_BLOCK_SIZE;
 
       if (currentFrame.hasPixelChanged(i, previousFrame)) {
         if (blockPart > 0) {
@@ -25,11 +27,13 @@ typedef struct {
               hasDifferentColors ||
               currentFrame.arePixelsDifferent(&currentFrame, &currentFrame,
                                               i - blockPart, i, false);
-        } else if (compressedPixels > 0) {
-          setBit(spatial, block, hasDifferentColors);
-          if (!hasDifferentColors)
-            omittedPixels += SPATIAL_DIFF_BLOCK_SIZE - 1;
-          hasDifferentColors = false;
+
+          if (blockPart == SPATIAL_DIFF_BLOCK_SIZE - 1) {
+            setBit(spatial, block, hasDifferentColors);
+            if (!hasDifferentColors)
+              omittedPixels += SPATIAL_DIFF_BLOCK_SIZE - 1;
+            hasDifferentColors = false;
+          }
         }
 
         setBit(temporal, i, true);
@@ -42,8 +46,7 @@ typedef struct {
   }
 
   bool hasPixelChanged(uint32_t pixelId) { return getBit(temporal, pixelId); }
-
-  bool isRepeatedBlock(uint32_t blockId) { return getBit(spatial, blockId); }
+  bool isRepeatedBlock(uint32_t blockId) { return !getBit(spatial, blockId); }
 
  private:
   void setBit(uint8_t* bitarray, uint32_t n, bool value) {
