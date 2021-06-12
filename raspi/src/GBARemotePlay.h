@@ -172,22 +172,17 @@ class GBARemotePlay {
       if (diffs.hasPixelChanged(i)) {
         uint32_t block = compressedPixelId / SPATIAL_DIFF_BLOCK_SIZE;
         uint32_t blockPart = compressedPixelId % SPATIAL_DIFF_BLOCK_SIZE;
-
-        if (blockPart == 1 && diffs.isRepeatedBlock(block)) {
-          compressedPixelId += SPATIAL_DIFF_BLOCK_SIZE - 1;
+        compressedPixelId++;
+        if (blockPart > 1 && diffs.isRepeatedBlock(block))
           continue;
-        }
 
         outgoingPacket |= frame.raw8BitPixels[i] << (byte * 8);
         byte++;
-
         if (byte == PACKET_SIZE) {
           spiMaster->send(outgoingPacket);
           outgoingPacket = 0;
           byte = 0;
         }
-
-        compressedPixelId++;
       }
     }
 
