@@ -2,12 +2,13 @@
 #define GBA_REMOTE_PLAY_H
 
 #include "Config.h"
+#include "Frame.h"
 #include "FrameBuffer.h"
+#include "ImageDiffBitArray.h"
 #include "PNGWriter.h"
 #include "Palette.h"
 #include "Protocol.h"
 #include "SPIMaster.h"
-#include "TemporalDiffBitArray.h"
 #include "VirtualGamepad.h"
 
 uint8_t LUT_24BPP_TO_8BIT_PALETTE[PALETTE_24BIT_MAX_COLORS];
@@ -54,7 +55,7 @@ class GBARemotePlay {
       auto frameDiffsStartTime = PROFILE_START();
 #endif
 
-      TemporalDiffBitArray diffs;
+      ImageDiffBitArray diffs;
       diffs.initialize(frame, lastFrame);
 
 #ifdef PROFILE_VERBOSE
@@ -103,7 +104,7 @@ class GBARemotePlay {
   uint32_t input;
   uint32_t inputValidations;
 
-  bool send(Frame& frame, TemporalDiffBitArray& diffs) {
+  bool send(Frame& frame, ImageDiffBitArray& diffs) {
     if (!frame.hasData())
       return false;
 
@@ -144,9 +145,9 @@ class GBARemotePlay {
     return true;
   }
 
-  void sendDiffs(TemporalDiffBitArray& diffs) {
+  void sendDiffs(ImageDiffBitArray& diffs) {
     for (int i = 0; i < TEMPORAL_DIFF_SIZE / PACKET_SIZE; i++) {
-      uint32_t packet = ((uint32_t*)diffs.data)[i];
+      uint32_t packet = ((uint32_t*)diffs.temporal)[i];
 
       if (i < PRESSED_KEYS_REPETITIONS) {
         uint32_t receivedKeys = spiMaster->exchange(packet);

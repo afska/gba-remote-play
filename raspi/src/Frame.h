@@ -18,12 +18,7 @@ typedef struct Frame {
     if (!previousFrame.hasData())
       return true;
 
-    bool hasChanged =
-        areDifferent(getColorOf(pixelId), previousFrame.getColorOf(pixelId));
-    if (!hasChanged)
-      raw8BitPixels[pixelId] = previousFrame.raw8BitPixels[pixelId];
-
-    return hasChanged;
+    return arePixelsDifferent(&previousFrame, this, pixelId, pixelId, true);
   }
 
   bool hasData() { return totalPixels > 0; }
@@ -36,7 +31,18 @@ typedef struct Frame {
     free(raw8BitPixels);
   }
 
-  bool areDifferent(uint32_t color1, uint32_t color2) {
+  bool arePixelsDifferent(Frame* oldPixelFrame,
+                          Frame* newPixelFrame,
+                          uint32_t oldPixelId,
+                          uint32_t newPixelId,
+                          bool useThreshold) {
+    if (!useThreshold)
+      return oldPixelFrame->raw8BitPixels[oldPixelId] !=
+             newPixelFrame->raw8BitPixels[newPixelId];
+
+    uint32_t color1 = oldPixelFrame->getColorOf(oldPixelId);
+    uint32_t color2 = newPixelFrame->getColorOf(newPixelId);
+
     int r1 = (color1 >> 0) & 0xff;
     int g1 = (color1 >> 8) & 0xff;
     int b1 = (color1 >> 16) & 0xff;
@@ -49,8 +55,13 @@ typedef struct Frame {
     int diffG = g1 - g2;
     int diffB = b1 - b2;
     int distanceSquared = diffR * diffR + diffG * diffG + diffB * diffB;
+    bool areDifferent = distanceSquared > DIFF_THRESHOLD;
 
-    return distanceSquared > DIFF_THRESHOLD;
+    if (!areDifferent)
+      newPixelFrame->raw8BitPixels[newPixelId] =
+          oldPixelFrame->raw8BitPixels[oldPixelId];
+
+    return areDifferent;
   }
 } Frame;
 
