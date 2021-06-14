@@ -2,12 +2,13 @@
 #define GBA_REMOTE_PLAY_H
 
 #include "Config.h"
+#include "Frame.h"
 #include "FrameBuffer.h"
+#include "ImageDiffBitArray.h"
 #include "PNGWriter.h"
 #include "Palette.h"
 #include "Protocol.h"
 #include "SPIMaster.h"
-#include "TemporalDiffBitArray.h"
 #include "VirtualGamepad.h"
 
 uint8_t LUT_24BPP_TO_8BIT_PALETTE[PALETTE_24BIT_MAX_COLORS];
@@ -54,7 +55,7 @@ class GBARemotePlay {
       auto frameDiffsStartTime = PROFILE_START();
 #endif
 
-      TemporalDiffBitArray diffs;
+      ImageDiffBitArray diffs;
       diffs.initialize(frame, lastFrame);
 
 #ifdef PROFILE_VERBOSE
@@ -79,7 +80,7 @@ class GBARemotePlay {
 #ifdef PROFILE
       frames++;
       uint32_t elapsedTime = PROFILE_END(startTime);
-      if (elapsedTime >= 1000) {
+      if (elapsedTime >= ONE_SECOND) {
         std::cout << "--- " + std::to_string(frames) + " frames ---\n";
         startTime = PROFILE_START();
         frames = 0;
@@ -103,7 +104,7 @@ class GBARemotePlay {
   uint32_t input;
   uint32_t inputValidations;
 
-  bool send(Frame& frame, TemporalDiffBitArray& diffs) {
+  bool send(Frame& frame, ImageDiffBitArray& diffs) {
     if (!frame.hasData())
       return false;
 
@@ -128,7 +129,7 @@ class GBARemotePlay {
       return false;
 
     DEBULOG("Sending pixels...");
-    sendPixels(frame);
+    sendPixels(frame, diffs);
 
     DEBULOG("Sending end command...");
     if (!sync(CMD_FRAME_END_RPI, CMD_FRAME_END_GBA))
@@ -144,9 +145,9 @@ class GBARemotePlay {
     return true;
   }
 
-  void sendDiffs(TemporalDiffBitArray& diffs) {
+  void sendDiffs(ImageDiffBitArray& diffs) {
     for (int i = 0; i < TEMPORAL_DIFF_SIZE / PACKET_SIZE; i++) {
-      uint32_t packet = ((uint32_t*)diffs.data)[i];
+      uint32_t packet = ((uint32_t*)diffs.temporal)[i];
 
       if (i < PRESSED_KEYS_REPETITIONS) {
         uint32_t receivedKeys = spiMaster->exchange(packet);
@@ -155,17 +156,30 @@ class GBARemotePlay {
         spiMaster->send(packet);
     }
 
-    spiMaster->send(diffs.expectedPixels);
+    spiMaster->send(diffs.compressedPixels / PIXELS_PER_PACKET +
+                    diffs.compressedPixels % PIXELS_PER_PACKET);
+
+    for (int i = 0; i < SPATIAL_DIFF_SIZE / PACKET_SIZE; i++)
+      spiMaster->send(((uint32_t*)diffs.spatial)[i]);
   }
 
-  void sendPixels(Frame& frame) {
+  void sendPixels(Frame& frame, ImageDiffBitArray& diffs) {
+    uint32_t compressedPixelId = 0;
     uint32_t outgoingPacket = 0;
     uint8_t byte = 0;
+
     for (int i = 0; i < frame.totalPixels; i++) {
-      if (frame.hasPixelChanged(i, lastFrame)) {
+      if (diffs.hasPixelChanged(i)) {
+        // detect compression
+        uint32_t block = compressedPixelId / SPATIAL_DIFF_BLOCK_SIZE;
+        uint32_t blockPart = compressedPixelId % SPATIAL_DIFF_BLOCK_SIZE;
+        compressedPixelId++;
+        if (blockPart > 0 && diffs.isRepeatedBlock(block))
+          continue;
+
+        // send pixels
         outgoingPacket |= frame.raw8BitPixels[i] << (byte * 8);
         byte++;
-
         if (byte == PACKET_SIZE) {
           spiMaster->send(outgoingPacket);
           outgoingPacket = 0;
@@ -173,6 +187,7 @@ class GBARemotePlay {
         }
       }
     }
+
     if (byte > 0)
       spiMaster->send(outgoingPacket);
   }

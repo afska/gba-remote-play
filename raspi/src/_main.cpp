@@ -1,5 +1,4 @@
 #include "Benchmark.h"
-#include "Config.h"
 #include "GBARemotePlay.h"
 
 int main() {
