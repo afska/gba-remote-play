@@ -11,8 +11,9 @@
 // -----
 
 typedef struct {
-  u32 expectedPixels;
-  u8 diffs[TEMPORAL_DIFF_SIZE];
+  u32 expectedPackets;
+  u8 temporalDiffs[TEMPORAL_DIFF_SIZE];
+  u8 spatialDiffs[SPATIAL_DIFF_SIZE];
   u8 compressedPixels[TOTAL_PIXELS];
 } State;
 
@@ -67,12 +68,12 @@ inline void init() {
 CODE_IWRAM void mainLoop() {
 reset:
   State state;
-  state.expectedPixels = 0;
+  state.expectedPackets = 0;
 
   spiSlave->transfer(CMD_RESET);
 
   while (true) {
-    state.expectedPixels = 0;
+    state.expectedPackets = 0;
 
     if (!sync(state, CMD_FRAME_START_GBA, CMD_FRAME_START_RPI))
       goto reset;
@@ -94,14 +95,14 @@ reset:
 inline void receiveDiffs(State& state) {
   u16 keys = pressedKeys();
   for (u32 i = 0; i < TEMPORAL_DIFF_SIZE / PACKET_SIZE; i++)
-    ((u32*)state.diffs)[i] = spiSlave->transfer(keys);
-  state.expectedPixels = spiSlave->transfer(0);
+    ((u32*)state.temporalDiffs)[i] = spiSlave->transfer(keys);
+  state.expectedPackets = spiSlave->transfer(0);
+  for (u32 i = 0; i < SPATIAL_DIFF_SIZE / PACKET_SIZE; i++)
+    ((u32*)state.spatialDiffs)[i] = spiSlave->transfer(0);
 }
 
 inline void receivePixels(State& state) {
-  u32 expectedPackets = state.expectedPixels / PIXELS_PER_PACKET +
-                        state.expectedPixels % PIXELS_PER_PACKET;
-  for (u32 i = 0; i < expectedPackets; i++)
+  for (u32 i = 0; i < state.expectedPackets; i++)
     ((u32*)state.compressedPixels)[i] = spiSlave->transfer(0);
 }
 
@@ -111,21 +112,36 @@ inline void draw(State& state) {
 }
 
 inline void decompressImage(State& state) {
-  u32 compressedBufferEnd = 0;
+  u32 block = 0;
+  u32 blockPart = 0;
+  u32 decompressedPixels = 0;
 
   for (u32 cursor = 0; cursor < TOTAL_PIXELS; cursor++) {
-    u32 byte = cursor / 8;
-    u32 bit = cursor % 8;
-    u32 diff = state.diffs[byte];
+    u32 temporalByte = cursor / 8;
+    u32 temporalBit = cursor % 8;
+    u32 temporalDiff = state.temporalDiffs[temporalByte];
 
-    if (bit == 0 && diff == 0) {
-      // (no changes in the next 8 pixels)
+    if (temporalBit == 0 && temporalDiff == 0) {
+      // (no changes in the next 8 pixels since last frame)
       cursor += 7;
-    } else if ((diff >> bit) & 1) {
+    } else if ((temporalDiff >> temporalBit) & 1) {
       // (a pixel changed)
+
+      u32 spatialByte = block / 8;
+      u32 spatialBit = block % 8;
+      u32 spatialDiff = state.spatialDiffs[spatialByte];
+      bool isRepeatedBlock = !((spatialDiff >> spatialBit) & 1);
+
       u32 drawCursor = y(cursor) * DRAW_WIDTH + x(cursor);
-      frameBuffer[drawCursor] = state.compressedPixels[compressedBufferEnd];
-      compressedBufferEnd++;
+      frameBuffer[drawCursor] = state.compressedPixels[decompressedPixels];
+
+      blockPart++;
+      if (blockPart == SPATIAL_DIFF_BLOCK_SIZE) {
+        block++;
+        blockPart = 0;
+        decompressedPixels++;
+      } else if (!isRepeatedBlock)
+        decompressedPixels++;
     }
   }
 }
