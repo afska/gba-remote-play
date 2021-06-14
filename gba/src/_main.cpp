@@ -121,10 +121,23 @@ inline void decompressImage(State& state) {
     u32 temporalBit = cursor % 8;
     u32 temporalDiff = state.temporalDiffs[temporalByte];
 
-    if (temporalBit == 0 && temporalDiff == 0) {
-      // (no changes in the next 8 pixels since last frame)
-      cursor += 7;
-    } else if ((temporalDiff >> temporalBit) & 1) {
+    if (temporalBit == 0) {
+      if (((u32*)state.temporalDiffs)[temporalByte / 4] == 0) {
+        // (no changes in the next 32 pixels)
+        cursor += 31;
+        continue;
+      } else if (((u16*)state.temporalDiffs)[temporalByte / 2] == 0) {
+        // (no changes in the next 16 pixels)
+        cursor += 15;
+        continue;
+      } else if (temporalDiff == 0) {
+        // (no changes in the next 8 pixels)
+        cursor += 7;
+        continue;
+      }
+    }
+
+    if ((temporalDiff >> temporalBit) & 1) {
       // (a pixel changed)
 
       u32 spatialByte = block / 8;
