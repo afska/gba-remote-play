@@ -11,29 +11,22 @@ typedef struct {
   uint32_t compressedPixels;
 
   void initialize(Frame currentFrame, Frame previousFrame) {
-    uint32_t block = 0;
-    uint32_t blockPart = 0;
+    uint32_t colorIds[SPATIAL_DIFF_BLOCK_SIZE];
     uint32_t omittedPixels = 0;
-    bool hasDifferentColors = false;
     compressedPixels = 0;
 
     for (int i = 0; i < TOTAL_PIXELS; i++) {
-      block = compressedPixels / SPATIAL_DIFF_BLOCK_SIZE;
-      blockPart = compressedPixels % SPATIAL_DIFF_BLOCK_SIZE;
+      uint32_t block = compressedPixels / SPATIAL_DIFF_BLOCK_SIZE;
+      uint32_t blockPart = compressedPixels % SPATIAL_DIFF_BLOCK_SIZE;
 
       if (currentFrame.hasPixelChanged(i, previousFrame)) {
-        if (blockPart > 0) {
-          hasDifferentColors =
-              hasDifferentColors ||
-              currentFrame.arePixelsDifferent(&currentFrame, &currentFrame,
-                                              i - blockPart, i, false);
+        colorIds[blockPart] = currentFrame.raw8BitPixels[i];
 
-          if (blockPart == SPATIAL_DIFF_BLOCK_SIZE - 1) {
-            setBit(spatial, block, hasDifferentColors);
-            if (!hasDifferentColors)
-              omittedPixels += SPATIAL_DIFF_BLOCK_SIZE - 1;
-            hasDifferentColors = false;
-          }
+        if (blockPart == SPATIAL_DIFF_BLOCK_SIZE - 1) {
+          bool isRepeatedBlock = SPATIAL_DIFF_IS_REPEATED_BLOCK(colorIds);
+          setBit(spatial, block, !isRepeatedBlock);
+          if (isRepeatedBlock)
+            omittedPixels += SPATIAL_DIFF_BLOCK_SIZE - 1;
         }
 
         setBit(temporal, i, true);

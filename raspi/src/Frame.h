@@ -18,7 +18,7 @@ typedef struct Frame {
     if (!previousFrame.hasData())
       return true;
 
-    return arePixelsDifferent(&previousFrame, this, pixelId, pixelId, true);
+    return arePixelsDifferent(&previousFrame, this, pixelId, pixelId);
   }
 
   bool hasData() { return totalPixels > 0; }
@@ -34,12 +34,7 @@ typedef struct Frame {
   bool arePixelsDifferent(Frame* oldPixelFrame,
                           Frame* newPixelFrame,
                           uint32_t oldPixelId,
-                          uint32_t newPixelId,
-                          bool useThreshold) {
-    if (!useThreshold)
-      return oldPixelFrame->raw8BitPixels[oldPixelId] !=
-             newPixelFrame->raw8BitPixels[newPixelId];
-
+                          uint32_t newPixelId) {
     uint32_t color1 = oldPixelFrame->getColorOf(oldPixelId);
     uint32_t color2 = newPixelFrame->getColorOf(newPixelId);
 
