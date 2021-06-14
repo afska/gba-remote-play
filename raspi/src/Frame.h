@@ -50,7 +50,7 @@ typedef struct Frame {
     int diffG = g1 - g2;
     int diffB = b1 - b2;
     int distanceSquared = diffR * diffR + diffG * diffG + diffB * diffB;
-    bool areDifferent = distanceSquared > DIFF_THRESHOLD;
+    bool areDifferent = distanceSquared > TEMPORAL_DIFF_THRESHOLD;
 
     if (!areDifferent)
       newPixelFrame->raw8BitPixels[newPixelId] =
