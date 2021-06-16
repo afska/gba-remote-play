@@ -8,7 +8,7 @@
       "target": "127.0.0.1:2345",
       "remote": true,
       "cwd": "${workspaceRoot}",
-      "gdbpath": "${workspaceFolder}\\..\\..\\tools\\devkitPro\\devkitARM\\bin\\arm-none-eabi-gdb.exe",
+      "gdbpath": "${workspaceFolder}\\..\\..\\..\\tools\\devkitPro\\devkitARM\\bin\\arm-none-eabi-gdb.exe",
       "autorun": [],
     }
   ]
