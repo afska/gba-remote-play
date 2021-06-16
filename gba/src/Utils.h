@@ -5,7 +5,6 @@
 
 #define CODE_IWRAM __attribute__((section(".iwram"), target("arm")))
 #define DATA_EWRAM __attribute__((section(".ewram")))
-#define GBA_MAX_COLORS 32768
 #define IS_VBLANK (REG_VCOUNT >= 160)
 
 inline void enableMode4AndBackground2() {
