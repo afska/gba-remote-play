@@ -117,13 +117,10 @@ inline bool receivePixels(State& state) {
     ((u32*)state.compressedPixels)[i] = spiSlave->transfer(i);
 
     // TODO: TEST CODE, DELETE
-    if (i > 0 && i < state.expectedPackets - 1 && REG_VCOUNT == 5) {
+    if (i >= 3 && i < state.expectedPackets - 3 && REG_VCOUNT == 5) {
       if (!sync(state, CMD_PAUSE))
         return false;
 
-      vid_vsync();
-      vid_vsync();
-      vid_vsync();
       vid_vsync();
       vid_vsync();
 
