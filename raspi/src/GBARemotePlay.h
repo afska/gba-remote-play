@@ -146,6 +146,9 @@ class GBARemotePlay {
   }
 
   void sendDiffs(ImageDiffBitArray& diffs) {
+    spiMaster->send(diffs.compressedPixels / PIXELS_PER_PACKET +
+                    diffs.compressedPixels % PIXELS_PER_PACKET);
+
     for (int i = 0; i < TEMPORAL_DIFF_SIZE / PACKET_SIZE; i++) {
       uint32_t packet = ((uint32_t*)diffs.temporal)[i];
 
@@ -155,9 +158,6 @@ class GBARemotePlay {
       } else
         spiMaster->send(packet);
     }
-
-    spiMaster->send(diffs.compressedPixels / PIXELS_PER_PACKET +
-                    diffs.compressedPixels % PIXELS_PER_PACKET);
 
     for (int i = 0; i < SPATIAL_DIFF_SIZE / PACKET_SIZE; i++)
       spiMaster->send(((uint32_t*)diffs.spatial)[i]);

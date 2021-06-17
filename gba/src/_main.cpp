@@ -93,10 +93,13 @@ reset:
 }
 
 inline void receiveDiffs(State& state) {
+  state.expectedPackets = spiSlave->transfer(0);
+
   u16 keys = pressedKeys();
   for (u32 i = 0; i < TEMPORAL_DIFF_SIZE / PACKET_SIZE; i++)
-    ((u32*)state.temporalDiffs)[i] = spiSlave->transfer(keys);
-  state.expectedPackets = spiSlave->transfer(0);
+    ((u32*)state.temporalDiffs)[i] =
+        spiSlave->transfer(i < PRESSED_KEYS_REPETITIONS ? keys : i);
+
   for (u32 i = 0; i < SPATIAL_DIFF_SIZE / PACKET_SIZE; i++)
     ((u32*)state.spatialDiffs)[i] = spiSlave->transfer(0);
 }
