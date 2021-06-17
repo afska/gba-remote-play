@@ -38,7 +38,8 @@ int main() {
 
 void init();
 void mainLoop();
-void receiveDiffs(State& state);
+void sendKeysAndReceiveTemporalDiffs(State& state);
+void receiveSpatialDiffs(State& state);
 void receivePixels(State& state);
 void draw(State& state);
 void decompressImage(State& state);
@@ -78,7 +79,12 @@ reset:
     if (!sync(state, CMD_FRAME_START_GBA, CMD_FRAME_START_RPI))
       goto reset;
 
-    receiveDiffs(state);
+    sendKeysAndReceiveTemporalDiffs(state);
+
+    if (!sync(state, CMD_SPATIAL_DIFFS_START_GBA, CMD_SPATIAL_DIFFS_START_RPI))
+      goto reset;
+
+    receiveSpatialDiffs(state);
 
     if (!sync(state, CMD_PIXELS_START_GBA, CMD_PIXELS_START_RPI))
       goto reset;
@@ -92,7 +98,7 @@ reset:
   }
 }
 
-inline void receiveDiffs(State& state) {
+inline void sendKeysAndReceiveTemporalDiffs(State& state) {
   state.expectedPackets = spiSlave->transfer(0);
 
   u16 keys = pressedKeys();
@@ -100,7 +106,9 @@ inline void receiveDiffs(State& state) {
     ((u32*)state.temporalDiffs)[i] =
         spiSlave->transfer(i < PRESSED_KEYS_REPETITIONS ? keys : i);
   }
+}
 
+inline void receiveSpatialDiffs(State& state) {
   for (u32 i = 0; i < SPATIAL_DIFF_SIZE / PACKET_SIZE; i++)
     ((u32*)state.spatialDiffs)[i] = spiSlave->transfer(i);
 }
