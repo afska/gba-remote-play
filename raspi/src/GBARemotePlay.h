@@ -240,19 +240,28 @@ class GBARemotePlay {
     inputValidations = 0;
   }
 
-  bool sync(uint32_t command) {
+  bool sync(uint32_t command, bool allowPause = false) {
     uint32_t local = command + CMD_RPI_OFFSET;
     uint32_t remote = command + CMD_GBA_OFFSET;
 
-    return reliablySend(local, remote);
+    return reliablySend(local, remote, allowPause);
   }
 
-  bool reliablySend(uint32_t packetToSend, uint32_t expectedResponse) {
+  bool reliablySend(uint32_t packetToSend,
+                    uint32_t expectedResponse,
+                    bool allowPause = true) {
     uint32_t confirmation;
     uint32_t lastReceivedPacket = 0;
 
     while ((confirmation = spiMaster->exchange(packetToSend)) !=
            expectedResponse) {
+      if (allowPause && confirmation == CMD_PAUSE + CMD_GBA_OFFSET) {
+        if (!sync(CMD_PAUSE))
+          return false;
+        if (!sync(CMD_RESUME))
+          return false;
+      }
+
       if (confirmation == CMD_RESET) {
         LOG("Reset! (sent, expected, actual)");
         std::cout << "0x" << std::hex << packetToSend << "\n";
