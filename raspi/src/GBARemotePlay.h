@@ -255,9 +255,9 @@ class GBARemotePlay {
            expectedResponse) {
       if (confirmation == CMD_RESET) {
         LOG("Reset! (sent, expected, actual)");
-        std::cout << std::hex << packetToSend << "\n";
-        std::cout << std::hex << expectedResponse << "\n";
-        std::cout << std::hex << lastReceivedPacket << "\n\n";
+        std::cout << "0x" << std::hex << packetToSend << "\n";
+        std::cout << "0x" << std::hex << expectedResponse << "\n";
+        std::cout << "0x" << std::hex << lastReceivedPacket << "\n\n";
         return false;
       }
       lastReceivedPacket = confirmation;
