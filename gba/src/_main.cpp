@@ -43,7 +43,7 @@ void receiveSpatialDiffs(State& state);
 void receivePixels(State& state);
 void draw(State& state);
 void decompressImage(State& state);
-bool sync(State& state, u32 local, u32 remote);
+bool sync(State& state, u32 command);
 u32 x(u32 cursor);
 u32 y(u32 cursor);
 
@@ -76,22 +76,22 @@ reset:
   while (true) {
     state.expectedPackets = 0;
 
-    if (!sync(state, CMD_FRAME_START_GBA, CMD_FRAME_START_RPI))
+    if (!sync(state, CMD_FRAME_START))
       goto reset;
 
     sendKeysAndReceiveTemporalDiffs(state);
 
-    if (!sync(state, CMD_SPATIAL_DIFFS_START_GBA, CMD_SPATIAL_DIFFS_START_RPI))
+    if (!sync(state, CMD_SPATIAL_DIFFS_START))
       goto reset;
 
     receiveSpatialDiffs(state);
 
-    if (!sync(state, CMD_PIXELS_START_GBA, CMD_PIXELS_START_RPI))
+    if (!sync(state, CMD_PIXELS_START))
       goto reset;
 
     receivePixels(state);
 
-    if (!sync(state, CMD_FRAME_END_GBA, CMD_FRAME_END_RPI))
+    if (!sync(state, CMD_FRAME_END))
       goto reset;
 
     draw(state);
@@ -171,8 +171,10 @@ inline void decompressImage(State& state) {
   }
 }
 
-inline bool sync(State& state, u32 local, u32 remote) {
+inline bool sync(State& state, u32 command) {
   u32 blindFrames = 0;
+  u32 local = command + CMD_GBA_OFFSET;
+  u32 remote = command + CMD_RPI_OFFSET;
   bool wasVBlank = IS_VBLANK;
 
   while (spiSlave->transfer(local) != remote) {
