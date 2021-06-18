@@ -63,8 +63,10 @@ class GBARemotePlay {
       auto frameTransferStartTime = PROFILE_START();
 #endif
 
-      if (!send(frame, diffs))
+      if (!send(frame, diffs)) {
+        frame.clean();
         goto reset;
+      }
 
       lastFrame.clean();
       lastFrame = frame;
@@ -113,7 +115,7 @@ class GBARemotePlay {
 #endif
 
     DEBULOG("Sending frame start command...");
-    if (!sync(CMD_FRAME_START_RPI, CMD_FRAME_START_GBA))
+    if (!sync(CMD_FRAME_START))
       return false;
 
 #ifdef PROFILE_VERBOSE
@@ -121,18 +123,28 @@ class GBARemotePlay {
     std::cout << "  <" + std::to_string(idleElapsedTime) + "ms idle>\n";
 #endif
 
-    DEBULOG("Sending diffs...");
-    sendDiffs(diffs);
+    DEBULOG("Receiving keys and sending temporal diffs...");
+    if (!receiveKeysAndSendTemporalDiffs(diffs))
+      return false;
+
+    DEBULOG("Sending spatial diffs start command...");
+    if (!sync(CMD_SPATIAL_DIFFS_START))
+      return false;
+
+    DEBULOG("Sending spatial diffs...");
+    if (!sendSpatialDiffs(diffs))
+      return false;
 
     DEBULOG("Sending pixels command...");
-    if (!sync(CMD_PIXELS_START_RPI, CMD_PIXELS_START_GBA))
+    if (!sync(CMD_PIXELS_START))
       return false;
 
     DEBULOG("Sending pixels...");
-    sendPixels(frame, diffs);
+    if (!sendPixels(frame, diffs))
+      return false;
 
     DEBULOG("Sending end command...");
-    if (!sync(CMD_FRAME_END_RPI, CMD_FRAME_END_GBA))
+    if (!sync(CMD_FRAME_END))
       return false;
 
 #ifdef DEBUG
@@ -145,27 +157,39 @@ class GBARemotePlay {
     return true;
   }
 
-  void sendDiffs(ImageDiffBitArray& diffs) {
+  bool receiveKeysAndSendTemporalDiffs(ImageDiffBitArray& diffs) {
+    spiMaster->send(diffs.compressedPixels / PIXELS_PER_PACKET +
+                    diffs.compressedPixels % PIXELS_PER_PACKET);
+
     for (int i = 0; i < TEMPORAL_DIFF_SIZE / PACKET_SIZE; i++) {
       uint32_t packet = ((uint32_t*)diffs.temporal)[i];
 
       if (i < PRESSED_KEYS_REPETITIONS) {
         uint32_t receivedKeys = spiMaster->exchange(packet);
         processKeys(receivedKeys);
-      } else
-        spiMaster->send(packet);
+      } else {
+        if (!reliablySend(packet, i))
+          return false;
+      }
     }
 
-    spiMaster->send(diffs.compressedPixels / PIXELS_PER_PACKET +
-                    diffs.compressedPixels % PIXELS_PER_PACKET);
-
-    for (int i = 0; i < SPATIAL_DIFF_SIZE / PACKET_SIZE; i++)
-      spiMaster->send(((uint32_t*)diffs.spatial)[i]);
+    return true;
   }
 
-  void sendPixels(Frame& frame, ImageDiffBitArray& diffs) {
+  bool sendSpatialDiffs(ImageDiffBitArray& diffs) {
+    for (int i = 0; i < SPATIAL_DIFF_SIZE / PACKET_SIZE; i++) {
+      uint32_t packet = ((uint32_t*)diffs.spatial)[i];
+      if (!reliablySend(packet, i))
+        return false;
+    }
+
+    return true;
+  }
+
+  bool sendPixels(Frame& frame, ImageDiffBitArray& diffs) {
     uint32_t compressedPixelId = 0;
     uint32_t outgoingPacket = 0;
+    uint32_t sentPackets = 0;
     uint8_t byte = 0;
 
     for (int i = 0; i < frame.totalPixels; i++) {
@@ -181,15 +205,21 @@ class GBARemotePlay {
         outgoingPacket |= frame.raw8BitPixels[i] << (byte * 8);
         byte++;
         if (byte == PACKET_SIZE) {
-          spiMaster->send(outgoingPacket);
+          if (!reliablySend(outgoingPacket, sentPackets))
+            return false;
           outgoingPacket = 0;
           byte = 0;
+          sentPackets++;
         }
       }
     }
 
-    if (byte > 0)
-      spiMaster->send(outgoingPacket);
+    if (byte > 0) {
+      if (!reliablySend(outgoingPacket, sentPackets))
+        return false;
+    }
+
+    return true;
   }
 
   void processKeys(uint16_t receivedKeys) {
@@ -210,20 +240,56 @@ class GBARemotePlay {
     inputValidations = 0;
   }
 
-  bool sync(uint32_t local, uint32_t remote) {
-    uint32_t packet = 0;
-    uint32_t lastPacket = 0;
-    while ((packet = spiMaster->exchange(local)) != remote) {
-      if (packet == CMD_RESET) {
-        LOG("Reset!");
-        std::cout << std::hex << local << "\n";
-        std::cout << std::hex << lastPacket << "\n\n";
-        return false;
-      }
-      lastPacket = packet;
+  bool sync(uint32_t command, bool safe = false) {
+    uint32_t local = command + CMD_RPI_OFFSET;
+    uint32_t remote = command + CMD_GBA_OFFSET;
+
+    return reliablySend(local, remote, safe);
+  }
+
+  bool reliablySend(uint32_t packetToSend,
+                    uint32_t expectedResponse,
+                    bool safe = false) {
+    if (expectedResponse < MIN_COMMAND &&
+        expectedResponse % TRANSFER_SYNC_FREQUENCY != 0) {
+      spiMaster->send(packetToSend);
+      return true;
     }
 
-    return true;
+    uint32_t confirmation;
+    uint32_t lastReceivedPacket = 0;
+
+    while (true) {
+      bool isOnSync = (confirmation = spiMaster->exchange(packetToSend)) ==
+                      expectedResponse;
+
+      if (safe)
+        for (int i = 0; i < SAFE_SYNC_VALIDATIONS; i++)
+          isOnSync = isOnSync &&
+                     (confirmation = spiMaster->exchange(packetToSend + i)) ==
+                         expectedResponse + i;
+
+      if (isOnSync)
+        return true;
+      else {
+        if (!safe && confirmation == CMD_PAUSE + CMD_GBA_OFFSET) {
+          if (!sync(CMD_PAUSE, true))
+            return false;
+          if (!sync(CMD_RESUME, true))
+            return false;
+        }
+
+        if (confirmation == CMD_RESET) {
+          LOG("Reset! (sent, expected, actual)");
+          std::cout << "0x" << std::hex << packetToSend << "\n";
+          std::cout << "0x" << std::hex << expectedResponse << "\n";
+          std::cout << "0x" << std::hex << lastReceivedPacket << "\n\n";
+          return false;
+        }
+
+        lastReceivedPacket = confirmation;
+      }
+    }
   }
 
   Frame loadFrame() {
