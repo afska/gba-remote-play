@@ -240,8 +240,7 @@ class GBARemotePlay {
     inputValidations = 0;
   }
 
-  bool sync(uint32_t command, bool retry = true) {
-  retry:
+  bool sync(uint32_t command) {
     uint32_t local = command + CMD_RPI_OFFSET;
     uint32_t remote = command + CMD_GBA_OFFSET;
     uint32_t validations = 0;
@@ -258,11 +257,7 @@ class GBARemotePlay {
       lastReceivedPacket = receivedPacket;
     }
 
-    bool isSynced = validations >= SYNC_MIN_VALIDATIONS;
-    if (!isSynced && retry)
-      goto retry;
-
-    return isSynced;
+    return validations >= SYNC_MIN_VALIDATIONS;
   }
 
   bool reliablySend(uint32_t packetToSend, uint32_t expectedResponse) {
@@ -278,9 +273,9 @@ class GBARemotePlay {
     while ((confirmation = spiMaster->exchange(packetToSend)) !=
            expectedResponse) {
       if (confirmation == CMD_PAUSE + CMD_GBA_OFFSET) {
-        if (!sync(CMD_PAUSE, false))
+        if (!sync(CMD_PAUSE))
           return false;
-        if (!sync(CMD_RESUME, false))
+        if (!sync(CMD_RESUME))
           return false;
       }
 
