@@ -63,8 +63,10 @@ class GBARemotePlay {
       auto frameTransferStartTime = PROFILE_START();
 #endif
 
-      if (!send(frame, diffs))
+      if (!send(frame, diffs)) {
+        frame.clean();
         goto reset;
+      }
 
       lastFrame.clean();
       lastFrame = frame;
@@ -105,8 +107,6 @@ class GBARemotePlay {
   uint32_t inputValidations;
 
   bool send(Frame& frame, ImageDiffBitArray& diffs) {
-    // TODO: Define an error-check window and use ->send(...) to improve speed
-
     if (!frame.hasData())
       return false;
 
