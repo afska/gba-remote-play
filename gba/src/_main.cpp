@@ -118,12 +118,11 @@ inline bool receivePixels(State& state) {
 
     // TODO: TEST CODE, DELETE
     if (i >= 3 && i < state.expectedPackets - 3 && REG_VCOUNT == 5) {
+      vid_vsync();
+      vid_vsync();
+
       if (!sync(state, CMD_PAUSE))
         return false;
-
-      vid_vsync();
-      vid_vsync();
-
       if (!sync(state, CMD_RESUME))
         return false;
     }
