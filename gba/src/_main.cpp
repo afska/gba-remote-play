@@ -47,8 +47,7 @@ bool receiveSpatialDiffs(State& state);
 bool receivePixels(State& state);
 void draw(State& state);
 void decompressImage(State& state);
-bool sync(State& state, u32 command);
-bool reliablySend(State& state, u32 packetToSend, u32 expectedResponse);
+bool sync(u32 command);
 u32 x(u32 cursor);
 u32 y(u32 cursor);
 
@@ -81,13 +80,13 @@ reset:
   while (true) {
     state.expectedPackets = 0;
 
-    TRY(sync(state, CMD_FRAME_START));
+    TRY(sync(CMD_FRAME_START));
     TRY(sendKeysAndReceiveTemporalDiffs(state));
-    TRY(sync(state, CMD_SPATIAL_DIFFS_START));
+    TRY(sync(CMD_SPATIAL_DIFFS_START));
     TRY(receiveSpatialDiffs(state));
-    TRY(sync(state, CMD_PIXELS_START));
+    TRY(sync(CMD_PIXELS_START));
     TRY(receivePixels(state));
-    TRY(sync(state, CMD_FRAME_END));
+    TRY(sync(CMD_FRAME_END));
 
     draw(state);
   }
@@ -97,10 +96,9 @@ inline bool sendKeysAndReceiveTemporalDiffs(State& state) {
   state.expectedPackets = spiSlave->transfer(0);
 
   u16 keys = pressedKeys();
-  for (u32 i = 0; i < TEMPORAL_DIFF_SIZE / PACKET_SIZE; i++) {
+  for (u32 i = 0; i < TEMPORAL_DIFF_SIZE / PACKET_SIZE; i++)
     ((u32*)state.temporalDiffs)[i] =
         spiSlave->transfer(i < PRESSED_KEYS_REPETITIONS ? keys : i);
-  }
 
   return true;
 }
@@ -117,15 +115,15 @@ inline bool receivePixels(State& state) {
     ((u32*)state.compressedPixels)[i] = spiSlave->transfer(i);
 
     // TODO: TEST CODE, DELETE
-    if ((i + 1) % TRANSFER_SYNC_FREQUENCY == 0 && REG_VCOUNT == 5) {
-      vid_vsync();
-      vid_vsync();
+    // if ((i + 1) % TRANSFER_SYNC_FREQUENCY == 0 && REG_VCOUNT == 5) {
+    //   vid_vsync();
+    //   vid_vsync();
 
-      if (!sync(state, CMD_PAUSE))
-        return false;
-      if (!sync(state, CMD_RESUME))
-        return false;
-    }
+    //   if (!sync(CMD_PAUSE))
+    //     return false;
+    //   if (!sync(CMD_RESUME))
+    //     return false;
+    // }
   }
 
   return true;
@@ -184,31 +182,17 @@ inline void decompressImage(State& state) {
   }
 }
 
-inline bool sync(State& state, u32 command) {
+inline bool sync(u32 command) {
   u32 local = command + CMD_GBA_OFFSET;
   u32 remote = command + CMD_RPI_OFFSET;
+  u32 validations = 0;
 
-  return reliablySend(state, local, remote);
-}
-
-inline bool reliablySend(State& state, u32 packetToSend, u32 expectedResponse) {
-  u32 blindFrames = 0;
-  bool wasVBlank = IS_VBLANK;
-
-  while (spiSlave->transfer(packetToSend) != expectedResponse) {
-    bool isVBlank = IS_VBLANK;
-
-    if (!wasVBlank && isVBlank) {
-      blindFrames++;
-      wasVBlank = true;
-    } else if (wasVBlank && !isVBlank)
-      wasVBlank = false;
-
-    if (blindFrames >= MAX_BLIND_FRAMES)
-      return false;
+  for (u32 i = 0; i < SYNC_REPETITIONS; i++) {
+    if (spiSlave->transfer(local) == remote)
+      validations++;
   }
 
-  return true;
+  return validations >= SYNC_MIN_VALIDATIONS;
 }
 
 inline u32 x(u32 cursor) {
