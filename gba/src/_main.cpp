@@ -47,7 +47,7 @@ bool receiveSpatialDiffs(State& state);
 bool receivePixels(State& state);
 void draw(State& state);
 void decompressImage(State& state);
-bool sync(u32 command);
+bool sync(u32 command, bool safe = false);
 bool reliablySend(u32 packetToSend, u32 expectedResponse);
 u32 x(u32 cursor);
 u32 y(u32 cursor);
@@ -116,13 +116,13 @@ inline bool receivePixels(State& state) {
   for (u32 i = 0; i < state.expectedPackets; i++) {
     // TODO: TEST CODE, DELETE
     if (i % TRANSFER_SYNC_FREQUENCY == 0 && REG_VCOUNT == 5) {
-      if (!sync(CMD_PAUSE))
+      if (!sync(CMD_PAUSE, true))
         return false;
 
       vid_vsync();
       vid_vsync();
 
-      if (!sync(CMD_RESUME))
+      if (!sync(CMD_RESUME, true))
         return false;
     }
 
@@ -185,31 +185,34 @@ inline void decompressImage(State& state) {
   }
 }
 
-inline bool sync(u32 command) {
+inline bool sync(u32 command, bool safe) {
   u32 local = command + CMD_GBA_OFFSET;
   u32 remote = command + CMD_RPI_OFFSET;
-
-  return reliablySend(local, remote);
-}
-
-inline bool reliablySend(u32 packetToSend, u32 expectedResponse) {
   u32 blindFrames = 0;
   bool wasVBlank = IS_VBLANK;
 
-  while (spiSlave->transfer(packetToSend) != expectedResponse) {
-    bool isVBlank = IS_VBLANK;
+  while (true) {
+    bool isOnSync = spiSlave->transfer(local) == remote;
 
-    if (!wasVBlank && isVBlank) {
-      blindFrames++;
-      wasVBlank = true;
-    } else if (wasVBlank && !isVBlank)
-      wasVBlank = false;
+    if (safe)
+      for (u32 i = 0; i < SAFE_SYNC_VALIDATIONS; i++)
+        isOnSync = isOnSync && spiSlave->transfer(local + i) == remote + i;
 
-    if (blindFrames >= MAX_BLIND_FRAMES)
-      return false;
+    if (isOnSync)
+      return true;
+    else {
+      bool isVBlank = IS_VBLANK;
+
+      if (!wasVBlank && isVBlank) {
+        blindFrames++;
+        wasVBlank = true;
+      } else if (wasVBlank && !isVBlank)
+        wasVBlank = false;
+
+      if (blindFrames >= MAX_BLIND_FRAMES)
+        return false;
+    }
   }
-
-  return true;
 }
 
 inline u32 x(u32 cursor) {
