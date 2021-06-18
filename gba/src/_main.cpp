@@ -113,21 +113,8 @@ inline bool receiveSpatialDiffs(State& state) {
 }
 
 inline bool receivePixels(State& state) {
-  for (u32 i = 0; i < state.expectedPackets; i++) {
-    // TODO: TEST CODE, DELETE
-    if (i % TRANSFER_SYNC_FREQUENCY == 0 && REG_VCOUNT == 5) {
-      if (!sync(CMD_PAUSE, true))
-        return false;
-
-      vid_vsync();
-      vid_vsync();
-
-      if (!sync(CMD_RESUME, true))
-        return false;
-    }
-
+  for (u32 i = 0; i < state.expectedPackets; i++)
     ((u32*)state.compressedPixels)[i] = spiSlave->transfer(i);
-  }
 
   return true;
 }
