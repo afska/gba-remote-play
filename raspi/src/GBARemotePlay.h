@@ -240,11 +240,11 @@ class GBARemotePlay {
     inputValidations = 0;
   }
 
-  bool sync(uint32_t command, bool allowPause = false) {
+  bool sync(uint32_t command) {
     uint32_t local = command + CMD_RPI_OFFSET;
     uint32_t remote = command + CMD_GBA_OFFSET;
 
-    return reliablySend(local, remote, allowPause);
+    return reliablySend(local, remote, false);
   }
 
   bool reliablySend(uint32_t packetToSend,
