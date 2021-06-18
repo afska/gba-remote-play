@@ -250,6 +250,12 @@ class GBARemotePlay {
   bool reliablySend(uint32_t packetToSend,
                     uint32_t expectedResponse,
                     bool allowPause = true) {
+    if (expectedResponse < MIN_COMMAND &&
+        expectedResponse % TRANSFER_SYNC_FREQUENCY != 0) {
+      spiMaster->send(packetToSend);
+      return true;
+    }
+
     uint32_t confirmation;
     uint32_t lastReceivedPacket = 0;
 
