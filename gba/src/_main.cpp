@@ -47,8 +47,8 @@ bool receiveSpatialDiffs(State& state);
 bool receivePixels(State& state);
 void draw(State& state);
 void decompressImage(State& state);
-bool sync(State& state, u32 command);
-bool reliablySend(State& state, u32 packetToSend, u32 expectedResponse);
+bool sync(u32 command);
+bool reliablySend(u32 packetToSend, u32 expectedResponse);
 u32 x(u32 cursor);
 u32 y(u32 cursor);
 
@@ -81,13 +81,13 @@ reset:
   while (true) {
     state.expectedPackets = 0;
 
-    TRY(sync(state, CMD_FRAME_START));
+    TRY(sync(CMD_FRAME_START));
     TRY(sendKeysAndReceiveTemporalDiffs(state));
-    TRY(sync(state, CMD_SPATIAL_DIFFS_START));
+    TRY(sync(CMD_SPATIAL_DIFFS_START));
     TRY(receiveSpatialDiffs(state));
-    TRY(sync(state, CMD_PIXELS_START));
+    TRY(sync(CMD_PIXELS_START));
     TRY(receivePixels(state));
-    TRY(sync(state, CMD_FRAME_END));
+    TRY(sync(CMD_FRAME_END));
 
     draw(state);
   }
@@ -114,18 +114,19 @@ inline bool receiveSpatialDiffs(State& state) {
 
 inline bool receivePixels(State& state) {
   for (u32 i = 0; i < state.expectedPackets; i++) {
-    ((u32*)state.compressedPixels)[i] = spiSlave->transfer(i);
-
     // TODO: TEST CODE, DELETE
-    if ((i + 1) % TRANSFER_SYNC_FREQUENCY == 0 && REG_VCOUNT == 5) {
+    if (i % TRANSFER_SYNC_FREQUENCY == 0 && REG_VCOUNT == 5) {
+      if (!sync(CMD_PAUSE))
+        return false;
+
       vid_vsync();
       vid_vsync();
 
-      if (!sync(state, CMD_PAUSE))
-        return false;
-      if (!sync(state, CMD_RESUME))
+      if (!sync(CMD_RESUME))
         return false;
     }
+
+    ((u32*)state.compressedPixels)[i] = spiSlave->transfer(i);
   }
 
   return true;
@@ -184,14 +185,14 @@ inline void decompressImage(State& state) {
   }
 }
 
-inline bool sync(State& state, u32 command) {
+inline bool sync(u32 command) {
   u32 local = command + CMD_GBA_OFFSET;
   u32 remote = command + CMD_RPI_OFFSET;
 
-  return reliablySend(state, local, remote);
+  return reliablySend(local, remote);
 }
 
-inline bool reliablySend(State& state, u32 packetToSend, u32 expectedResponse) {
+inline bool reliablySend(u32 packetToSend, u32 expectedResponse) {
   u32 blindFrames = 0;
   bool wasVBlank = IS_VBLANK;
 
