@@ -240,16 +240,16 @@ class GBARemotePlay {
     inputValidations = 0;
   }
 
-  bool sync(uint32_t command) {
+  bool sync(uint32_t command, bool safe = false) {
     uint32_t local = command + CMD_RPI_OFFSET;
     uint32_t remote = command + CMD_GBA_OFFSET;
 
-    return reliablySend(local, remote, false);
+    return reliablySend(local, remote, safe);
   }
 
   bool reliablySend(uint32_t packetToSend,
                     uint32_t expectedResponse,
-                    bool allowPause = true) {
+                    bool safe = false) {
     if (expectedResponse < MIN_COMMAND &&
         expectedResponse % TRANSFER_SYNC_FREQUENCY != 0) {
       spiMaster->send(packetToSend);
@@ -259,26 +259,37 @@ class GBARemotePlay {
     uint32_t confirmation;
     uint32_t lastReceivedPacket = 0;
 
-    while ((confirmation = spiMaster->exchange(packetToSend)) !=
-           expectedResponse) {
-      if (allowPause && confirmation == CMD_PAUSE + CMD_GBA_OFFSET) {
-        if (!sync(CMD_PAUSE))
-          return false;
-        if (!sync(CMD_RESUME))
-          return false;
-      }
+    while (true) {
+      bool isOnSync = (confirmation = spiMaster->exchange(packetToSend)) ==
+                      expectedResponse;
 
-      if (confirmation == CMD_RESET) {
-        LOG("Reset! (sent, expected, actual)");
-        std::cout << "0x" << std::hex << packetToSend << "\n";
-        std::cout << "0x" << std::hex << expectedResponse << "\n";
-        std::cout << "0x" << std::hex << lastReceivedPacket << "\n\n";
-        return false;
+      if (safe)
+        for (int i = 0; i < SAFE_SYNC_VALIDATIONS; i++)
+          isOnSync = isOnSync &&
+                     (confirmation = spiMaster->exchange(packetToSend + i)) ==
+                         expectedResponse + i;
+
+      if (isOnSync)
+        return true;
+      else {
+        if (!safe && confirmation == CMD_PAUSE + CMD_GBA_OFFSET) {
+          if (!sync(CMD_PAUSE, true))
+            return false;
+          if (!sync(CMD_RESUME, true))
+            return false;
+        }
+
+        if (confirmation == CMD_RESET) {
+          LOG("Reset! (sent, expected, actual)");
+          std::cout << "0x" << std::hex << packetToSend << "\n";
+          std::cout << "0x" << std::hex << expectedResponse << "\n";
+          std::cout << "0x" << std::hex << lastReceivedPacket << "\n\n";
+          return false;
+        }
+
+        lastReceivedPacket = confirmation;
       }
-      lastReceivedPacket = confirmation;
     }
-
-    return true;
   }
 
   Frame loadFrame() {
