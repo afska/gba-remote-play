@@ -247,8 +247,12 @@ inline u32 transfer(u32 packetToSend, bool* errorFlag) {
   u32 receivedPacket =
       spiSlave->transfer(packetToSend, isNewVBlank, &breakFlag);
 
-  if (breakFlag)
+  if (breakFlag) {
     driveAudio();
+    sync(CMD_RECOVERY);
+    spiSlave->transfer(packetToSend);
+  }
+
   if (errorFlag != NULL)
     *errorFlag = breakFlag;
 
