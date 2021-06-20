@@ -54,10 +54,10 @@ bool receiveSpatialDiffs(State& state);
 bool receivePixels(State& state);
 void draw(State& state);
 void decompressImage(State& state);
+u32 transfer(u32 packetToSend, bool* errorFlag = NULL);
 bool isNewVBlank();
 void driveAudio();
 bool sync(u32 command, bool safe = true);
-bool reliablySend(u32 packetToSend, u32 expectedResponse);
 u32 x(u32 cursor);
 u32 y(u32 cursor);
 
@@ -93,7 +93,7 @@ inline void init() {
 CODE_IWRAM void mainLoop() {
 reset:
   State state;
-  spiSlave->transfer(CMD_RESET);
+  transfer(CMD_RESET);
 
   if (isNewVBlank())
     driveAudio();
@@ -242,6 +242,19 @@ inline void decompressImage(State& state) {
   }
 }
 
+inline u32 transfer(u32 packetToSend, bool* errorFlag) {
+  bool breakFlag = false;
+  u32 receivedPacket =
+      spiSlave->transfer(packetToSend, isNewVBlank, &breakFlag);
+
+  if (breakFlag)
+    driveAudio();
+  if (errorFlag != NULL)
+    *errorFlag = breakFlag;
+
+  return receivedPacket;
+}
+
 inline bool isNewVBlank() {
   bool isVBlank = IS_VBLANK;
   if (!VBLANK_TRACKER && isVBlank) {
@@ -264,11 +277,11 @@ inline bool sync(u32 command, bool safe) {
   bool wasVBlank = IS_VBLANK;
 
   while (true) {
-    bool isOnSync = spiSlave->transfer(local) == remote;
+    bool isOnSync = transfer(local) == remote;
 
     if (safe)
       for (u32 i = 0; i < SAFE_SYNC_VALIDATIONS; i++)
-        isOnSync = isOnSync && spiSlave->transfer(local + i) == remote + i;
+        isOnSync = isOnSync && transfer(local + i) == remote + i;
 
     if (isOnSync)
       return true;

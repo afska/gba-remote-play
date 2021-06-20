@@ -24,12 +24,24 @@ class SPISlave {
   }
 
   u32 transfer(u32 value) {
+    return transfer(
+        value, []() { return false; }, NULL);
+  }
+
+  template <typename F>
+  u32 transfer(u32 value, F needsBreak, bool* breakFlag) {
     setData(value);
     enableTransfer();
     startTransfer();
 
-    while (!isReady())
-      ;
+    while (!isReady()) {
+      if (needsBreak()) {
+        setData(0xffffffff);
+        disableTransfer();
+        *breakFlag = true;
+        return 0;
+      }
+    }
 
     disableTransfer();
     u32 data = getData();
