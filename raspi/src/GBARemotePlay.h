@@ -240,7 +240,7 @@ class GBARemotePlay {
     inputValidations = 0;
   }
 
-  bool sync(uint32_t command, bool safe = false) {
+  bool sync(uint32_t command, bool safe = true) {
     uint32_t local = command + CMD_RPI_OFFSET;
     uint32_t remote = command + CMD_GBA_OFFSET;
 
@@ -273,9 +273,9 @@ class GBARemotePlay {
         return true;
       else {
         if (!safe && confirmation == CMD_PAUSE + CMD_GBA_OFFSET) {
-          if (!sync(CMD_PAUSE, true))
+          if (!sync(CMD_PAUSE))
             return false;
-          if (!sync(CMD_RESUME, true))
+          if (!sync(CMD_RESUME))
             return false;
         }
 

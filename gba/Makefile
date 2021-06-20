@@ -31,6 +31,9 @@ LIBS		:= -ltonc -lgba
 
 BUILD		:= build
 SRCDIRS		:= src \
+						 src/gbfs \
+						 src/gsmplayer \
+						 src/gsmplayer/core \
 						 src/data/_compiled_files
 DATADIRS	:=
 INCDIRS		:= src
@@ -189,11 +192,12 @@ assets: check-env
 	./scripts/assets.sh
 
 start: check-env $(BUILD)
-	start "$(TARGET).gba"
+	start "$(TARGET).out.gba"
 
 rebuild: check-env clean $(BUILD)
 
 restart: check-env rebuild
-	cp "$(TARGET).gba" "$(GBARP_OUT_DIR)"
+	./package.sh
+	cp "$(TARGET).out.gba" "$(GBARP_OUT_DIR)"
 
 # EOF

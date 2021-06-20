@@ -6,6 +6,12 @@
 #include "Protocol.h"
 #include "SPISlave.h"
 
+extern "C" {
+#include "gbfs/gbfs.h"
+#include "gsmplayer/player.h"
+}
+
+#define VBLANK_TRACKER (pal_obj_mem[0])
 #define TRY(ACTION) \
   if (!(ACTION))    \
   goto reset
@@ -23,6 +29,7 @@ typedef struct {
 
 SPISlave* spiSlave = new SPISlave();
 DATA_EWRAM u8 frameBuffer[TOTAL_SCREEN_PIXELS];
+static const GBFS_FILE* fs = find_first_gbfs_file(0);
 
 // ---------
 // BENCHMARK
@@ -47,7 +54,9 @@ bool receiveSpatialDiffs(State& state);
 bool receivePixels(State& state);
 void draw(State& state);
 void decompressImage(State& state);
-bool sync(u32 command, bool safe = false);
+bool isNewVBlank();
+void driveAudio();
+bool sync(u32 command, bool safe = true);
 bool reliablySend(u32 packetToSend, u32 expectedResponse);
 u32 x(u32 cursor);
 u32 y(u32 cursor);
@@ -59,7 +68,9 @@ u32 y(u32 cursor);
 #ifndef BENCHMARK
 int main() {
   init();
+  player_loop("loop.gsm");
   mainLoop();
+
   return 0;
 }
 #endif
@@ -69,25 +80,44 @@ inline void init() {
   overclockEWRAM();
   enable2xMosaic();
   dma3_cpy(pal_bg_mem, MAIN_PALETTE, sizeof(COLOR) * PALETTE_COLORS);
+
+  if (fs == NULL) {
+    pal_bg_mem[0] = 0b11111;
+    while (true)
+      ;
+  }
+
+  player_init();
 }
 
 CODE_IWRAM void mainLoop() {
 reset:
   State state;
-  state.expectedPackets = 0;
-
   spiSlave->transfer(CMD_RESET);
+
+  if (isNewVBlank())
+    driveAudio();
 
   while (true) {
     state.expectedPackets = 0;
 
+    if (isNewVBlank())
+      driveAudio();
     TRY(sync(CMD_FRAME_START));
     TRY(sendKeysAndReceiveTemporalDiffs(state));
+    if (isNewVBlank())
+      driveAudio();
     TRY(sync(CMD_SPATIAL_DIFFS_START));
     TRY(receiveSpatialDiffs(state));
+    if (isNewVBlank())
+      driveAudio();
     TRY(sync(CMD_PIXELS_START));
     TRY(receivePixels(state));
+    if (isNewVBlank())
+      driveAudio();
     TRY(sync(CMD_FRAME_END));
+    if (isNewVBlank())
+      driveAudio();
 
     draw(state);
   }
@@ -98,6 +128,17 @@ inline bool sendKeysAndReceiveTemporalDiffs(State& state) {
 
   u16 keys = pressedKeys();
   for (u32 i = 0; i < TEMPORAL_DIFF_SIZE / PACKET_SIZE; i++) {
+    if (i >= PRESSED_KEYS_REPETITIONS && i % TRANSFER_SYNC_FREQUENCY == 0 &&
+        isNewVBlank()) {
+      if (!sync(CMD_PAUSE))
+        return false;
+
+      driveAudio();
+
+      if (!sync(CMD_RESUME))
+        return false;
+    }
+
     ((u32*)state.temporalDiffs)[i] =
         spiSlave->transfer(i < PRESSED_KEYS_REPETITIONS ? keys : i);
   }
@@ -106,22 +147,49 @@ inline bool sendKeysAndReceiveTemporalDiffs(State& state) {
 }
 
 inline bool receiveSpatialDiffs(State& state) {
-  for (u32 i = 0; i < SPATIAL_DIFF_SIZE / PACKET_SIZE; i++)
+  for (u32 i = 0; i < SPATIAL_DIFF_SIZE / PACKET_SIZE; i++) {
+    if (i % TRANSFER_SYNC_FREQUENCY == 0 && isNewVBlank()) {
+      if (!sync(CMD_PAUSE))
+        return false;
+
+      driveAudio();
+
+      if (!sync(CMD_RESUME))
+        return false;
+    }
+
     ((u32*)state.spatialDiffs)[i] = spiSlave->transfer(i);
+  }
 
   return true;
 }
 
 inline bool receivePixels(State& state) {
-  for (u32 i = 0; i < state.expectedPackets; i++)
+  for (u32 i = 0; i < state.expectedPackets; i++) {
+    if (i % TRANSFER_SYNC_FREQUENCY == 0 &&
+        i < state.expectedPackets - TRANSFER_SYNC_FREQUENCY && isNewVBlank()) {
+      if (!sync(CMD_PAUSE))
+        return false;
+
+      driveAudio();
+
+      if (!sync(CMD_RESUME))
+        return false;
+    }
+
     ((u32*)state.compressedPixels)[i] = spiSlave->transfer(i);
+  }
 
   return true;
 }
 
 inline void draw(State& state) {
   decompressImage(state);
+  if (isNewVBlank())
+    driveAudio();
   dma3_cpy(vid_mem_front, frameBuffer, TOTAL_SCREEN_PIXELS);
+  if (isNewVBlank())
+    driveAudio();
 }
 
 inline void decompressImage(State& state) {
@@ -130,6 +198,8 @@ inline void decompressImage(State& state) {
   u32 decompressedPixels = 0;
 
   for (u32 cursor = 0; cursor < TOTAL_PIXELS; cursor++) {
+    if (isNewVBlank())
+      driveAudio();
     u32 temporalByte = cursor / 8;
     u32 temporalBit = cursor % 8;
     u32 temporalDiff = state.temporalDiffs[temporalByte];
@@ -170,6 +240,21 @@ inline void decompressImage(State& state) {
         decompressedPixels++;
     }
   }
+}
+
+inline bool isNewVBlank() {
+  bool isVBlank = IS_VBLANK;
+  if (!VBLANK_TRACKER && isVBlank) {
+    VBLANK_TRACKER = true;
+    return true;
+  } else if (VBLANK_TRACKER && !isVBlank)
+    VBLANK_TRACKER = false;
+
+  return false;
+}
+
+CODE_IWRAM void driveAudio() {
+  player_run();
 }
 
 inline bool sync(u32 command, bool safe) {
