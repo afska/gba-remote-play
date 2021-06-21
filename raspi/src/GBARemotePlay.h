@@ -64,6 +64,7 @@ class GBARemotePlay {
 #endif
 
       if (!send(frame, diffs)) {
+        LOG("Reset!\n\n");
         frame.clean();
         goto reset;
       }

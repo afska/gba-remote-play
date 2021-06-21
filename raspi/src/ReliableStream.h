@@ -37,10 +37,10 @@ class ReliableStream {
         return true;
       else {
         if (confirmation == CMD_RESET) {
-          LOG("Reset! (sent, expected, actual)");
-          std::cout << "0x" << std::hex << local << "\n";
-          std::cout << "0x" << std::hex << remote << "\n";
-          std::cout << "0x" << std::hex << lastReceivedPacket << "\n\n";
+          LOG("  [sent, expected, actual]");
+          std::cout << "  0x" << std::hex << local << "\n";
+          std::cout << "  0x" << std::hex << remote << "\n";
+          std::cout << "  0x" << std::hex << lastReceivedPacket << "\n";
           return false;
         }
 
