@@ -163,10 +163,6 @@ class GBARemotePlay {
     uint32_t expectedPackets = diffs.compressedPixels / PIXELS_PER_PACKET +
                                diffs.compressedPixels % PIXELS_PER_PACKET;
     uint32_t keys = spiMaster->exchange(expectedPackets);
-    for (int i = 0; i < SYNC_VALIDATIONS; i++)
-      if (spiMaster->exchange(expectedPackets) != keys)
-        return false;
-
     processKeys(keys);
 
     uint32_t index = 0;

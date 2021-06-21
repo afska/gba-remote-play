@@ -113,13 +113,7 @@ reset:
 }
 
 inline bool sendKeysAndReceiveTemporalDiffs(State& state) {
-  u16 keys = pressedKeys();
-  state.expectedPackets =
-      transfer(keys, false);  // TODO: THIS CAN (AND WILL) FAIL
-  for (u32 i = 0; i < SYNC_VALIDATIONS; i++) {
-    if (transfer(keys, false) != state.expectedPackets)
-      return false;
-  }
+  state.expectedPackets = spiSlave->transfer(pressedKeys());
 
   for (u32 i = 0; i < TEMPORAL_DIFF_SIZE / PACKET_SIZE; i++)
     ((u32*)state.temporalDiffs)[i] = transfer(i);

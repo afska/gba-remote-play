@@ -3,7 +3,7 @@
 
 #define PROFILE
 // #define PROFILE_VERBOSE
-#define DEBUG  // TODO: REMOVE
+// #define DEBUG
 // #define BENCHMARK
 
 #include "Utils.h"
