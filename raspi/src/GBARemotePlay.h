@@ -8,6 +8,7 @@
 #include "PNGWriter.h"
 #include "Palette.h"
 #include "Protocol.h"
+#include "ReliableStream.h"
 #include "SPIMaster.h"
 #include "VirtualGamepad.h"
 
@@ -18,10 +19,10 @@ class GBARemotePlay {
   GBARemotePlay() {
     spiMaster = new SPIMaster(SPI_MODE, SPI_SLOW_FREQUENCY, SPI_FAST_FREQUENCY,
                               SPI_DELAY_MICROSECONDS);
+    reliableStream = new ReliableStream(spiMaster);
     frameBuffer = new FrameBuffer(RENDER_WIDTH, RENDER_HEIGHT);
     virtualGamepad = new VirtualGamepad(VIRTUAL_GAMEPAD_NAME);
     lastFrame = Frame{0};
-    resetKeys();
 
     PALETTE_initializeCache(PALETTE_CACHE_FILENAME);
   }
@@ -29,7 +30,6 @@ class GBARemotePlay {
   void run() {
   reset:
     lastFrame.clean();
-    resetKeys();
     spiMaster->send(CMD_RESET);
 
 #ifdef PROFILE
@@ -94,17 +94,18 @@ class GBARemotePlay {
   ~GBARemotePlay() {
     lastFrame.clean();
     delete spiMaster;
+    delete reliableStream;
     delete frameBuffer;
     delete virtualGamepad;
   }
 
  private:
   SPIMaster* spiMaster;
+  ReliableStream* reliableStream;
   FrameBuffer* frameBuffer;
   VirtualGamepad* virtualGamepad;
   Frame lastFrame;
   uint32_t input;
-  uint32_t inputValidations;
 
   bool send(Frame& frame, ImageDiffBitArray& diffs) {
     if (!frame.hasData())
@@ -114,8 +115,8 @@ class GBARemotePlay {
     auto idleStartTime = PROFILE_START();
 #endif
 
-    DEBULOG("Sending frame start command...");
-    if (!sync(CMD_FRAME_START))
+    DEBULOG("Syncing frame start...");
+    if (!reliableStream->sync(CMD_FRAME_START))
       return false;
 
 #ifdef PROFILE_VERBOSE
@@ -127,24 +128,24 @@ class GBARemotePlay {
     if (!receiveKeysAndSendTemporalDiffs(diffs))
       return false;
 
-    DEBULOG("Sending spatial diffs start command...");
-    if (!sync(CMD_SPATIAL_DIFFS_START))
+    DEBULOG("Syncing spatial diffs start...");
+    if (!reliableStream->sync(CMD_SPATIAL_DIFFS_START))
       return false;
 
     DEBULOG("Sending spatial diffs...");
     if (!sendSpatialDiffs(diffs))
       return false;
 
-    DEBULOG("Sending pixels command...");
-    if (!sync(CMD_PIXELS_START))
+    DEBULOG("Syncing pixels start...");
+    if (!reliableStream->sync(CMD_PIXELS_START))
       return false;
 
     DEBULOG("Sending pixels...");
-    if (!sendPixels(frame, diffs))
+    if (!compressAndSendPixels(frame, diffs))
       return false;
 
-    DEBULOG("Sending end command...");
-    if (!sync(CMD_FRAME_END))
+    DEBULOG("Syncing frame end...");
+    if (!reliableStream->sync(CMD_FRAME_END))
       return false;
 
 #ifdef DEBUG
@@ -158,38 +159,58 @@ class GBARemotePlay {
   }
 
   bool receiveKeysAndSendTemporalDiffs(ImageDiffBitArray& diffs) {
-    spiMaster->send(diffs.compressedPixels / PIXELS_PER_PACKET +
-                    diffs.compressedPixels % PIXELS_PER_PACKET);
+    uint32_t expectedPackets = diffs.compressedPixels / PIXELS_PER_PACKET +
+                               diffs.compressedPixels % PIXELS_PER_PACKET;
+    uint32_t keys = spiMaster->exchange(expectedPackets);
+    for (int i = 0; i < SYNC_VALIDATIONS; i++)
+      if (spiMaster->exchange(expectedPackets) != keys)
+        return false;
 
-    for (int i = 0; i < TEMPORAL_DIFF_SIZE / PACKET_SIZE; i++) {
-      uint32_t packet = ((uint32_t*)diffs.temporal)[i];
+    processKeys(keys);
 
-      if (i < PRESSED_KEYS_REPETITIONS) {
-        uint32_t receivedKeys = spiMaster->exchange(packet);
-        processKeys(receivedKeys);
-      } else {
-        if (!reliablySend(packet, i))
-          return false;
-      }
-    }
-
-    return true;
-  }
-
-  bool sendSpatialDiffs(ImageDiffBitArray& diffs) {
-    for (int i = 0; i < SPATIAL_DIFF_SIZE / PACKET_SIZE; i++) {
-      uint32_t packet = ((uint32_t*)diffs.spatial)[i];
-      if (!reliablySend(packet, i))
+    uint32_t i = 0;
+    while (i < TEMPORAL_DIFF_SIZE / PACKET_SIZE) {
+      uint32_t packetToSend = ((uint32_t*)diffs.temporal)[i];
+      if (!reliableStream->send(packetToSend, &i))
         return false;
     }
 
     return true;
   }
 
-  bool sendPixels(Frame& frame, ImageDiffBitArray& diffs) {
+  bool sendSpatialDiffs(ImageDiffBitArray& diffs) {
+    uint32_t i = 0;
+    while (i < SPATIAL_DIFF_SIZE / PACKET_SIZE) {
+      uint32_t packetToSend = ((uint32_t*)diffs.spatial)[i];
+      if (!reliableStream->send(packetToSend, &i))
+        return false;
+    }
+
+    return true;
+  }
+
+  bool compressAndSendPixels(Frame& frame, ImageDiffBitArray& diffs) {
+    uint32_t packetsToSend[MAX_PIXELS_SIZE];
+    uint32_t totalPackets = 0;
+    compressPixels(frame, diffs, packetsToSend, &totalPackets);
+
+    uint32_t i = 0;
+    while (i < totalPackets) {
+      uint32_t packetToSend = packetsToSend[i];
+      if (!reliableStream->send(packetToSend, &i))
+        return false;
+    }
+    // TODO: SAME STEP, MEASURE COMPRESSION TIME
+
+    return true;
+  }
+
+  void compressPixels(Frame& frame,
+                      ImageDiffBitArray& diffs,
+                      uint32_t* packetsToSend,
+                      uint32_t* totalPackets) {
     uint32_t compressedPixelId = 0;
-    uint32_t outgoingPacket = 0;
-    uint32_t sentPackets = 0;
+    uint32_t packetToSend = 0;
     uint8_t byte = 0;
 
     for (int i = 0; i < frame.totalPixels; i++) {
@@ -202,95 +223,24 @@ class GBARemotePlay {
           continue;
 
         // send pixels
-        outgoingPacket |= frame.raw8BitPixels[i] << (byte * 8);
+        packetToSend |= frame.raw8BitPixels[i] << (byte * 8);
         byte++;
         if (byte == PACKET_SIZE) {
-          if (!reliablySend(outgoingPacket, sentPackets))
-            return false;
-          outgoingPacket = 0;
+          packetsToSend[*totalPackets] = packetToSend;
+          packetToSend = 0;
           byte = 0;
-          sentPackets++;
+          (*totalPackets)++;
         }
       }
     }
 
     if (byte > 0) {
-      if (!reliablySend(outgoingPacket, sentPackets))
-        return false;
-    }
-
-    return true;
-  }
-
-  void processKeys(uint16_t receivedKeys) {
-    if (input != receivedKeys) {
-      input = receivedKeys;
-      inputValidations = 0;
-    } else
-      inputValidations++;
-
-    if (inputValidations == PRESSED_KEYS_MIN_VALIDATIONS) {
-      virtualGamepad->setKeys(input);
-      resetKeys();
+      packetsToSend[*totalPackets] = packetToSend;
+      (*totalPackets)++;
     }
   }
 
-  void resetKeys() {
-    input = 0xffffffff;
-    inputValidations = 0;
-  }
-
-  bool sync(uint32_t command, bool safe = true) {
-    uint32_t local = command + CMD_RPI_OFFSET;
-    uint32_t remote = command + CMD_GBA_OFFSET;
-
-    return reliablySend(local, remote, safe);
-  }
-
-  bool reliablySend(uint32_t packetToSend,
-                    uint32_t expectedResponse,
-                    bool safe = false) {
-    if (expectedResponse < MIN_COMMAND &&
-        expectedResponse % TRANSFER_SYNC_FREQUENCY != 0) {
-      spiMaster->send(packetToSend);
-      return true;
-    }
-
-    uint32_t confirmation;
-    uint32_t lastReceivedPacket = 0;
-
-    while (true) {
-      bool isOnSync = (confirmation = spiMaster->exchange(packetToSend)) ==
-                      expectedResponse;
-
-      if (safe)
-        for (int i = 0; i < SAFE_SYNC_VALIDATIONS; i++)
-          isOnSync = isOnSync &&
-                     (confirmation = spiMaster->exchange(packetToSend + i)) ==
-                         expectedResponse + i;
-
-      if (isOnSync)
-        return true;
-      else {
-        if (!safe && confirmation == CMD_PAUSE + CMD_GBA_OFFSET) {
-          if (!sync(CMD_PAUSE))
-            return false;
-          if (!sync(CMD_RESUME))
-            return false;
-        }
-
-        if (confirmation == CMD_RESET) {
-          LOG("Reset! (sent, expected, actual)");
-          std::cout << "0x" << std::hex << packetToSend << "\n";
-          std::cout << "0x" << std::hex << expectedResponse << "\n";
-          std::cout << "0x" << std::hex << lastReceivedPacket << "\n\n";
-          return false;
-        }
-
-        lastReceivedPacket = confirmation;
-      }
-    }
-  }
+  void processKeys(uint16_t keys) { virtualGamepad->setKeys(keys); }
 
   Frame loadFrame() {
     Frame frame;
