@@ -66,8 +66,8 @@ class ReliableStream {
         *index = requestedIndex;
         return true;
       } else {
-        // (unknown command => reset)
-        return false;
+        // (unknown command, probably 0xffffffff => ignore)
+        return true;
       }
     } else if (requestedIndex == *index) {
       // (on sync)
