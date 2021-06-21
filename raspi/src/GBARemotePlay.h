@@ -169,10 +169,11 @@ class GBARemotePlay {
 
     processKeys(keys);
 
-    uint32_t i = 0;
-    while (i < TEMPORAL_DIFF_SIZE / PACKET_SIZE) {
-      uint32_t packetToSend = ((uint32_t*)diffs.temporal)[i];
-      if (!reliableStream->send(packetToSend, &i))
+    uint32_t index = 0;
+    uint32_t size = TEMPORAL_DIFF_SIZE / PACKET_SIZE;
+    while (index < size) {
+      uint32_t packetToSend = ((uint32_t*)diffs.temporal)[index];
+      if (!reliableStream->send(packetToSend, &index, size))
         return false;
     }
 
@@ -180,10 +181,12 @@ class GBARemotePlay {
   }
 
   bool sendSpatialDiffs(ImageDiffBitArray& diffs) {
-    uint32_t i = 0;
-    while (i < SPATIAL_DIFF_SIZE / PACKET_SIZE) {
-      uint32_t packetToSend = ((uint32_t*)diffs.spatial)[i];
-      if (!reliableStream->send(packetToSend, &i))
+    // TODO: REPEATED PATTERN
+    uint32_t index = 0;
+    uint32_t size = SPATIAL_DIFF_SIZE / PACKET_SIZE;
+    while (index < size) {
+      uint32_t packetToSend = ((uint32_t*)diffs.spatial)[index];
+      if (!reliableStream->send(packetToSend, &index, size))
         return false;
     }
 
@@ -192,13 +195,13 @@ class GBARemotePlay {
 
   bool compressAndSendPixels(Frame& frame, ImageDiffBitArray& diffs) {
     uint32_t packetsToSend[MAX_PIXELS_SIZE];
-    uint32_t totalPackets = 0;
-    compressPixels(frame, diffs, packetsToSend, &totalPackets);
+    uint32_t size = 0;
+    compressPixels(frame, diffs, packetsToSend, &size);
 
-    uint32_t i = 0;
-    while (i < totalPackets) {
-      uint32_t packetToSend = packetsToSend[i];
-      if (!reliableStream->send(packetToSend, &i))
+    uint32_t index = 0;
+    while (index < size) {
+      uint32_t packetToSend = packetsToSend[index];
+      if (!reliableStream->send(packetToSend, &index, size))
         return false;
     }
     // TODO: SAME STEP, MEASURE COMPRESSION TIME
@@ -208,10 +211,10 @@ class GBARemotePlay {
 
   void compressPixels(Frame& frame,
                       ImageDiffBitArray& diffs,
-                      uint32_t* packetsToSend,
+                      uint32_t* packets,
                       uint32_t* totalPackets) {
     uint32_t compressedPixelId = 0;
-    uint32_t packetToSend = 0;
+    uint32_t currentPacket = 0;
     uint8_t byte = 0;
 
     for (int i = 0; i < frame.totalPixels; i++) {
@@ -223,12 +226,12 @@ class GBARemotePlay {
         if (blockPart > 0 && diffs.isRepeatedBlock(block))
           continue;
 
-        // send pixels
-        packetToSend |= frame.raw8BitPixels[i] << (byte * 8);
+        // save pixels
+        currentPacket |= frame.raw8BitPixels[i] << (byte * 8);
         byte++;
         if (byte == PACKET_SIZE) {
-          packetsToSend[*totalPackets] = packetToSend;
-          packetToSend = 0;
+          packets[*totalPackets] = currentPacket;
+          currentPacket = 0;
           byte = 0;
           (*totalPackets)++;
         }
@@ -236,7 +239,7 @@ class GBARemotePlay {
     }
 
     if (byte > 0) {
-      packetsToSend[*totalPackets] = packetToSend;
+      packets[*totalPackets] = currentPacket;
       (*totalPackets)++;
     }
   }

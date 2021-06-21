@@ -11,9 +11,9 @@ class ReliableStream {
  public:
   ReliableStream(SPIMaster* spiMaster) { this->spiMaster = spiMaster; }
 
-  bool send(uint32_t packet, uint32_t* index) {
+  bool send(uint32_t packet, uint32_t* index, uint32_t size) {
     if (*index % TRANSFER_SYNC_FREQUENCY == 0) {
-      return reliablySend(packet, index);
+      return reliablySend(packet, index, size);
     } else {
       spiMaster->send(packet);
       (*index)++;
@@ -54,10 +54,10 @@ class ReliableStream {
   SPIMaster* spiMaster;
 
  private:
-  bool reliablySend(uint32_t packet, uint32_t* index) {
+  bool reliablySend(uint32_t packet, uint32_t* index, uint32_t size) {
     uint32_t requestedIndex = spiMaster->exchange(packet);
 
-    if (requestedIndex >= MIN_COMMAND) {
+    if (requestedIndex >= size) {
       if (requestedIndex == CMD_RECOVERY + CMD_GBA_OFFSET) {
         // (recovery command)
         if (!sync(CMD_RECOVERY))
@@ -65,6 +65,8 @@ class ReliableStream {
         requestedIndex = spiMaster->exchange(0);
         *index = requestedIndex;
         return true;
+      } else if (requestedIndex == CMD_RESET) {
+        return false;
       } else {
         // (unknown command, probably 0xffffffff => ignore)
         return true;
