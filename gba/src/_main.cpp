@@ -99,6 +99,7 @@ reset:
   while (true) {
     state.expectedPackets = 0;
 
+    driveAudioIfNeeded();
     TRY(sync(CMD_FRAME_START));
     TRY(sendKeysAndReceiveTemporalDiffs(state));
     TRY(sync(CMD_SPATIAL_DIFFS_START));
@@ -106,8 +107,8 @@ reset:
     TRY(sync(CMD_PIXELS_START));
     TRY(receivePixels(state));
     TRY(sync(CMD_FRAME_END));
-
     driveAudioIfNeeded();
+
     draw(state);
   }
 }
