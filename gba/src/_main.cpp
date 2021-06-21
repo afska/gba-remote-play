@@ -114,9 +114,10 @@ reset:
 
 inline bool sendKeysAndReceiveTemporalDiffs(State& state) {
   u16 keys = pressedKeys();
-  u32 expectedPackets = transfer(keys, false);
+  state.expectedPackets =
+      transfer(keys, false);  // TODO: THIS CAN (AND WILL) FAIL
   for (u32 i = 0; i < SYNC_VALIDATIONS; i++) {
-    if (transfer(keys, false) != expectedPackets)
+    if (transfer(keys, false) != state.expectedPackets)
       return false;
   }
 
@@ -128,14 +129,14 @@ inline bool sendKeysAndReceiveTemporalDiffs(State& state) {
 
 inline bool receiveSpatialDiffs(State& state) {
   for (u32 i = 0; i < SPATIAL_DIFF_SIZE / PACKET_SIZE; i++)
-    ((u32*)state.spatialDiffs)[i] = spiSlave->transfer(i);
+    ((u32*)state.spatialDiffs)[i] = transfer(i);
 
   return true;
 }
 
 inline bool receivePixels(State& state) {
   for (u32 i = 0; i < state.expectedPackets; i++)
-    ((u32*)state.compressedPixels)[i] = spiSlave->transfer(i);
+    ((u32*)state.compressedPixels)[i] = transfer(i);
 
   return true;
 }
