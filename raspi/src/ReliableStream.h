@@ -59,7 +59,8 @@ class ReliableStream {
     if (requestedIndex >= MIN_COMMAND) {
       if (requestedIndex == CMD_RECOVERY + CMD_GBA_OFFSET) {
         // (recovery command)
-        sync(CMD_RECOVERY);
+        if (!sync(CMD_RECOVERY))
+          return false;
         requestedIndex = spiMaster->exchange(0);
         *index = requestedIndex;
         return true;
