@@ -16,6 +16,7 @@ class ReliableStream {
       return reliablySend(packet, index);
     } else {
       spiMaster->send(packet);
+      (*index)++;
       return true;
     }
   }
