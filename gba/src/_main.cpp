@@ -94,7 +94,7 @@ inline void init() {
 CODE_IWRAM void mainLoop() {
 reset:
   State state;
-  transfer(CMD_RESET);
+  transfer(CMD_RESET, false);
 
   while (true) {
     state.expectedPackets = 0;
