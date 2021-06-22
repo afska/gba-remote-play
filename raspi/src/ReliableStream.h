@@ -13,6 +13,7 @@ class ReliableStream {
 
   bool send(void* data, uint32_t size) {
     uint32_t index = 0;
+    lastReceivedPacket = 0;
 
     while (index < size) {
       uint32_t packetToSend = ((uint32_t*)data)[index];
@@ -24,29 +25,19 @@ class ReliableStream {
   }
 
   bool sync(uint32_t command) {
+    lastReceivedPacket = 0;
     uint32_t local = command + CMD_RPI_OFFSET;
     uint32_t remote = command + CMD_GBA_OFFSET;
     uint32_t confirmation;
-    uint32_t lastReceivedPacket = 0;
 
     while (true) {
-      bool isOnSync = true;
-      for (int i = 0; i < SYNC_VALIDATIONS; i++)
-        isOnSync =
-            isOnSync &&
-            (confirmation = spiMaster->exchange(local + i)) == remote + i;
+      bool isOnSync = (confirmation = spiMaster->exchange(local)) == remote;
 
       if (isOnSync)
         return true;
       else {
         if (confirmation == CMD_RESET) {
-#ifdef PROFILE_VERBOSE
-          LOG("Reset!");
-          LOG("  [sent, expected, actual]");
-          std::cout << "  0x" << std::hex << local << "\n";
-          std::cout << "  0x" << std::hex << remote << "\n";
-          std::cout << "  0x" << std::hex << lastReceivedPacket << "\n";
-#endif
+          logReset("Reset! (sync)", local, remote);
           return false;
         }
 
@@ -57,6 +48,7 @@ class ReliableStream {
 
  private:
   SPIMaster* spiMaster;
+  uint32_t lastReceivedPacket = 0;
 
   bool sendPacket(uint32_t packet, uint32_t* index, uint32_t size) {
     if (*index % TRANSFER_SYNC_PERIOD == 0 || *index == size - 1) {
@@ -70,6 +62,8 @@ class ReliableStream {
 
   bool reliablySend(uint32_t packet, uint32_t* index) {
     uint32_t requestedIndex = spiMaster->exchange(packet);
+    if (requestedIndex != CMD_RESET)
+      lastReceivedPacket = requestedIndex;
 
     if (requestedIndex == CMD_RECOVERY + CMD_GBA_OFFSET) {
       // (recovery command)
@@ -80,6 +74,7 @@ class ReliableStream {
       return true;
     } else if (requestedIndex == CMD_RESET) {
       // (reset command)
+      logReset("Reset! (stream)", packet, *index);
       return false;
     } else if (requestedIndex == *index) {
       // (on sync)
@@ -89,6 +84,16 @@ class ReliableStream {
       // (probably garbage => ignore)
       return true;
     }
+  }
+
+  void logReset(std::string title, uint32_t sent, uint32_t expected) {
+#ifdef PROFILE_VERBOSE
+    LOG(title);
+    LOG("  [sent, expected, actual]");
+    std::cout << "  0x" << std::hex << sent << "\n";
+    std::cout << "  0x" << std::hex << expected << "\n";
+    std::cout << "  0x" << std::hex << lastReceivedPacket << "\n";
+#endif
   }
 };
 

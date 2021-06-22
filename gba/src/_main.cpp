@@ -236,22 +236,16 @@ CODE_IWRAM void driveAudio() {
 inline bool sync(u32 command) {
   u32 local = command + CMD_GBA_OFFSET;
   u32 remote = command + CMD_RPI_OFFSET;
-  u32 blindFrames = 0;
   bool wasVBlank = IS_VBLANK;
 
   while (true) {
-    bool isOnSync = true;
-    for (u32 i = 0; i < SYNC_VALIDATIONS; i++) {
-      bool breakFlag = false;
-      u32 receivedPacket =
-          spiSlave->transfer(local + i, isNewVBlank, &breakFlag);
+    bool breakFlag = false;
+    bool isOnSync =
+        spiSlave->transfer(local, isNewVBlank, &breakFlag) == remote;
 
-      if (breakFlag) {
-        driveAudio();
-        return false;
-      }
-
-      isOnSync = isOnSync && receivedPacket == remote + i;
+    if (breakFlag) {
+      driveAudio();
+      return false;
     }
 
     if (isOnSync)
@@ -259,13 +253,9 @@ inline bool sync(u32 command) {
     else {
       bool isVBlank = IS_VBLANK;
 
-      if (!wasVBlank && isVBlank) {
-        blindFrames++;
+      if (!wasVBlank && isVBlank)
         wasVBlank = true;
-      } else if (wasVBlank && !isVBlank)
-        wasVBlank = false;
-
-      if (blindFrames >= MAX_BLIND_FRAMES)
+      else if (wasVBlank && !isVBlank)
         return false;
     }
   }
