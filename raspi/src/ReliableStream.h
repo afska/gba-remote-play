@@ -11,14 +11,16 @@ class ReliableStream {
  public:
   ReliableStream(SPIMaster* spiMaster) { this->spiMaster = spiMaster; }
 
-  bool send(uint32_t packet, uint32_t* index, uint32_t size) {
-    if (*index % TRANSFER_SYNC_FREQUENCY == 0 || *index == size - 1) {
-      return reliablySend(packet, index);
-    } else {
-      spiMaster->send(packet);
-      (*index)++;
-      return true;
+  bool send(void* data, uint32_t size) {
+    uint32_t index = 0;
+
+    while (index < size) {
+      uint32_t packetToSend = ((uint32_t*)data)[index];
+      if (!sendPacket(packetToSend, &index, size))
+        return false;
     }
+
+    return true;
   }
 
   bool sync(uint32_t command) {
@@ -54,7 +56,16 @@ class ReliableStream {
  private:
   SPIMaster* spiMaster;
 
- private:
+  bool sendPacket(uint32_t packet, uint32_t* index, uint32_t size) {
+    if (*index % TRANSFER_SYNC_FREQUENCY == 0 || *index == size - 1) {
+      return reliablySend(packet, index);
+    } else {
+      spiMaster->send(packet);
+      (*index)++;
+      return true;
+    }
+  }
+
   bool reliablySend(uint32_t packet, uint32_t* index) {
     uint32_t requestedIndex = spiMaster->exchange(packet);
 

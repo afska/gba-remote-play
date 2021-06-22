@@ -152,28 +152,12 @@ class GBARemotePlay {
     uint32_t keys = spiMaster->exchange(expectedPackets);
     processKeys(keys);
 
-    uint32_t index = 0;
-    uint32_t size = TEMPORAL_DIFF_SIZE / PACKET_SIZE;
-    while (index < size) {
-      uint32_t packetToSend = ((uint32_t*)diffs.temporal)[index];
-      if (!reliableStream->send(packetToSend, &index, size))
-        return false;
-    }
-
-    return true;
+    return reliableStream->send(diffs.temporal,
+                                TEMPORAL_DIFF_SIZE / PACKET_SIZE);
   }
 
   bool sendSpatialDiffs(ImageDiffBitArray& diffs) {
-    // TODO: REPEATED PATTERN
-    uint32_t index = 0;
-    uint32_t size = SPATIAL_DIFF_SIZE / PACKET_SIZE;
-    while (index < size) {
-      uint32_t packetToSend = ((uint32_t*)diffs.spatial)[index];
-      if (!reliableStream->send(packetToSend, &index, size))
-        return false;
-    }
-
-    return true;
+    return reliableStream->send(diffs.spatial, SPATIAL_DIFF_SIZE / PACKET_SIZE);
   }
 
   bool compressAndSendPixels(Frame& frame, ImageDiffBitArray& diffs) {
@@ -181,15 +165,7 @@ class GBARemotePlay {
     uint32_t size = 0;
     compressPixels(frame, diffs, packetsToSend, &size);
 
-    uint32_t index = 0;
-    while (index < size) {
-      uint32_t packetToSend = packetsToSend[index];
-      if (!reliableStream->send(packetToSend, &index, size))
-        return false;
-    }
-    // TODO: SAME STEP, MEASURE COMPRESSION TIME
-
-    return true;
+    return reliableStream->send(packetsToSend, size);
   }
 
   void compressPixels(Frame& frame,
@@ -227,8 +203,6 @@ class GBARemotePlay {
     }
   }
 
-  void processKeys(uint16_t keys) { virtualGamepad->setKeys(keys); }
-
   Frame loadFrame() {
     Frame frame;
     frame.totalPixels = TOTAL_PIXELS;
@@ -243,6 +217,8 @@ class GBARemotePlay {
 
     return frame;
   }
+
+  void processKeys(uint16_t keys) { virtualGamepad->setKeys(keys); }
 };
 
 #endif  // GBA_REMOTE_PLAY_H
