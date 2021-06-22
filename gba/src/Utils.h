@@ -24,31 +24,4 @@ inline u16 pressedKeys() {
   return ~REG_KEYS & KEY_ANY;
 }
 
-typedef struct Memcpy32HookBlock {
-  u32 data[8];
-} Memcpy32HookBlock;
-
-template <typename F>
-CODE_IWRAM void memcpy32Hook(void* dst, const void* src, uint wdcount, F hook) {
-  u32 blkN = wdcount / 8, wdN = wdcount & 7;
-  u32 *dstw = (u32*)dst, *srcw = (u32*)src;
-  if (blkN) {
-    // (8-word copies)
-    Memcpy32HookBlock *dst2 = (Memcpy32HookBlock*)dst,
-                      *src2 = (Memcpy32HookBlock*)src;
-    while (blkN--) {
-      *dst2++ = *src2++;
-      hook();
-    }
-    dstw = (u32*)dst2;
-    srcw = (u32*)src2;
-  }
-
-  // (residual words)
-  while (wdN--) {
-    *dstw++ = *srcw++;
-    hook();
-  }
-}
-
 #endif  // UTILS_H

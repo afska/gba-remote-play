@@ -53,7 +53,6 @@ bool sendKeysAndReceiveTemporalDiffs(State& state);
 bool receiveSpatialDiffs(State& state);
 bool receivePixels(State& state);
 void render(State& state);
-void decompressImage(State& state);
 u32 transfer(u32 packetToSend, bool withRecovery = true);
 void driveAudioIfNeeded();
 bool isNewVBlank();
@@ -137,15 +136,6 @@ inline bool receivePixels(State& state) {
 }
 
 inline void render(State& state) {
-  driveAudioIfNeeded();
-  decompressImage(state);
-  driveAudioIfNeeded();
-  memcpy32Hook(vid_mem_front, frameBuffer, TOTAL_SCREEN_PIXELS / 4,
-               driveAudioIfNeeded);
-  driveAudioIfNeeded();
-}
-
-inline void decompressImage(State& state) {
   u32 block = 0;
   u32 blockPart = 0;
   u32 decompressedPixels = 0;
@@ -183,6 +173,8 @@ inline void decompressImage(State& state) {
 
       u32 drawCursor = y(cursor) * DRAW_WIDTH + x(cursor);
       frameBuffer[drawCursor] = state.compressedPixels[decompressedPixels];
+      ((u32*)vid_mem_front)[drawCursor / 4] =
+          ((u32*)frameBuffer)[drawCursor / 4];
 
       blockPart++;
       if (blockPart == SPATIAL_DIFF_BLOCK_SIZE) {
