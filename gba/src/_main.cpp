@@ -109,12 +109,14 @@ reset:
     TRY(sync(CMD_FRAME_END));
     driveAudioIfNeeded();
 
-    draw(state);
+    // draw(state);
+    // TODO: FIX draw(...) calls
   }
 }
 
 inline bool sendKeysAndReceiveTemporalDiffs(State& state) {
   state.expectedPackets = spiSlave->transfer(pressedKeys());
+  driveAudioIfNeeded();
 
   for (u32 i = 0; i < TEMPORAL_DIFF_SIZE / PACKET_SIZE; i++)
     ((u32*)state.temporalDiffs)[i] = transfer(i);
@@ -138,7 +140,9 @@ inline bool receivePixels(State& state) {
 
 inline void draw(State& state) {
   decompressImage(state);
+  driveAudioIfNeeded();
   dma3_cpy(vid_mem_front, frameBuffer, TOTAL_SCREEN_PIXELS);
+  driveAudioIfNeeded();
 }
 
 inline void decompressImage(State& state) {
