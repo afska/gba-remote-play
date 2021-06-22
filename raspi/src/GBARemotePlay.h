@@ -28,14 +28,13 @@ class GBARemotePlay {
   }
 
   void run() {
-  reset:
-    lastFrame.clean();
-    spiMaster->send(CMD_RESET);
-
 #ifdef PROFILE
     auto startTime = PROFILE_START();
     uint32_t frames = 0;
 #endif
+
+  reset:
+    spiMaster->send(CMD_RESET);
 
     while (true) {
 #ifdef DEBUG
