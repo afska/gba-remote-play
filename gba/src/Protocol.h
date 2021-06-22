@@ -46,7 +46,7 @@ inline bool SPATIAL_DIFF_IS_REPEATED_BLOCK(uint32_t* colors) {
 #define PALETTE_CACHE_FILENAME "palette.cache"
 
 // COMMANDS
-#define CMD_RESET 0x98765400
+#define CMD_RESET 0x99887766
 #define CMD_RPI_OFFSET 1
 #define CMD_GBA_OFFSET 2
 #define CMD_FRAME_START 0x12345610

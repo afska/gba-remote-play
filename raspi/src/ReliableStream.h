@@ -13,7 +13,7 @@ class ReliableStream {
 
   bool send(uint32_t packet, uint32_t* index, uint32_t size) {
     if (*index % TRANSFER_SYNC_FREQUENCY == 0 || *index == size - 1) {
-      return reliablySend(packet, index, size);
+      return reliablySend(packet, index);
     } else {
       spiMaster->send(packet);
       (*index)++;
@@ -54,30 +54,26 @@ class ReliableStream {
   SPIMaster* spiMaster;
 
  private:
-  bool reliablySend(uint32_t packet, uint32_t* index, uint32_t size) {
+  bool reliablySend(uint32_t packet, uint32_t* index) {
     uint32_t requestedIndex = spiMaster->exchange(packet);
 
-    if (requestedIndex >= size) {
-      if (requestedIndex == CMD_RECOVERY + CMD_GBA_OFFSET) {
-        // (recovery command)
-        if (!sync(CMD_RECOVERY))
-          return false;
-        requestedIndex = spiMaster->exchange(0);
-        *index = requestedIndex;
-        return true;
-      } else if (requestedIndex == CMD_RESET) {
+    if (requestedIndex == CMD_RECOVERY + CMD_GBA_OFFSET) {
+      // (recovery command)
+      if (!sync(CMD_RECOVERY))
         return false;
-      } else {
-        // (unknown command, probably 0xffffffff => ignore)
-        return true;
-      }
+      requestedIndex = spiMaster->exchange(0);
+      *index = requestedIndex;
+      return true;
+    } else if (requestedIndex == CMD_RESET) {
+      // (reset command)
+      return false;
     } else if (requestedIndex == *index) {
       // (on sync)
       (*index)++;
       return true;
     } else {
-      // (not on sync => reset)
-      return false;
+      // (probably garbage => ignore)
+      return true;
     }
   }
 };
