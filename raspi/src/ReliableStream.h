@@ -12,7 +12,7 @@ class ReliableStream {
   ReliableStream(SPIMaster* spiMaster) { this->spiMaster = spiMaster; }
 
   bool send(uint32_t packet, uint32_t* index, uint32_t size) {
-    if (*index % TRANSFER_SYNC_FREQUENCY == 0) {
+    if (*index % TRANSFER_SYNC_FREQUENCY == 0 || *index == size - 1) {
       return reliablySend(packet, index, size);
     } else {
       spiMaster->send(packet);
@@ -38,10 +38,10 @@ class ReliableStream {
         return true;
       else {
         if (confirmation == CMD_RESET) {
-          LOG("  [sent, expected, actual]");
-          std::cout << "  0x" << std::hex << local << "\n";
-          std::cout << "  0x" << std::hex << remote << "\n";
-          std::cout << "  0x" << std::hex << lastReceivedPacket << "\n";
+          LOG("[sent, expected, actual]");
+          std::cout << "0x" << std::hex << local << "\n";
+          std::cout << "0x" << std::hex << remote << "\n";
+          std::cout << "0x" << std::hex << lastReceivedPacket << "\n";
           return false;
         }
 
