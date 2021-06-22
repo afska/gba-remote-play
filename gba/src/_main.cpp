@@ -109,7 +109,11 @@ reset:
 }
 
 inline bool sendKeysAndReceiveTemporalDiffs(State& state) {
-  state.expectedPackets = spiSlave->transfer(pressedKeys());
+  u16 keys = pressedKeys();
+  state.expectedPackets = spiSlave->transfer(keys);
+  driveAudioIfNeeded();
+  if (spiSlave->transfer(keys) != state.expectedPackets)
+    return false;
   driveAudioIfNeeded();
 
   for (u32 i = 0; i < TEMPORAL_DIFF_SIZE / PACKET_SIZE; i++)
