@@ -112,7 +112,7 @@ inline bool sendKeysAndReceiveTemporalDiffs(State& state) {
   u16 keys = pressedKeys();
   state.expectedPackets = spiSlave->transfer(keys);
   driveAudioIfNeeded();
-  if (spiSlave->transfer(keys) != state.expectedPackets)
+  if (spiSlave->transfer(keys + 1) != state.expectedPackets + 1)
     return false;
   driveAudioIfNeeded();
 
