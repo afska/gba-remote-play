@@ -102,14 +102,11 @@ reset:
     driveAudioIfNeeded();
     TRY(sync(CMD_FRAME_START));
     TRY(sendKeysAndReceiveTemporalDiffs(state));
-    TRY(sync(CMD_SPATIAL_DIFFS_START));
     TRY(receiveSpatialDiffs(state));
-    TRY(sync(CMD_PIXELS_START));
     TRY(receivePixels(state));
-    TRY(sync(CMD_FRAME_END));
     driveAudioIfNeeded();
 
-    // draw(state);
+    draw(state);
     // TODO: FIX draw(...) calls
   }
 }
@@ -241,8 +238,18 @@ inline bool sync(u32 command) {
 
   while (true) {
     bool isOnSync = true;
-    for (u32 i = 0; i < SYNC_VALIDATIONS; i++)
-      isOnSync = isOnSync && transfer(local + i, false) == remote + i;
+    for (u32 i = 0; i < SYNC_VALIDATIONS; i++) {
+      bool breakFlag = false;
+      u32 receivedPacket =
+          spiSlave->transfer(local + i, isNewVBlank, &breakFlag);
+
+      if (breakFlag) {
+        driveAudio();
+        return false;
+      }
+
+      isOnSync = isOnSync && receivedPacket == remote + i;
+    }
 
     if (isOnSync)
       return true;

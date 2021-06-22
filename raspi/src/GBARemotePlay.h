@@ -129,24 +129,12 @@ class GBARemotePlay {
     if (!receiveKeysAndSendTemporalDiffs(diffs))
       return false;
 
-    DEBULOG("Syncing spatial diffs start...");
-    if (!reliableStream->sync(CMD_SPATIAL_DIFFS_START))
-      return false;
-
     DEBULOG("Sending spatial diffs...");
     if (!sendSpatialDiffs(diffs))
       return false;
 
-    DEBULOG("Syncing pixels start...");
-    if (!reliableStream->sync(CMD_PIXELS_START))
-      return false;
-
     DEBULOG("Sending pixels...");
     if (!compressAndSendPixels(frame, diffs))
-      return false;
-
-    DEBULOG("Syncing frame end...");
-    if (!reliableStream->sync(CMD_FRAME_END))
       return false;
 
 #ifdef DEBUG
