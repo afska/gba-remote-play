@@ -47,6 +47,7 @@ inline bool SPATIAL_DIFF_IS_REPEATED_BLOCK(uint32_t* colors) {
 
 // COMMANDS
 #define CMD_RESET 0x99887766
+#define CMD_BUSY 0xff000000
 #define CMD_RPI_OFFSET 1
 #define CMD_GBA_OFFSET 2
 #define CMD_FRAME_START 0x12345610
