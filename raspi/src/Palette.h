@@ -65,7 +65,7 @@ inline uint8_t PALETTE_getClosestColor(uint8_t r, uint8_t g, uint8_t b) {
     }
   }
 
-  return bestColorIndex == 0 ? 255 : bestColorIndex;
+  return bestColorIndex;
 }
 
 inline void PALETTE_initializeCache(std::string fileName) {
