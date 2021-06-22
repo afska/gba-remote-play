@@ -52,7 +52,7 @@ void mainLoop();
 bool sendKeysAndReceiveTemporalDiffs(State& state);
 bool receiveSpatialDiffs(State& state);
 bool receivePixels(State& state);
-void draw(State& state);
+void render(State& state);
 void decompressImage(State& state);
 u32 transfer(u32 packetToSend, bool withRecovery = true);
 void driveAudioIfNeeded();
@@ -99,15 +99,12 @@ reset:
   while (true) {
     state.expectedPackets = 0;
 
-    driveAudioIfNeeded();
     TRY(sync(CMD_FRAME_START));
     TRY(sendKeysAndReceiveTemporalDiffs(state));
     TRY(receiveSpatialDiffs(state));
     TRY(receivePixels(state));
-    driveAudioIfNeeded();
 
-    draw(state);
-    // TODO: FIX draw(...) calls
+    render(state);
   }
 }
 
@@ -135,10 +132,12 @@ inline bool receivePixels(State& state) {
   return true;
 }
 
-inline void draw(State& state) {
+inline void render(State& state) {
+  driveAudioIfNeeded();
   decompressImage(state);
   driveAudioIfNeeded();
-  dma3_cpy(vid_mem_front, frameBuffer, TOTAL_SCREEN_PIXELS);
+  memcpy32Hook(vid_mem_front, frameBuffer, TOTAL_SCREEN_PIXELS / 4,
+               driveAudioIfNeeded);
   driveAudioIfNeeded();
 }
 
