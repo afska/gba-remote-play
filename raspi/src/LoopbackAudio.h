@@ -7,23 +7,22 @@
 #include <iostream>
 #include <stdexcept>
 #include <string>
+#include "Protocol.h"
 
 #define AUDIO_COMMAND                                                  \
   "ffmpeg -f alsa -i hw:0,1,0 -y -ac 1 -af 'aresample=18157' -strict " \
   "unofficial -c:a gsm -f gsm -loglevel quiet -"
-#define AUDIO_GSM_FRAME_SIZE 33
-#define AUDIO_GSM_PADDING 3
 
 class LoopbackAudio {
  public:
   LoopbackAudio() { launchEncoder(); }
 
   uint8_t* loadChunk() {
-    uint8_t* chunk = (uint8_t*)malloc(AUDIO_GSM_FRAME_SIZE + AUDIO_GSM_PADDING);
+    uint8_t* chunk = (uint8_t*)malloc(AUDIO_PADDED_SIZE);
 
     try {
-      fseek(pipe, -AUDIO_GSM_FRAME_SIZE, SEEK_END);
-      fread(chunk, AUDIO_GSM_FRAME_SIZE, 1, pipe);
+      fseek(pipe, -AUDIO_CHUNK_SIZE, SEEK_END);
+      fread(chunk, AUDIO_CHUNK_SIZE, 1, pipe);
     } catch (...) {
       std::cout << "Audio error!\n";
     }

@@ -18,8 +18,10 @@
 #define PACKET_SIZE 4
 #define COLOR_SIZE 2
 #define PIXEL_SIZE 1
-#define AUDIO_PADDED_SIZE 36  // 33 (sizeof(gsm_frame)) + 3 (padding)
-#define AUDIO_SIZE_PACKETS 9
+#define AUDIO_CHUNK_SIZE 66    // (sizeof(gsm_frame) * 2)
+#define AUDIO_CHUNK_PADDING 2  // (so every chunk it's exactly 17 packets)
+#define AUDIO_SIZE_PACKETS 17  // -----------------------------^^
+#define AUDIO_BUFFERS 2
 #define SPI_MODE 3
 #define SPI_SLOW_FREQUENCY 1600000
 #define SPI_FAST_FREQUENCY 2600000
@@ -28,6 +30,7 @@
 #define COLORS_PER_PACKET (PACKET_SIZE / COLOR_SIZE)
 #define PIXELS_PER_PACKET (PACKET_SIZE / PIXEL_SIZE)
 #define MAX_PIXELS_SIZE (TOTAL_PIXELS / PIXELS_PER_PACKET)
+#define AUDIO_PADDED_SIZE (AUDIO_CHUNK_SIZE + AUDIO_CHUNK_PADDING)
 
 // INPUT
 #define VIRTUAL_GAMEPAD_NAME "Linked GBA"

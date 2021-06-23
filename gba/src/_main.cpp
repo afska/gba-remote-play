@@ -24,7 +24,7 @@ typedef struct {
   u32 expectedPackets;
   u8 temporalDiffs[TEMPORAL_DIFF_SIZE];
   u8 compressedPixels[TOTAL_PIXELS];
-  u8 audioChunks[2][AUDIO_PADDED_SIZE];
+  u8 audioChunks[AUDIO_BUFFERS][AUDIO_PADDED_SIZE];
   u8 audioChunkIndex;
 } State;
 

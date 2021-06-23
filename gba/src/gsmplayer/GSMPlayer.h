@@ -21,7 +21,7 @@
 #define CHANNEL_A_UNMUTE 0b0000001100000000
 #define CHANNEL_B_MUTE 0b1100111111111111
 #define CHANNEL_B_UNMUTE 0b0011000000000000
-#define AUDIO_CHUNK_SIZE 33  // sizeof(gsm_frame)
+#define AUDIO_CHUNK_SIZE 66  // 2 gsm frames
 #define DATA_IWRAM __attribute__((section(".iwram")))
 
 #define PLAYER_DEFINE(DMA_CNT, DMA_SAD, DMA_DAD, FIFO_ADDRESS, MUTE, UNMUTE)   \
@@ -100,7 +100,7 @@
       if (decode_pos >= 160) {                        \
         if (src_pos < src_end)                        \
           gsm_decode(&decoder, src_pos, out_samples); \
-        src_pos += AUDIO_CHUNK_SIZE;                  \
+        src_pos += sizeof(gsm_frame);                 \
         decode_pos = 0;                               \
         ON_STEP;                                      \
       }                                               \
