@@ -5,6 +5,7 @@
 #include "Frame.h"
 #include "FrameBuffer.h"
 #include "ImageDiffBitArray.h"
+#include "LoopbackAudio.h"
 #include "PNGWriter.h"
 #include "Palette.h"
 #include "Protocol.h"
@@ -21,10 +22,26 @@ class GBARemotePlay {
                               SPI_DELAY_MICROSECONDS);
     reliableStream = new ReliableStream(spiMaster);
     frameBuffer = new FrameBuffer(RENDER_WIDTH, RENDER_HEIGHT);
+    loopbackAudio = new LoopbackAudio();
     virtualGamepad = new VirtualGamepad(VIRTUAL_GAMEPAD_NAME);
     lastFrame = Frame{0};
 
     PALETTE_initializeCache(PALETTE_CACHE_FILENAME);
+
+    // TODO: TEST, REMOVE
+    uint32_t seconds = 30;
+    uint8_t buffer[33 * 60 * seconds];
+    uint32_t i = 0;
+    std::cout << "audio...\n";
+    for (uint32_t i = 0; i < 60 * seconds; i++) {
+      auto audioChunk = loopbackAudio->loadChunk();
+      memcpy(buffer + 33 * i, audioChunk, 33);
+      free(audioChunk);
+    }
+    FILE* file = fopen("test.gsm", "wb");
+    fwrite(buffer, 1, 33 * 60 * seconds, file);
+    fclose(file);
+    std::cout << "end!\n";
   }
 
   void run() {
@@ -95,6 +112,7 @@ class GBARemotePlay {
     delete spiMaster;
     delete reliableStream;
     delete frameBuffer;
+    delete loopbackAudio;
     delete virtualGamepad;
   }
 
@@ -102,6 +120,7 @@ class GBARemotePlay {
   SPIMaster* spiMaster;
   ReliableStream* reliableStream;
   FrameBuffer* frameBuffer;
+  LoopbackAudio* loopbackAudio;
   VirtualGamepad* virtualGamepad;
   Frame lastFrame;
   uint32_t input;

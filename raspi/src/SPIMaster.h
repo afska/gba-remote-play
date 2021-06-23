@@ -1,6 +1,7 @@
 #ifndef SPI_MASTER_H
 #define SPI_MASTER_H
 
+#include <stdlib.h>
 #include <iostream>
 
 #include <byteswap.h>

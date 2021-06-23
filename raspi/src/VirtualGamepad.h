@@ -76,7 +76,7 @@ class VirtualGamepad {
     fileDescriptor = open(VG_DEVFILE, O_WRONLY | O_NONBLOCK);
     if (fileDescriptor < 0) {
       std::cout << "Error: cannot open uinput\n";
-      exit(31);
+      exit(41);
     }
   }
 
@@ -105,12 +105,12 @@ class VirtualGamepad {
 
     if (write(fileDescriptor, &uidev, sizeof(uidev)) < 0) {
       std::cout << "Error: cannot write virtual gamepad settings\n";
-      exit(32);
+      exit(42);
     }
 
     if (ioctl(fileDescriptor, UI_DEV_CREATE) < 0) {
       std::cout << "Error: cannot create virtual gamepad device\n";
-      exit(33);
+      exit(43);
     }
   }
 };
