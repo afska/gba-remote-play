@@ -3,6 +3,7 @@
 
 #include <stdint.h>
 #include <stdio.h>
+#include <string>
 #include "../lib/code/lodepng.h"
 
 #define PNG_TARGET_COLORS 256
@@ -12,6 +13,7 @@ void WritePNG(std::string fileName,
               const uint32_t* raw24bppPalette,
               uint32_t width,
               uint32_t height) {
+#ifdef DEBUG
   LodePNGState state;
   lodepng_state_init(&state);
   state.info_raw.colortype = LCT_PALETTE;
@@ -49,6 +51,7 @@ void WritePNG(std::string fileName,
 
   printf("Written %s!\n", outputPath);
   lodepng_state_cleanup(&state);
+#endif
 }
 
 #endif  // PNG_WRITER_H

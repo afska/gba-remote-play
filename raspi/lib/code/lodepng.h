@@ -17,6 +17,8 @@ freely, subject to the following restrictions:
     distribution.
 */
 
+#ifdef DEBUG
+
 #ifndef LODEPNG_H
 #define LODEPNG_H
 
@@ -1991,3 +1993,5 @@ Domain: gmail dot com.
 Account: lode dot vandevenne.
 Copyright (c) 2005-2020 Lode Vandevenne
 */
+
+#endif

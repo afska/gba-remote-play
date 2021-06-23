@@ -23,6 +23,8 @@ Rename this file to lodepng.cpp to use it for C++, or to lodepng.c to use it for
 C.
 */
 
+#ifdef DEBUG
+
 #include "lodepng.h"
 
 #ifdef LODEPNG_COMPILE_DISK
@@ -471,7 +473,8 @@ static void writeBits(LodePNGBitWriter* writer, unsigned value, size_t nbits) {
       1) { /* compiler should statically compile this case if nbits == 1 */
     WRITEBIT(writer, value);
   } else {
-    /* TO-DO: increase output size only once here rather than in each WRITEBIT */
+    /* TO-DO: increase output size only once here rather than in each WRITEBIT
+     */
     size_t i;
     for (i = 0; i != nbits; ++i) {
       WRITEBIT(writer, (unsigned char)((value >> i) & 1));
@@ -486,7 +489,8 @@ static void writeBitsReversed(LodePNGBitWriter* writer,
                               size_t nbits) {
   size_t i;
   for (i = 0; i != nbits; ++i) {
-    /* TO-DO: increase output size only once here rather than in each WRITEBIT */
+    /* TO-DO: increase output size only once here rather than in each WRITEBIT
+     */
     WRITEBIT(writer, (unsigned char)((value >> (nbits - 1u - i)) & 1u));
   }
 }
@@ -1577,7 +1581,8 @@ static unsigned inflateHuffmanBlock(ucvector* out,
     if (reader->bp > reader->bitsize) {
       /*return error code 10 or 11 depending on the situation that happened in
       huffmanDecodeSymbol (10=no endcode, 11=wrong jump outside of tree)*/
-      /* TO-DO: revise error codes 10,11,50: the above comment is no longer valid
+      /* TO-DO: revise error codes 10,11,50: the above comment is no longer
+       * valid
        */
       ERROR_BREAK(51); /*error, bit pointer jumps past memory*/
     }
@@ -5234,8 +5239,9 @@ static unsigned postProcessScanlines(unsigned char* out,
       CERROR_TRY_RETURN(unfilter(&in[padded_passstart[i]],
                                  &in[filter_passstart[i]], passw[i], passh[i],
                                  bpp));
-      /*TO-DO: possible efficiency improvement: if in this reduced image the bits
-      fit nicely in 1 scanline, move bytes instead of bits or move not at all*/
+      /*TO-DO: possible efficiency improvement: if in this reduced image the
+      bits fit nicely in 1 scanline, move bytes instead of bits or move not at
+      all*/
       if (bpp < 8) {
         /*remove padding bits in scanlines; after this there still may be
         padding bits between the different reduced images: each reduced image
@@ -6036,9 +6042,9 @@ unsigned lodepng_decode(unsigned char** out,
     unsigned char* data = *out;
     size_t outsize;
 
-    /*TO-DO: check if this works according to the statement in the documentation:
-    "The converter can convert from grayscale input color type, to 8-bit
-    grayscale or grayscale with alpha"*/
+    /*TO-DO: check if this works according to the statement in the
+    documentation: "The converter can convert from grayscale input color type,
+    to 8-bit grayscale or grayscale with alpha"*/
     if (!(state->info_raw.colortype == LCT_RGB ||
           state->info_raw.colortype == LCT_RGBA) &&
         !(state->info_raw.bitdepth == 8)) {
@@ -7995,3 +8001,5 @@ unsigned encode(const std::string& filename,
 #endif /* LODEPNG_COMPILE_PNG */
 } /* namespace lodepng */
 #endif /*LODEPNG_COMPILE_CPP*/
+
+#endif
