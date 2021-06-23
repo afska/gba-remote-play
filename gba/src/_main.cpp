@@ -24,6 +24,8 @@ typedef struct {
   u32 expectedPackets;
   u8 temporalDiffs[TEMPORAL_DIFF_SIZE];
   u8 compressedPixels[TOTAL_PIXELS];
+  u8 audioChunks[2][AUDIO_PADDED_SIZE];
+  u8 audioChunkIndex;
 } State;
 
 SPISlave* spiSlave = new SPISlave();
@@ -49,13 +51,14 @@ int main() {
 void init();
 void mainLoop();
 bool sendKeysAndReceiveTemporalDiffs(State& state);
+bool receiveAudio(State& state);
 bool receivePixels(State& state);
 void render(State& state);
-u32 transfer(u32 packetToSend, bool withRecovery = true);
-void driveAudioIfNeeded();
+void driveAudioIfNeeded(State& state);
 bool isNewVBlank();
-void driveAudio();
-bool sync(u32 command);
+void driveAudio(State& state);
+u32 transfer(State& state, u32 packetToSend, bool withRecovery = true);
+bool sync(State& state, u32 command);
 u32 x(u32 cursor);
 u32 y(u32 cursor);
 
@@ -66,7 +69,6 @@ u32 y(u32 cursor);
 #ifndef BENCHMARK
 int main() {
   init();
-  player_loop("loop.gsm");
   mainLoop();
 
   return 0;
@@ -79,6 +81,7 @@ inline void init() {
   enable2xMosaic();
   dma3_cpy(pal_bg_mem, MAIN_PALETTE, sizeof(COLOR) * PALETTE_COLORS);
 
+  // TODO: REMOVE GBFS
   if (fs == NULL) {
     pal_bg_mem[0] = 0b11111;
     while (true)
@@ -91,13 +94,15 @@ inline void init() {
 CODE_IWRAM void mainLoop() {
 reset:
   State state;
-  transfer(CMD_RESET, false);
+  state.audioChunkIndex = 0;
+  transfer(state, CMD_RESET, false);
 
   while (true) {
     state.expectedPackets = 0;
 
-    TRY(sync(CMD_FRAME_START));
+    TRY(sync(state, CMD_FRAME_START));
     TRY(sendKeysAndReceiveTemporalDiffs(state));
+    TRY(receiveAudio(state));
     TRY(receivePixels(state));
 
     render(state);
@@ -107,20 +112,27 @@ reset:
 inline bool sendKeysAndReceiveTemporalDiffs(State& state) {
   u16 keys = pressedKeys();
   state.expectedPackets = spiSlave->transfer(keys);
-  driveAudioIfNeeded();
+  driveAudioIfNeeded(state);
   if (spiSlave->transfer(keys + 1) != state.expectedPackets + 1)
     return false;
-  driveAudioIfNeeded();
+  driveAudioIfNeeded(state);
 
   for (u32 i = 0; i < TEMPORAL_DIFF_SIZE / PACKET_SIZE; i++)
-    ((u32*)state.temporalDiffs)[i] = transfer(i);
+    ((u32*)state.temporalDiffs)[i] = transfer(state, i);
+
+  return true;
+}
+
+inline bool receiveAudio(State& state) {
+  for (u32 i = 0; i < AUDIO_SIZE_PACKETS; i++)
+    ((u32*)state.audioChunks[state.audioChunkIndex])[i] = transfer(state, i);
 
   return true;
 }
 
 inline bool receivePixels(State& state) {
   for (u32 i = 0; i < state.expectedPackets; i++)
-    ((u32*)state.compressedPixels)[i] = transfer(i);
+    ((u32*)state.compressedPixels)[i] = transfer(state, i);
 
   return true;
 }
@@ -129,7 +141,7 @@ inline void render(State& state) {
   u32 decompressedPixels = 0;
 
   for (u32 cursor = 0; cursor < TOTAL_PIXELS; cursor++) {
-    driveAudioIfNeeded();
+    driveAudioIfNeeded(state);
 
     u32 temporalByte = cursor / 8;
     u32 temporalBit = cursor % 8;
@@ -165,27 +177,9 @@ inline void render(State& state) {
   }
 }
 
-inline u32 transfer(u32 packetToSend, bool withRecovery) {
-  bool breakFlag = false;
-  u32 receivedPacket =
-      spiSlave->transfer(packetToSend, isNewVBlank, &breakFlag);
-
-  if (breakFlag) {
-    driveAudio();
-
-    if (withRecovery) {
-      sync(CMD_RECOVERY);
-      spiSlave->transfer(packetToSend);
-      receivedPacket = spiSlave->transfer(packetToSend);
-    }
-  }
-
-  return receivedPacket;
-}
-
-inline void driveAudioIfNeeded() {
+inline void driveAudioIfNeeded(State& state) {
   if (isNewVBlank())
-    driveAudio();
+    driveAudio(state);
 }
 
 inline bool isNewVBlank() {
@@ -199,11 +193,31 @@ inline bool isNewVBlank() {
   return false;
 }
 
-CODE_IWRAM void driveAudio() {
+CODE_IWRAM void driveAudio(State& state) {
+  player_play((char*)state.audioChunks[state.audioChunkIndex]);
   player_run();
+  state.audioChunkIndex = !state.audioChunkIndex;
 }
 
-inline bool sync(u32 command) {
+inline u32 transfer(State& state, u32 packetToSend, bool withRecovery) {
+  bool breakFlag = false;
+  u32 receivedPacket =
+      spiSlave->transfer(packetToSend, isNewVBlank, &breakFlag);
+
+  if (breakFlag) {
+    driveAudio(state);
+
+    if (withRecovery) {
+      sync(state, CMD_RECOVERY);
+      spiSlave->transfer(packetToSend);
+      receivedPacket = spiSlave->transfer(packetToSend);
+    }
+  }
+
+  return receivedPacket;
+}
+
+inline bool sync(State& state, u32 command) {
   u32 local = command + CMD_GBA_OFFSET;
   u32 remote = command + CMD_RPI_OFFSET;
   bool wasVBlank = IS_VBLANK;
@@ -214,7 +228,7 @@ inline bool sync(u32 command) {
         spiSlave->transfer(local, isNewVBlank, &breakFlag) == remote;
 
     if (breakFlag) {
-      driveAudio();
+      driveAudio(state);
       return false;
     }
 

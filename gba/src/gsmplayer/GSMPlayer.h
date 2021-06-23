@@ -21,10 +21,7 @@
 #define CHANNEL_A_UNMUTE 0b0000001100000000
 #define CHANNEL_B_MUTE 0b1100111111111111
 #define CHANNEL_B_UNMUTE 0b0011000000000000
-#define AUDIO_CHUNK_SIZE 33
-#define FRACUMUL_PRECISION 0xFFFFFFFF
-#define AS_MSECS (1146880 * 1000)
-#define AS_CURSOR 3201039125
+#define AUDIO_CHUNK_SIZE 33  // sizeof(gsm_frame)
 #define DATA_IWRAM __attribute__((section(".iwram")))
 
 #define PLAYER_DEFINE(DMA_CNT, DMA_SAD, DMA_DAD, FIFO_ADDRESS, MUTE, UNMUTE)   \
@@ -34,8 +31,6 @@
   DATA_IWRAM static signed char double_buffers[2][608]                         \
       __attribute__((aligned(4)));                                             \
   DATA_IWRAM unsigned int cur_buffer = 0;                                      \
-  DATA_IWRAM const unsigned char* src;                                         \
-  DATA_IWRAM unsigned int src_len;                                             \
   DATA_IWRAM const unsigned char* src_pos = NULL;                              \
   DATA_IWRAM const unsigned char* src_end = NULL;                              \
                                                                                \
@@ -51,10 +46,10 @@
     r->nrp = 40;                                                               \
   }                                                                            \
                                                                                \
-  inline void dsound_switch_buffers(const void* src) {                         \
+  inline void dsound_switch_buffers(const void* data) {                        \
     DMA_CNT = 0;                                                               \
                                                                                \
-    DMA_SAD = (intptr_t)src;                                                   \
+    DMA_SAD = (intptr_t)data;                                                  \
     DMA_DAD = (intptr_t)FIFO_ADDRESS;                                          \
     DMA_CNT = DMA_DST_FIXED | DMA_SRC_INC | DMA_REPEAT | DMA32 | DMA_SPECIAL | \
               DMA_ENABLE | 1;                                                  \
@@ -70,20 +65,17 @@
   DSOUNDCTRL = 0b1111101100001110;
 
 #define PLAYER_INIT(TM_CNT_L, TM_CNT_H)        \
-  fs = find_first_gbfs_file(0);                \
-                                               \
   /* TMxCNT_L is count; TMxCNT_H is control */ \
   TM_CNT_H = 0;                                \
   TM_CNT_L = 0x10000 - (924 / 2);              \
   TM_CNT_H = TIMER_16MHZ | TIMER_START;        \
                                                \
+  gsm_init(&decoder);                          \
   mute();
 
-#define PLAYER_PLAY(NAME)                 \
-  gsm_init(&decoder);                     \
-  src = gbfs_get_obj(fs, NAME, &src_len); \
-  src_pos = src;                          \
-  src_end = src + src_len;                \
+#define PLAYER_PLAY(SRC)            \
+  src_pos = SRC;                    \
+  src_end = SRC + AUDIO_CHUNK_SIZE; \
   mute();
 
 #define PLAYER_STOP() \
@@ -108,7 +100,7 @@
       if (decode_pos >= 160) {                        \
         if (src_pos < src_end)                        \
           gsm_decode(&decoder, src_pos, out_samples); \
-        src_pos += sizeof(gsm_frame);                 \
+        src_pos += AUDIO_CHUNK_SIZE;                  \
         decode_pos = 0;                               \
         ON_STEP;                                      \
       }                                               \
