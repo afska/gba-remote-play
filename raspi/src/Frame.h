@@ -9,6 +9,7 @@ typedef struct Frame {
   uint32_t totalPixels;
   uint8_t* raw8BitPixels;
   const uint32_t* palette;
+  uint8_t* audioChunk;
 
   uint32_t getColorOf(uint32_t pixelId) {
     return palette[raw8BitPixels[pixelId]];
@@ -29,6 +30,7 @@ typedef struct Frame {
 
     totalPixels = 0;
     free(raw8BitPixels);
+    free(audioChunk);
   }
 
   bool arePixelsDifferent(Frame* oldPixelFrame,

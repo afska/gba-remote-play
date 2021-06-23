@@ -18,6 +18,8 @@
 #define PACKET_SIZE 4
 #define COLOR_SIZE 2
 #define PIXEL_SIZE 1
+#define AUDIO_PADDED_SIZE 36  // 33 (sizeof(gsm_frame)) + 3 (padding)
+#define AUDIO_SIZE_PACKETS 9
 #define SPI_MODE 3
 #define SPI_SLOW_FREQUENCY 1600000
 #define SPI_FAST_FREQUENCY 2600000

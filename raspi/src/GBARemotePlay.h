@@ -27,21 +27,6 @@ class GBARemotePlay {
     lastFrame = Frame{0};
 
     PALETTE_initializeCache(PALETTE_CACHE_FILENAME);
-
-    // TODO: TEST, REMOVE
-    uint32_t seconds = 30;
-    uint8_t buffer[33 * 60 * seconds];
-    uint32_t i = 0;
-    std::cout << "audio...\n";
-    for (uint32_t i = 0; i < 60 * seconds; i++) {
-      auto audioChunk = loopbackAudio->loadChunk();
-      memcpy(buffer + 33 * i, audioChunk, 33);
-      free(audioChunk);
-    }
-    FILE* file = fopen("test.gsm", "wb");
-    fwrite(buffer, 1, 33 * 60 * seconds, file);
-    fclose(file);
-    std::cout << "end!\n";
   }
 
   void run() {
@@ -146,6 +131,10 @@ class GBARemotePlay {
     if (!receiveKeysAndSendTemporalDiffs(diffs))
       return false;
 
+    DEBULOG("Sending audio...");
+    if (!sendAudio(frame))
+      return false;
+
     DEBULOG("Sending pixels...");
     if (!compressAndSendPixels(frame, diffs))
       return false;
@@ -170,6 +159,10 @@ class GBARemotePlay {
 
     return reliableStream->send(diffs.temporal,
                                 TEMPORAL_DIFF_SIZE / PACKET_SIZE);
+  }
+
+  bool sendAudio(Frame& frame) {
+    return reliableStream->send(frame.audioChunk, AUDIO_SIZE_PACKETS);
   }
 
   bool compressAndSendPixels(Frame& frame, ImageDiffBitArray& diffs) {
@@ -217,6 +210,8 @@ class GBARemotePlay {
           frame.raw8BitPixels[y * RENDER_WIDTH + x] =
               LUT_24BPP_TO_8BIT_PALETTE[(r << 0) | (g << 8) | (b << 16)];
         });
+
+    frame.audioChunk = loopbackAudio->loadChunk();
 
     return frame;
   }
