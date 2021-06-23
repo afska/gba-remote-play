@@ -155,9 +155,10 @@ inline void render(State& state) {
       // (a pixel changed)
 
       u32 drawCursor = y(cursor) * DRAW_WIDTH + x(cursor);
+      u32 drawCursor32Bit = drawCursor / 4;
       frameBuffer[drawCursor] = state.compressedPixels[decompressedPixels];
-      ((u32*)vid_mem_front)[drawCursor / 4] =
-          ((u32*)frameBuffer)[drawCursor / 4];
+      ((u32*)vid_mem_front)[drawCursor32Bit] =
+          ((u32*)frameBuffer)[drawCursor32Bit];
 
       decompressedPixels++;
     }

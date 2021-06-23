@@ -46,6 +46,7 @@ typedef struct Frame {
     int g2 = (color2 >> 8) & 0xff;
     int b2 = (color2 >> 16) & 0xff;
 
+    // TODO: REMOVE DUPLICATED CODE (PALETTE_getClosestColor)
     int diffR = r1 - r2;
     int diffG = g1 - g2;
     int diffB = b1 - b2;
