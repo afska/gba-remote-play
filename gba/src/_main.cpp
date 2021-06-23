@@ -23,7 +23,6 @@ extern "C" {
 typedef struct {
   u32 expectedPackets;
   u8 temporalDiffs[TEMPORAL_DIFF_SIZE];
-  u8 spatialDiffs[SPATIAL_DIFF_SIZE];
   u8 compressedPixels[TOTAL_PIXELS];
 } State;
 
@@ -50,7 +49,6 @@ int main() {
 void init();
 void mainLoop();
 bool sendKeysAndReceiveTemporalDiffs(State& state);
-bool receiveSpatialDiffs(State& state);
 bool receivePixels(State& state);
 void render(State& state);
 u32 transfer(u32 packetToSend, bool withRecovery = true);
@@ -100,7 +98,6 @@ reset:
 
     TRY(sync(CMD_FRAME_START));
     TRY(sendKeysAndReceiveTemporalDiffs(state));
-    TRY(receiveSpatialDiffs(state));
     TRY(receivePixels(state));
 
     render(state);
@@ -121,13 +118,6 @@ inline bool sendKeysAndReceiveTemporalDiffs(State& state) {
   return true;
 }
 
-inline bool receiveSpatialDiffs(State& state) {
-  for (u32 i = 0; i < SPATIAL_DIFF_SIZE / PACKET_SIZE; i++)
-    ((u32*)state.spatialDiffs)[i] = transfer(i);
-
-  return true;
-}
-
 inline bool receivePixels(State& state) {
   for (u32 i = 0; i < state.expectedPackets; i++)
     ((u32*)state.compressedPixels)[i] = transfer(i);
@@ -136,8 +126,6 @@ inline bool receivePixels(State& state) {
 }
 
 inline void render(State& state) {
-  u32 block = 0;
-  u32 blockPart = 0;
   u32 decompressedPixels = 0;
 
   for (u32 cursor = 0; cursor < TOTAL_PIXELS; cursor++) {
@@ -166,23 +154,12 @@ inline void render(State& state) {
     if ((temporalDiff >> temporalBit) & 1) {
       // (a pixel changed)
 
-      u32 spatialByte = block / 8;
-      u32 spatialBit = block % 8;
-      u32 spatialDiff = state.spatialDiffs[spatialByte];
-      bool isRepeatedBlock = !((spatialDiff >> spatialBit) & 1);
-
       u32 drawCursor = y(cursor) * DRAW_WIDTH + x(cursor);
       frameBuffer[drawCursor] = state.compressedPixels[decompressedPixels];
       ((u32*)vid_mem_front)[drawCursor / 4] =
           ((u32*)frameBuffer)[drawCursor / 4];
 
-      blockPart++;
-      if (blockPart == SPATIAL_DIFF_BLOCK_SIZE) {
-        block++;
-        blockPart = 0;
-        decompressedPixels++;
-      } else if (!isRepeatedBlock)
-        decompressedPixels++;
+      decompressedPixels++;
     }
   }
 }

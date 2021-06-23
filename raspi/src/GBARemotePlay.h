@@ -127,10 +127,6 @@ class GBARemotePlay {
     if (!receiveKeysAndSendTemporalDiffs(diffs))
       return false;
 
-    DEBULOG("Sending spatial diffs...");
-    if (!sendSpatialDiffs(diffs))
-      return false;
-
     DEBULOG("Sending pixels...");
     if (!compressAndSendPixels(frame, diffs))
       return false;
@@ -157,10 +153,6 @@ class GBARemotePlay {
                                 TEMPORAL_DIFF_SIZE / PACKET_SIZE);
   }
 
-  bool sendSpatialDiffs(ImageDiffBitArray& diffs) {
-    return reliableStream->send(diffs.spatial, SPATIAL_DIFF_SIZE / PACKET_SIZE);
-  }
-
   bool compressAndSendPixels(Frame& frame, ImageDiffBitArray& diffs) {
     uint32_t packetsToSend[MAX_PIXELS_SIZE];
     uint32_t size = 0;
@@ -173,20 +165,11 @@ class GBARemotePlay {
                       ImageDiffBitArray& diffs,
                       uint32_t* packets,
                       uint32_t* totalPackets) {
-    uint32_t compressedPixelId = 0;
     uint32_t currentPacket = 0;
     uint8_t byte = 0;
 
     for (int i = 0; i < frame.totalPixels; i++) {
       if (diffs.hasPixelChanged(i)) {
-        // detect compression
-        uint32_t block = compressedPixelId / SPATIAL_DIFF_BLOCK_SIZE;
-        uint32_t blockPart = compressedPixelId % SPATIAL_DIFF_BLOCK_SIZE;
-        compressedPixelId++;
-        if (blockPart > 0 && diffs.isRepeatedBlock(block))
-          continue;
-
-        // save pixels
         currentPacket |= frame.raw8BitPixels[i] << (byte * 8);
         byte++;
         if (byte == PACKET_SIZE) {

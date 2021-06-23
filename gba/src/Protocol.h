@@ -33,12 +33,6 @@
 // DIFFS
 #define TEMPORAL_DIFF_THRESHOLD 1500
 #define TEMPORAL_DIFF_SIZE (TOTAL_PIXELS / 8)
-#define SPATIAL_DIFF_BLOCK_SIZE 4
-#define SPATIAL_DIFF_SIZE (TOTAL_PIXELS / SPATIAL_DIFF_BLOCK_SIZE / 8)
-inline bool SPATIAL_DIFF_IS_REPEATED_BLOCK(uint32_t* colors) {
-  return colors[0] == colors[1] && colors[1] == colors[2] &&
-         colors[2] == colors[3];
-}
 
 // FILES
 #define PALETTE_CACHE_FILENAME "palette.cache"
