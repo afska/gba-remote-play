@@ -1,6 +1,7 @@
 #ifndef LOOPBACK_AUDIO_H
 #define LOOPBACK_AUDIO_H
 
+#include <poll.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -19,13 +20,11 @@ class LoopbackAudio {
 
   uint8_t* loadChunk() {
     uint8_t* chunk = (uint8_t*)malloc(AUDIO_PADDED_SIZE);
-    try {
-      fseek(pipe, 0, SEEK_END);
-      while (!fread(chunk, AUDIO_CHUNK_SIZE, 1, pipe))
-        ;
-    } catch (...) {
-      std::cout << "Audio error!\n";
-    }
+
+#define READ() fread(chunk, AUDIO_CHUNK_SIZE, 1, pipe)
+    while (isDataAvailable())
+      READ();
+    READ();
 
     return chunk;
   }
@@ -41,6 +40,11 @@ class LoopbackAudio {
       std::cout << "Error: cannot launch ffmpeg\n";
       exit(31);
     }
+  }
+
+  bool isDataAvailable() {
+    auto event = (struct pollfd){.fd = fileno(pipe), .events = POLLIN};
+    return poll(&event, 1, 0) == 1;
   }
 };
 
