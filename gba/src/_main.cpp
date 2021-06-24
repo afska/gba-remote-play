@@ -231,7 +231,7 @@ inline bool sync(State& state, u32 command) {
 
     if (breakFlag) {
       driveAudio(state);
-      return false;
+      continue;
     }
 
     if (isOnSync)
