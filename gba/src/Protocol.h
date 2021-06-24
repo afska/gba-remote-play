@@ -3,14 +3,22 @@
 
 #include <stdint.h>
 
+// Render modes:
+// - Low quality (fast):
+//   120x80, with DRAW_SCALE=2
+// - High quality (slow):
+//   240x160, with DRAW_SCALE=1
+//   [!]                                                         [!]
+//     When using this mode, move `compressedPixels` outside State
+//     (from IWRAM to EWRAM). Otherwise, it'll crash.
+
 // RENDER
 #define RENDER_WIDTH 120
 #define RENDER_HEIGHT 80
 #define TOTAL_PIXELS (RENDER_WIDTH * RENDER_HEIGHT)
-#define DRAW_SCALE_X 2
-#define DRAW_SCALE_Y 2
-#define DRAW_WIDTH (RENDER_WIDTH * DRAW_SCALE_X)
-#define DRAW_HEIGHT (RENDER_HEIGHT * DRAW_SCALE_Y)
+#define DRAW_SCALE 2
+#define DRAW_WIDTH (RENDER_WIDTH * DRAW_SCALE)
+#define DRAW_HEIGHT (RENDER_HEIGHT * DRAW_SCALE)
 #define TOTAL_SCREEN_PIXELS (DRAW_WIDTH * DRAW_HEIGHT)
 #define PALETTE_COLORS 256
 
