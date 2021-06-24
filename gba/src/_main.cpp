@@ -7,7 +7,6 @@
 #include "SPISlave.h"
 
 extern "C" {
-#include "gbfs/gbfs.h"
 #include "gsmplayer/player.h"
 }
 
@@ -29,7 +28,6 @@ typedef struct {
 
 SPISlave* spiSlave = new SPISlave();
 DATA_EWRAM u8 frameBuffer[TOTAL_SCREEN_PIXELS];
-static const GBFS_FILE* fs = find_first_gbfs_file(0);
 
 // ---------
 // BENCHMARK
@@ -80,14 +78,6 @@ inline void init() {
   if (DRAW_SCALE == 2)
     enable2xMosaic();
   dma3_cpy(pal_bg_mem, MAIN_PALETTE, sizeof(COLOR) * PALETTE_COLORS);
-
-  // TODO: REMOVE GBFS
-  if (fs == NULL) {
-    pal_bg_mem[0] = 0b11111;
-    while (true)
-      ;
-  }
-
   player_init();
 }
 

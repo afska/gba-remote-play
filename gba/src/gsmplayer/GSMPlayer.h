@@ -12,7 +12,6 @@
 #include <string.h>  // for memset
 #include "core/gsm.h"
 #include "core/private.h" /* for sizeof(struct gsm_state) */
-#include "gbfs/gbfs.h"
 
 #define TIMER_16MHZ 0
 #define FIFO_ADDR_A 0x040000a0
@@ -27,7 +26,6 @@
 #define PLAYER_DEFINE(DMA_CNT, DMA_SAD, DMA_DAD, FIFO_ADDRESS, MUTE, UNMUTE)   \
   uint32_t fracumul(uint32_t x, uint32_t frac) __attribute__((long_call));     \
                                                                                \
-  static const GBFS_FILE* fs;                                                  \
   DATA_IWRAM static signed char double_buffers[2][608]                         \
       __attribute__((aligned(4)));                                             \
   DATA_IWRAM unsigned int cur_buffer = 0;                                      \
