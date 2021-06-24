@@ -77,7 +77,8 @@ int main() {
 inline void init() {
   enableMode4AndBackground2();
   overclockEWRAM();
-  enable2xMosaic();
+  if (DRAW_SCALE == 2)
+    enable2xMosaic();
   dma3_cpy(pal_bg_mem, MAIN_PALETTE, sizeof(COLOR) * PALETTE_COLORS);
 
   // TODO: REMOVE GBFS
@@ -164,7 +165,8 @@ inline void render(State& state) {
     if ((temporalDiff >> temporalBit) & 1) {
       // (a pixel changed)
 
-      u32 drawCursor = y(cursor) * DRAW_WIDTH + x(cursor);
+      u32 drawCursor =
+          DRAW_SCALE == 1 ? cursor : y(cursor) * DRAW_WIDTH + x(cursor);
       u32 drawCursor32Bit = drawCursor / 4;
       frameBuffer[drawCursor] = state.compressedPixels[decompressedPixels];
       ((u32*)vid_mem_front)[drawCursor32Bit] =
@@ -243,9 +245,9 @@ inline bool sync(State& state, u32 command) {
 }
 
 inline u32 x(u32 cursor) {
-  return (cursor % RENDER_WIDTH) * DRAW_SCALE_X;
+  return (cursor % RENDER_WIDTH) * DRAW_SCALE;
 }
 
 inline u32 y(u32 cursor) {
-  return (cursor / RENDER_WIDTH) * DRAW_SCALE_Y;
+  return (cursor / RENDER_WIDTH) * DRAW_SCALE;
 }
