@@ -23,4 +23,16 @@ inline void DEBULOG(std::string STR) {
 
 #define ONE_SECOND 1000
 
+inline int getDistanceSquared(int r1, int g1, int b1, int color2) {
+  int r2 = (color2 >> 0) & 0xff;
+  int g2 = (color2 >> 8) & 0xff;
+  int b2 = (color2 >> 16) & 0xff;
+
+  int diffR = r1 - r2;
+  int diffG = g1 - g2;
+  int diffB = b1 - b2;
+
+  return diffR * diffR + diffG * diffG + diffB * diffB;
+}
+
 #endif  // UTILS_H

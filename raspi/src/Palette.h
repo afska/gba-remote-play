@@ -5,6 +5,7 @@
 #include <stdio.h>
 #include <fstream>
 #include <iostream>
+#include "Utils.h"
 
 #define PALETTE_24BIT_MAX_COLORS 16777216
 
@@ -54,10 +55,7 @@ inline uint8_t PALETTE_getClosestColor(uint8_t r, uint8_t g, uint8_t b) {
   uint8_t bestColorIndex = 0;
 
   for (int i = 0; i < 256; i++) {
-    int diffR = r - (MAIN_PALETTE_24BPP[i] >> 0) & 0xff;
-    int diffG = g - (MAIN_PALETTE_24BPP[i] >> 8) & 0xff;
-    int diffB = b - (MAIN_PALETTE_24BPP[i] >> 16) & 0xff;
-    int distanceSquared = diffR * diffR + diffG * diffG + diffB * diffB;
+    int distanceSquared = getDistanceSquared(r, g, b, MAIN_PALETTE_24BPP[i]);
 
     if (distanceSquared < minDistanceSquared) {
       minDistanceSquared = distanceSquared;

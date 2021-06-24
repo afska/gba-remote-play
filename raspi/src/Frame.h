@@ -4,6 +4,7 @@
 #include <stdint.h>
 #include <stdlib.h>
 #include "Protocol.h"
+#include "Utils.h"
 
 typedef struct Frame {
   uint32_t totalPixels;
@@ -43,16 +44,7 @@ typedef struct Frame {
     int r1 = (color1 >> 0) & 0xff;
     int g1 = (color1 >> 8) & 0xff;
     int b1 = (color1 >> 16) & 0xff;
-
-    int r2 = (color2 >> 0) & 0xff;
-    int g2 = (color2 >> 8) & 0xff;
-    int b2 = (color2 >> 16) & 0xff;
-
-    // TODO: REMOVE DUPLICATED CODE (PALETTE_getClosestColor)
-    int diffR = r1 - r2;
-    int diffG = g1 - g2;
-    int diffB = b1 - b2;
-    int distanceSquared = diffR * diffR + diffG * diffG + diffB * diffB;
+    int distanceSquared = getDistanceSquared(r1, g1, b1, color2);
     bool areDifferent = distanceSquared > TEMPORAL_DIFF_THRESHOLD;
 
     if (!areDifferent)
