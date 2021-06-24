@@ -36,12 +36,6 @@
 // DIFFS
 #define TEMPORAL_DIFF_THRESHOLD 1500
 #define TEMPORAL_DIFF_SIZE (TOTAL_PIXELS / 8)
-#define SPATIAL_DIFF_BLOCK_SIZE 4
-#define SPATIAL_DIFF_SIZE (TOTAL_PIXELS / SPATIAL_DIFF_BLOCK_SIZE / 8)
-inline bool SPATIAL_DIFF_IS_REPEATED_BLOCK(uint32_t* colors) {
-  return colors[0] == colors[1] && colors[1] == colors[2] &&
-         colors[2] == colors[3];
-}
 
 // FILES
 #define PALETTE_CACHE_FILENAME "palette.cache"
@@ -52,10 +46,8 @@ inline bool SPATIAL_DIFF_IS_REPEATED_BLOCK(uint32_t* colors) {
 #define CMD_RPI_OFFSET 1
 #define CMD_GBA_OFFSET 2
 #define CMD_FRAME_START 0x12345610
-#define CMD_SPATIAL_DIFFS_START 0x98765420
-#define CMD_PIXELS_START 0x98765430
-#define CMD_FRAME_END 0x98765440
+#define CMD_PIXELS_START 0x98765420
+#define CMD_FRAME_END 0x98765430
 #define CMD_PAUSE 0x98765480
 #define CMD_RESUME 0x98765490
-
 #endif  // PROTOCOL_H
