@@ -24,8 +24,7 @@ typedef struct {
   u32 expectedPackets;
   u8 temporalDiffs[TEMPORAL_DIFF_SIZE];
   u8 compressedPixels[TOTAL_PIXELS];
-  u8 audioChunks[AUDIO_BUFFERS][AUDIO_PADDED_SIZE];
-  u8 audioChunkIndex;
+  u8 audioChunks[AUDIO_PADDED_SIZE];
 } State;
 
 SPISlave* spiSlave = new SPISlave();
@@ -94,7 +93,6 @@ inline void init() {
 CODE_IWRAM void mainLoop() {
 reset:
   State state;
-  state.audioChunkIndex = 0;
   transfer(state, CMD_RESET, false);
 
   while (true) {
@@ -125,7 +123,7 @@ inline bool sendKeysAndReceiveTemporalDiffs(State& state) {
 
 inline bool receiveAudio(State& state) {
   for (u32 i = 0; i < AUDIO_SIZE_PACKETS; i++)
-    ((u32*)state.audioChunks[state.audioChunkIndex])[i] = transfer(state, i);
+    ((u32*)state.audioChunks)[i] = transfer(state, i);
 
   return true;
 }
@@ -194,9 +192,8 @@ inline bool isNewVBlank() {
 }
 
 CODE_IWRAM void driveAudio(State& state) {
-  player_play((char*)state.audioChunks[state.audioChunkIndex]);
+  player_play((char*)state.audioChunks);
   player_run();
-  state.audioChunkIndex = !state.audioChunkIndex;
 }
 
 inline u32 transfer(State& state, u32 packetToSend, bool withRecovery) {

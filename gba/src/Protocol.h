@@ -21,7 +21,6 @@
 #define AUDIO_CHUNK_SIZE 66    // (sizeof(gsm_frame) * 2)
 #define AUDIO_CHUNK_PADDING 2  // (so every chunk it's exactly 17 packets)
 #define AUDIO_SIZE_PACKETS 17  // -----------------------------^^
-#define AUDIO_BUFFERS 2
 #define SPI_MODE 3
 #define SPI_SLOW_FREQUENCY 1600000
 #define SPI_FAST_FREQUENCY 2600000
