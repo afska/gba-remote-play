@@ -73,10 +73,9 @@
   gsm_init(&decoder);                          \
   mute();
 
-#define PLAYER_PLAY(SRC)            \
-  src_pos = SRC;                    \
-  src_end = SRC + AUDIO_CHUNK_SIZE; \
-  mute();
+#define PLAYER_PLAY(SRC) \
+  src_pos = SRC;         \
+  src_end = SRC + AUDIO_CHUNK_SIZE;
 
 #define PLAYER_STOP() \
   src_pos = NULL;     \
