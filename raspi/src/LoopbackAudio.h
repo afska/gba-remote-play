@@ -19,10 +19,10 @@ class LoopbackAudio {
 
   uint8_t* loadChunk() {
     uint8_t* chunk = (uint8_t*)malloc(AUDIO_PADDED_SIZE);
-
     try {
-      fseek(pipe, -AUDIO_CHUNK_SIZE, SEEK_END);
-      fread(chunk, AUDIO_CHUNK_SIZE, 1, pipe);
+      fseek(pipe, 0, SEEK_END);
+      while (!fread(chunk, AUDIO_CHUNK_SIZE, 1, pipe))
+        ;
     } catch (...) {
       std::cout << "Audio error!\n";
     }
