@@ -131,12 +131,24 @@ class GBARemotePlay {
     if (!receiveKeysAndSendTemporalDiffs(diffs))
       return false;
 
+    DEBULOG("Syncing audio...");
+    if (!reliableStream->sync(CMD_AUDIO))
+      return false;
+
     DEBULOG("Sending audio...");
     if (!sendAudio(frame))
       return false;
 
+    DEBULOG("Syncing pixels...");
+    if (!reliableStream->sync(CMD_PIXELS))
+      return false;
+
     DEBULOG("Sending pixels...");
     if (!compressAndSendPixels(frame, diffs))
+      return false;
+
+    DEBULOG("Syncing frame end...");
+    if (!reliableStream->sync(CMD_FRAME_END))
       return false;
 
 #ifdef DEBUG

@@ -101,8 +101,11 @@ reset:
 
     TRY(sync(state, CMD_FRAME_START));
     TRY(sendKeysAndReceiveTemporalDiffs(state));
+    TRY(sync(state, CMD_AUDIO));
     TRY(receiveAudio(state));
+    TRY(sync(state, CMD_PIXELS));
     TRY(receivePixels(state));
+    TRY(sync(state, CMD_FRAME_END));
 
     render(state);
   }
