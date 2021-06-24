@@ -45,8 +45,7 @@ bool sendKeysAndReceiveTemporalDiffs(State& state);
 bool receivePixels(State& state);
 void draw(State& state);
 void decompressImage(State& state);
-bool sync(u32 command, bool safe = false);
-bool reliablySend(u32 packetToSend, u32 expectedResponse);
+bool sync(u32 command);
 u32 x(u32 cursor);
 u32 y(u32 cursor);
 
@@ -150,20 +149,14 @@ inline void decompressImage(State& state) {
   }
 }
 
-inline bool sync(u32 command, bool safe) {
+inline bool sync(u32 command) {
   u32 local = command + CMD_GBA_OFFSET;
   u32 remote = command + CMD_RPI_OFFSET;
   u32 blindFrames = 0;
   bool wasVBlank = IS_VBLANK;
 
   while (true) {
-    bool isOnSync = spiSlave->transfer(local) == remote;
-
-    if (safe)
-      for (u32 i = 0; i < SAFE_SYNC_VALIDATIONS; i++)
-        isOnSync = isOnSync && spiSlave->transfer(local + i) == remote + i;
-
-    if (isOnSync)
+    if (spiSlave->transfer(local) == remote)
       return true;
     else {
       bool isVBlank = IS_VBLANK;
