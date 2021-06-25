@@ -127,17 +127,19 @@ class GBARemotePlay {
     std::cout << "  <" + std::to_string(idleElapsedTime) + "ms idle>\n";
 #endif
 
-    DEBULOG("Receiving keys and sending temporal diffs...");
-    if (!receiveKeysAndSendTemporalDiffs(diffs))
+    DEBULOG("Receiving keys and send metadata...");
+    if (!receiveKeysAndSendMetadata(frame, diffs))
       return false;
 
-    DEBULOG("Syncing audio...");
-    if (!reliableStream->sync(CMD_AUDIO))
-      return false;
+    if (frame.hasAudio()) {
+      DEBULOG("Syncing audio...");
+      if (!reliableStream->sync(CMD_AUDIO))
+        return false;
 
-    DEBULOG("Sending audio...");
-    if (!sendAudio(frame))
-      return false;
+      DEBULOG("Sending audio...");
+      if (!sendAudio(frame))
+        return false;
+    }
 
     DEBULOG("Syncing pixels...");
     if (!reliableStream->sync(CMD_PIXELS))
@@ -161,9 +163,10 @@ class GBARemotePlay {
     return true;
   }
 
-  bool receiveKeysAndSendTemporalDiffs(ImageDiffBitArray& diffs) {
-    uint32_t expectedPackets = diffs.compressedPixels / PIXELS_PER_PACKET +
-                               diffs.compressedPixels % PIXELS_PER_PACKET;
+  bool receiveKeysAndSendMetadata(Frame& frame, ImageDiffBitArray& diffs) {
+    uint32_t expectedPackets = (diffs.compressedPixels / PIXELS_PER_PACKET +
+                                diffs.compressedPixels % PIXELS_PER_PACKET) |
+                               (frame.hasAudio() ? AUDIO_BIT_MASK : 0);
     uint32_t keys = spiMaster->exchange(expectedPackets);
     if (spiMaster->exchange(expectedPackets + 1) != keys + 1)
       return false;

@@ -39,12 +39,12 @@ class SPIMaster {
 
   void initialize() {
     if (!bcm2835_init()) {
-      std::cout << "Error: cannot initialize SPI\n";
+      std::cout << "Error (SPI): cannot initialize SPI\n";
       exit(11);
     }
 
     if (!bcm2835_spi_begin()) {
-      std::cout << "Error: cannot start SPI transfers\n";
+      std::cout << "Error (SPI): cannot start SPI transfers\n";
       exit(12);
     }
   }

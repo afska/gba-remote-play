@@ -25,7 +25,11 @@ class LoopbackAudio {
     uint8_t* chunk = (uint8_t*)malloc(AUDIO_PADDED_SIZE);
 
     consumeExtraChunks();
-    fread(chunk, AUDIO_CHUNK_SIZE, 1, pipe);
+
+    if (read(pipeFd, chunk, AUDIO_CHUNK_SIZE) < 0) {
+      free(chunk);
+      return NULL;
+    }
 
     return chunk;
   }
@@ -38,13 +42,20 @@ class LoopbackAudio {
  private:
   FILE* pipe;
   int nullFd;
+  int pipeFd;
 
   void launchEncoder() {
     pipe = popen(AUDIO_COMMAND, "r");
+    pipeFd = fileno(pipe);
 
     if (!pipe) {
-      std::cout << "Error: cannot launch ffmpeg\n";
+      std::cout << "Error (Audio): cannot launch ffmpeg\n";
       exit(31);
+    }
+
+    if (fcntl(pipeFd, F_SETFL, O_NONBLOCK) < 0) {
+      std::cout << "Error (Audio): cannot set non-blocking I/O\n";
+      exit(32);
     }
 
     nullFd = open(AUDIO_NULL, O_RDWR);
@@ -52,11 +63,10 @@ class LoopbackAudio {
 
   void consumeExtraChunks() {
     uint32_t availableBytes = 0;
-    int fd = fileno(pipe);
 
-    ioctl(fd, FIONREAD, &availableBytes);
+    ioctl(pipeFd, FIONREAD, &availableBytes);
     if (availableBytes > AUDIO_CHUNK_SIZE)
-      splice(fd, NULL, nullFd, NULL, availableBytes - AUDIO_CHUNK_SIZE, 0);
+      splice(pipeFd, NULL, nullFd, NULL, availableBytes - AUDIO_CHUNK_SIZE, 0);
   }
 };
 

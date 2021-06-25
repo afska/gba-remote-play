@@ -24,6 +24,7 @@ typedef struct {
   u8 temporalDiffs[TEMPORAL_DIFF_SIZE];
   u8 compressedPixels[TOTAL_PIXELS];
   u8 audioChunks[AUDIO_PADDED_SIZE];
+  bool hasAudio;
 } State;
 
 SPISlave* spiSlave = new SPISlave();
@@ -47,7 +48,7 @@ int main() {
 
 void init();
 void mainLoop();
-bool sendKeysAndReceiveTemporalDiffs(State& state);
+bool sendKeysAndReceiveMetadata(State& state);
 bool receiveAudio(State& state);
 bool receivePixels(State& state);
 void render(State& state);
@@ -88,11 +89,14 @@ reset:
 
   while (true) {
     state.expectedPackets = 0;
+    state.hasAudio = false;
 
     TRY(sync(state, CMD_FRAME_START));
-    TRY(sendKeysAndReceiveTemporalDiffs(state));
-    TRY(sync(state, CMD_AUDIO));
-    TRY(receiveAudio(state));
+    TRY(sendKeysAndReceiveMetadata(state));
+    if (state.hasAudio) {
+      TRY(sync(state, CMD_AUDIO));
+      TRY(receiveAudio(state));
+    }
     TRY(sync(state, CMD_PIXELS));
     TRY(receivePixels(state));
     TRY(sync(state, CMD_FRAME_END));
@@ -101,13 +105,16 @@ reset:
   }
 }
 
-inline bool sendKeysAndReceiveTemporalDiffs(State& state) {
+inline bool sendKeysAndReceiveMetadata(State& state) {
   u16 keys = pressedKeys();
-  state.expectedPackets = spiSlave->transfer(keys);
+  u32 expectedPackets = spiSlave->transfer(keys);
   driveAudioIfNeeded(state);
-  if (spiSlave->transfer(keys + 1) != state.expectedPackets + 1)
+  if (spiSlave->transfer(keys + 1) != expectedPackets + 1)
     return false;
   driveAudioIfNeeded(state);
+
+  state.expectedPackets = expectedPackets & ~AUDIO_BIT_MASK;
+  state.hasAudio = (expectedPackets & AUDIO_BIT_MASK) != 0;
 
   for (u32 i = 0; i < TEMPORAL_DIFF_SIZE / PACKET_SIZE; i++)
     ((u32*)state.temporalDiffs)[i] = transfer(state, i);

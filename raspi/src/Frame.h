@@ -24,6 +24,7 @@ typedef struct Frame {
   }
 
   bool hasData() { return totalPixels > 0; }
+  bool hasAudio() { return audioChunk != NULL; }
 
   void clean() {
     if (!hasData())

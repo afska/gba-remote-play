@@ -50,6 +50,7 @@
 #define PALETTE_CACHE_FILENAME "palette.cache"
 
 // COMMANDS
+#define AUDIO_BIT_MASK 0x80000000
 #define CMD_RESET 0x99887766
 #define CMD_RPI_OFFSET 1
 #define CMD_GBA_OFFSET 2

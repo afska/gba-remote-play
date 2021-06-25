@@ -36,7 +36,7 @@ void WritePNG(std::string fileName,
   unsigned int outStatus = lodepng_encode(&outputFileData, &outputFileSize,
                                           raw8BitPixels, width, height, &state);
   if (outStatus) {
-    fprintf(stderr, "Error: Can't encode image %s\n",
+    fprintf(stderr, "Error (PNG): cannot encode image %s\n",
             lodepng_error_text(outStatus));
     exit(91);
   }
@@ -44,7 +44,7 @@ void WritePNG(std::string fileName,
   const char* outputPath = fileName.c_str();
   FILE* file = fopen(outputPath, "wb");
   if (!file) {
-    fprintf(stderr, "Error: Unable to write to %s\n", outputPath);
+    fprintf(stderr, "Error (PNG): unable to write to %s\n", outputPath);
     exit(92);
   }
   fwrite(outputFileData, 1, outputFileSize, file);
