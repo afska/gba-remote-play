@@ -4,7 +4,7 @@
 #include <stdbool.h>
 
 void player_init();
-void player_play(char* chunk);
+void player_play(const unsigned char* chunk);
 void player_stop();
 void player_run();
 

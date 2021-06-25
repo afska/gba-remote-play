@@ -14,7 +14,7 @@ inline void player_init() {
   PLAYER_INIT(REG_TM0CNT_L, REG_TM0CNT_H);
 }
 
-inline void player_play(char* chunk) {
+inline void player_play(const unsigned char* chunk) {
   PLAYER_PLAY(chunk);
 }
 

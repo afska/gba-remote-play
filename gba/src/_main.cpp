@@ -187,7 +187,7 @@ inline bool isNewVBlank() {
 }
 
 CODE_IWRAM void driveAudio(State& state) {
-  player_play((char*)state.audioChunks);
+  player_play((const unsigned char*)state.audioChunks);
   player_run();
 }
 
