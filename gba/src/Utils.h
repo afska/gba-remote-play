@@ -5,7 +5,7 @@
 
 #define CODE_IWRAM __attribute__((section(".iwram"), target("arm")))
 #define DATA_EWRAM __attribute__((section(".ewram")))
-#define IS_VBLANK (REG_VCOUNT >= 160)
+#define IS_VBLANK (REG_DISPSTAT & 1)
 
 inline void enableMode4AndBackground2() {
   REG_DISPCNT = DCNT_MODE4 | DCNT_BG2;

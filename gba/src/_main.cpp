@@ -52,7 +52,6 @@ bool sendKeysAndReceiveMetadata(State& state);
 bool receiveAudio(State& state);
 bool receivePixels(State& state);
 void render(State& state);
-void driveAudioIfNeeded(State& state);
 bool isNewVBlank();
 void driveAudio(State& state);
 u32 transfer(State& state, u32 packetToSend, bool withRecovery = true);
@@ -135,9 +134,14 @@ inline bool receivePixels(State& state) {
 
 inline void render(State& state) {
   u32 decompressedPixels = 0;
+  bool wasVBlank = IS_VBLANK;
 
   for (u32 cursor = 0; cursor < TOTAL_PIXELS; cursor++) {
-    driveAudioIfNeeded(state);
+    if (!wasVBlank && IS_VBLANK) {
+      wasVBlank = true;
+      driveAudio(state);
+    } else if (wasVBlank && !IS_VBLANK)
+      wasVBlank = false;
 
     u32 temporalByte = cursor / 8;
     u32 temporalBit = cursor % 8;
@@ -173,17 +177,11 @@ inline void render(State& state) {
   }
 }
 
-inline void driveAudioIfNeeded(State& state) {
-  if (isNewVBlank())
-    driveAudio(state);
-}
-
 inline bool isNewVBlank() {
-  bool isVBlank = IS_VBLANK;
-  if (!VBLANK_TRACKER && isVBlank) {
+  if (!VBLANK_TRACKER && IS_VBLANK) {
     VBLANK_TRACKER = true;
     return true;
-  } else if (VBLANK_TRACKER && !isVBlank)
+  } else if (VBLANK_TRACKER && !IS_VBLANK)
     VBLANK_TRACKER = false;
 
   return false;
