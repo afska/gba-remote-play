@@ -21,7 +21,7 @@ class GBARemotePlay {
     spiMaster = new SPIMaster(SPI_MODE, SPI_SLOW_FREQUENCY, SPI_FAST_FREQUENCY,
                               SPI_DELAY_MICROSECONDS);
     reliableStream = new ReliableStream(spiMaster);
-    frameBuffer = new FrameBuffer(RENDER_WIDTH, RENDER_HEIGHT);
+    frameBuffer = new FrameBuffer(DRAW_WIDTH, DRAW_HEIGHT);
     loopbackAudio = new LoopbackAudio();
     virtualGamepad = new VirtualGamepad(VIRTUAL_GAMEPAD_NAME);
     lastFrame = Frame{0};
@@ -225,7 +225,12 @@ class GBARemotePlay {
     frame.palette = MAIN_PALETTE_24BPP;
 
     frameBuffer->forEachPixel(
-        [&frame](int x, int y, uint8_t r, uint8_t g, uint8_t b) {
+        [&frame, this](int x, int y, uint8_t r, uint8_t g, uint8_t b) {
+          if (x % DRAW_SCALE_X != 0 || y % DRAW_SCALE_Y != 0)
+            return;
+          x = x / DRAW_SCALE_X;
+          y = y / DRAW_SCALE_Y;
+
           frame.raw8BitPixels[y * RENDER_WIDTH + x] =
               LUT_24BPP_TO_8BIT_PALETTE[(r << 0) | (g << 8) | (b << 16)];
         });
