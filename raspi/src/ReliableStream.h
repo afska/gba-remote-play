@@ -52,7 +52,7 @@ class ReliableStream {
 
   bool sendPacket(uint32_t packet, uint32_t* index, uint32_t totalPackets) {
     if (*index % TRANSFER_SYNC_PERIOD == 0 || *index == totalPackets - 1) {
-      return reliablySend(packet, index);
+      return reliablySend(packet, index, totalPackets);
     } else {
       spiMaster->send(packet);
       (*index)++;
@@ -60,7 +60,7 @@ class ReliableStream {
     }
   }
 
-  bool reliablySend(uint32_t packet, uint32_t* index) {
+  bool reliablySend(uint32_t packet, uint32_t* index, uint32_t totalPackets) {
     uint32_t requestedIndex = spiMaster->exchange(packet);
     if (requestedIndex != CMD_RESET)
       lastReceivedPacket = requestedIndex;
@@ -70,6 +70,10 @@ class ReliableStream {
       if (!sync(CMD_RECOVERY))
         return false;
       requestedIndex = spiMaster->exchange(0);
+      if (requestedIndex >= totalPackets) {
+        logReset("Reset! (recovery)", packet, *index);
+        return false;
+      }
       *index = requestedIndex;
       return true;
     } else if (requestedIndex == CMD_RESET) {
