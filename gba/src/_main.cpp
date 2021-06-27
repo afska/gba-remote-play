@@ -25,6 +25,7 @@ typedef struct {
   u8 compressedPixels[TOTAL_PIXELS];
   u8 audioChunks[AUDIO_PADDED_SIZE];
   bool hasAudio;
+  bool isAudioReady;
 } State;
 
 SPISlave* spiSlave = new SPISlave();
@@ -81,8 +82,10 @@ inline void init() {
 }
 
 CODE_IWRAM void mainLoop() {
-reset:
   State state;
+  state.isAudioReady = false;
+
+reset:
   transfer(state, CMD_RESET, false);
 
   while (true) {
@@ -121,6 +124,8 @@ inline bool sendKeysAndReceiveMetadata(State& state) {
 inline bool receiveAudio(State& state) {
   for (u32 i = 0; i < AUDIO_SIZE_PACKETS; i++)
     ((u32*)state.audioChunks)[i] = transfer(state, i);
+
+  state.isAudioReady = true;
 
   return true;
 }
@@ -188,7 +193,10 @@ inline bool isNewVBlank() {
 }
 
 CODE_IWRAM void driveAudio(State& state) {
-  player_play((const unsigned char*)state.audioChunks, AUDIO_CHUNK_SIZE);
+  if (state.isAudioReady) {
+    player_play((const unsigned char*)state.audioChunks, AUDIO_CHUNK_SIZE);
+    state.isAudioReady = false;
+  }
   player_run();
 }
 

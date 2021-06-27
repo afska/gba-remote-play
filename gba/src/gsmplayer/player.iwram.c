@@ -24,5 +24,5 @@ inline void player_stop() {
 
 inline void player_run() {
   PLAYER_VBLANK();
-  PLAYER_RUN({}, { player_stop(); });
+  PLAYER_RUN({}, {});
 }
