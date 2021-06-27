@@ -20,7 +20,6 @@
 #define CHANNEL_A_UNMUTE 0b0000001100000000
 #define CHANNEL_B_MUTE 0b1100111111111111
 #define CHANNEL_B_UNMUTE 0b0011000000000000
-#define AUDIO_CHUNK_SIZE 66  // 2 gsm frames
 #define DATA_IWRAM __attribute__((section(".iwram")))
 
 #define PLAYER_DEFINE(DMA_CNT, DMA_SAD, DMA_DAD, FIFO_ADDRESS, MUTE, UNMUTE)   \
@@ -71,9 +70,9 @@
   gsm_init(&decoder);                          \
   mute();
 
-#define PLAYER_PLAY(SRC) \
-  src_pos = SRC;         \
-  src_end = SRC + AUDIO_CHUNK_SIZE;
+#define PLAYER_PLAY(SRC, SIZE) \
+  src_pos = SRC;               \
+  src_end = SRC + SIZE;
 
 #define PLAYER_STOP() \
   src_pos = NULL;     \
