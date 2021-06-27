@@ -11,13 +11,13 @@ class ReliableStream {
  public:
   ReliableStream(SPIMaster* spiMaster) { this->spiMaster = spiMaster; }
 
-  bool send(void* data, uint32_t totalPackets) {
+  bool send(void* data, uint32_t totalPackets, uint32_t syncCommand) {
     uint32_t index = 0;
     lastReceivedPacket = 0;
 
     while (index < totalPackets) {
       uint32_t packetToSend = ((uint32_t*)data)[index];
-      if (!sendPacket(packetToSend, &index, totalPackets))
+      if (!sendPacket(packetToSend, &index, totalPackets, syncCommand))
         return false;
     }
 
@@ -46,13 +46,25 @@ class ReliableStream {
     }
   }
 
+  bool finishSyncIfNeeded(uint32_t packet, uint32_t command) {
+    if (packet == command + CMD_GBA_OFFSET) {
+      spiMaster->exchange(command + CMD_RPI_OFFSET);
+      return true;
+    }
+
+    return false;
+  }
+
  private:
   SPIMaster* spiMaster;
   uint32_t lastReceivedPacket = 0;
 
-  bool sendPacket(uint32_t packet, uint32_t* index, uint32_t totalPackets) {
+  bool sendPacket(uint32_t packet,
+                  uint32_t* index,
+                  uint32_t totalPackets,
+                  uint32_t syncCommand) {
     if (*index % TRANSFER_SYNC_PERIOD == 0 || *index == totalPackets - 1) {
-      return reliablySend(packet, index, totalPackets);
+      return reliablySend(packet, index, totalPackets, syncCommand);
     } else {
       spiMaster->send(packet);
       (*index)++;
@@ -60,8 +72,14 @@ class ReliableStream {
     }
   }
 
-  bool reliablySend(uint32_t packet, uint32_t* index, uint32_t totalPackets) {
+  bool reliablySend(uint32_t packet,
+                    uint32_t* index,
+                    uint32_t totalPackets,
+                    uint32_t syncCommand) {
+  again:
     uint32_t requestedIndex = spiMaster->exchange(packet);
+    if (finishSyncIfNeeded(requestedIndex, syncCommand))
+      goto again;
     if (requestedIndex != CMD_RESET)
       lastReceivedPacket = requestedIndex;
 
@@ -78,7 +96,9 @@ class ReliableStream {
       return true;
     } else if (requestedIndex == CMD_RESET) {
       // (reset command)
-      logReset("Reset! (stream)", packet, *index);
+      logReset("Reset! (stream - " + std::to_string(*index) + "/" +
+                   std::to_string(totalPackets) + ")",
+               packet, *index);
       return false;
     } else if (requestedIndex == *index) {
       // (on sync)

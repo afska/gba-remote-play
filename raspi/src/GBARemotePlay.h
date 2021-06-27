@@ -164,20 +164,24 @@ class GBARemotePlay {
   }
 
   bool receiveKeysAndSendMetadata(Frame& frame, ImageDiffBitArray& diffs) {
+  again:
     uint32_t expectedPackets = (diffs.compressedPixels / PIXELS_PER_PACKET +
                                 diffs.compressedPixels % PIXELS_PER_PACKET) |
                                (frame.hasAudio() ? AUDIO_BIT_MASK : 0);
     uint32_t keys = spiMaster->exchange(expectedPackets);
-    if (spiMaster->exchange(expectedPackets + 1) != keys + 1)
+    if (reliableStream->finishSyncIfNeeded(keys, CMD_FRAME_START))
+      goto again;
+    if (spiMaster->exchange(keys) != expectedPackets)
       return false;
     processKeys(keys);
 
-    return reliableStream->send(diffs.temporal,
-                                TEMPORAL_DIFF_SIZE / PACKET_SIZE);
+    return reliableStream->send(
+        diffs.temporal, TEMPORAL_DIFF_SIZE / PACKET_SIZE, CMD_FRAME_START);
   }
 
   bool sendAudio(Frame& frame) {
-    return reliableStream->send(frame.audioChunk, AUDIO_SIZE_PACKETS);
+    return reliableStream->send(frame.audioChunk, AUDIO_SIZE_PACKETS,
+                                CMD_AUDIO);
   }
 
   bool compressAndSendPixels(Frame& frame, ImageDiffBitArray& diffs) {
@@ -185,7 +189,7 @@ class GBARemotePlay {
     uint32_t size = 0;
     compressPixels(frame, diffs, packetsToSend, &size);
 
-    return reliableStream->send(packetsToSend, size);
+    return reliableStream->send(packetsToSend, size, CMD_PIXELS);
   }
 
   void compressPixels(Frame& frame,

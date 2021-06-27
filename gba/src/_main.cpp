@@ -108,10 +108,8 @@ reset:
 inline bool sendKeysAndReceiveMetadata(State& state) {
   u16 keys = pressedKeys();
   u32 expectedPackets = spiSlave->transfer(keys);
-  driveAudioIfNeeded(state);
-  if (spiSlave->transfer(keys + 1) != expectedPackets + 1)
+  if (spiSlave->transfer(expectedPackets) != keys)
     return false;
-  driveAudioIfNeeded(state);
 
   state.expectedPackets = expectedPackets & ~AUDIO_BIT_MASK;
   state.hasAudio = (expectedPackets & AUDIO_BIT_MASK) != 0;
