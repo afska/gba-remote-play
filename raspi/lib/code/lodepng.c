@@ -1,3 +1,5 @@
+#ifdef DEBUG
+
 /*
 LodePNG version 20201017
 Copyright (c) 2005-2020 Lode Vandevenne
@@ -22,8 +24,6 @@ The manual and changelog are in the header file "lodepng.h"
 Rename this file to lodepng.cpp to use it for C++, or to lodepng.c to use it for
 C.
 */
-
-#ifdef DEBUG
 
 #include "lodepng.h"
 
