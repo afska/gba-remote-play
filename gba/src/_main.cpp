@@ -199,10 +199,11 @@ inline bool isNewVBlank() {
 }
 
 CODE_IWRAM void driveAudio(State& state) {
-  if (state.isAudioReady) {
+  if (player_needsData() && state.isAudioReady) {
     player_play((const unsigned char*)state.audioChunks, AUDIO_CHUNK_SIZE);
     state.isAudioReady = false;
   }
+
   player_run();
 }
 

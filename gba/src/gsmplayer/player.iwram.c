@@ -22,6 +22,10 @@ inline void player_stop() {
   PLAYER_STOP();
 }
 
+inline bool player_needsData() {
+  return src_pos >= src_end;
+}
+
 inline void player_run() {
   PLAYER_VBLANK();
   PLAYER_RUN({}, {});
