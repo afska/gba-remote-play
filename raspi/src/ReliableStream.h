@@ -11,11 +11,8 @@ class ReliableStream {
  public:
   ReliableStream(SPIMaster* spiMaster) { this->spiMaster = spiMaster; }
 
-  bool send(void* data,
-            uint32_t totalPackets,
-            uint32_t syncCommand,
-            uint32_t startIndex = 0) {
-    uint32_t index = startIndex;
+  bool send(void* data, uint32_t totalPackets, uint32_t syncCommand) {
+    uint32_t index = 0;
     lastReceivedPacket = 0;
 
     while (index < totalPackets) {
@@ -25,17 +22,6 @@ class ReliableStream {
     }
 
     return true;
-  }
-
-  bool sendValue(uint32_t packetToSend,
-                 uint32_t packetId,
-                 uint32_t syncCommand) {
-    uint32_t index = packetId;
-    while (index == packetId &&
-           reliablySend(packetToSend, &index, 1, syncCommand))
-      ;
-
-    return index != packetId;
   }
 
   bool sync(uint32_t command) {

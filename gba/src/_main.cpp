@@ -131,14 +131,8 @@ inline bool receiveAudio(State& state) {
 }
 
 inline bool receivePixels(State& state) {
-  for (u32 i = 0; i < state.expectedPackets; i++) {
-    if (i == MID_FRAME_AUDIO_PERIOD) {
-      bool midFrameAudio = transfer(state, i);
-      if (midFrameAudio)
-        receiveAudio(state);
-    }
+  for (u32 i = 0; i < state.expectedPackets; i++)
     ((u32*)state.compressedPixels)[i] = transfer(state, i);
-  }
 
   return true;
 }
