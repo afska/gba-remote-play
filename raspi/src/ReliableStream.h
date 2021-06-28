@@ -11,8 +11,11 @@ class ReliableStream {
  public:
   ReliableStream(SPIMaster* spiMaster) { this->spiMaster = spiMaster; }
 
-  bool send(void* data, uint32_t totalPackets, uint32_t syncCommand) {
-    uint32_t index = 0;
+  bool send(void* data,
+            uint32_t totalPackets,
+            uint32_t syncCommand,
+            uint32_t startIndex = 0) {
+    uint32_t index = startIndex;
     lastReceivedPacket = 0;
 
     while (index < totalPackets) {
@@ -22,6 +25,44 @@ class ReliableStream {
     }
 
     return true;
+  }
+
+  bool reliablySend(uint32_t packet,
+                    uint32_t* index,
+                    uint32_t totalPackets,
+                    uint32_t syncCommand) {
+  again:
+    uint32_t requestedIndex = spiMaster->exchange(packet);
+    if (finishSyncIfNeeded(requestedIndex, syncCommand))
+      goto again;
+    if (requestedIndex != CMD_RESET)
+      lastReceivedPacket = requestedIndex;
+
+    if (requestedIndex == CMD_RECOVERY + CMD_GBA_OFFSET) {
+      // (recovery command)
+      if (!sync(CMD_RECOVERY))
+        return false;
+      requestedIndex = spiMaster->exchange(0);
+      if (requestedIndex >= totalPackets) {
+        logReset("Reset! (recovery)", packet, *index);
+        return false;
+      }
+      *index = requestedIndex;
+      return true;
+    } else if (requestedIndex == CMD_RESET) {
+      // (reset command)
+      logReset("Reset! (stream - " + std::to_string(*index) + "/" +
+                   std::to_string(totalPackets) + ")",
+               packet, *index);
+      return false;
+    } else if (requestedIndex == *index) {
+      // (on sync)
+      (*index)++;
+      return true;
+    } else {
+      // (probably garbage => ignore)
+      return true;
+    }
   }
 
   bool sync(uint32_t command) {
@@ -68,44 +109,6 @@ class ReliableStream {
     } else {
       spiMaster->send(packet);
       (*index)++;
-      return true;
-    }
-  }
-
-  bool reliablySend(uint32_t packet,
-                    uint32_t* index,
-                    uint32_t totalPackets,
-                    uint32_t syncCommand) {
-  again:
-    uint32_t requestedIndex = spiMaster->exchange(packet);
-    if (finishSyncIfNeeded(requestedIndex, syncCommand))
-      goto again;
-    if (requestedIndex != CMD_RESET)
-      lastReceivedPacket = requestedIndex;
-
-    if (requestedIndex == CMD_RECOVERY + CMD_GBA_OFFSET) {
-      // (recovery command)
-      if (!sync(CMD_RECOVERY))
-        return false;
-      requestedIndex = spiMaster->exchange(0);
-      if (requestedIndex >= totalPackets) {
-        logReset("Reset! (recovery)", packet, *index);
-        return false;
-      }
-      *index = requestedIndex;
-      return true;
-    } else if (requestedIndex == CMD_RESET) {
-      // (reset command)
-      logReset("Reset! (stream - " + std::to_string(*index) + "/" +
-                   std::to_string(totalPackets) + ")",
-               packet, *index);
-      return false;
-    } else if (requestedIndex == *index) {
-      // (on sync)
-      (*index)++;
-      return true;
-    } else {
-      // (probably garbage => ignore)
       return true;
     }
   }

@@ -21,10 +21,11 @@ class LoopbackAudio {
  public:
   LoopbackAudio() { launchEncoder(); }
 
-  uint8_t* loadChunk() {
+  uint8_t* loadChunk(bool updated = true) {
     uint8_t* chunk = (uint8_t*)malloc(AUDIO_PADDED_SIZE);
 
-    consumeExtraChunks();
+    if (updated)
+      consumeExtraChunks();
 
     if (read(pipeFd, chunk, AUDIO_CHUNK_SIZE) < 0) {
       free(chunk);
