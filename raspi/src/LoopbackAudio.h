@@ -24,9 +24,10 @@ class LoopbackAudio {
   uint8_t* loadChunk() {
     uint8_t* chunk = (uint8_t*)malloc(AUDIO_PADDED_SIZE);
 
-    consumeExtraChunks();
+    uint32_t availableBytes = consumeExtraChunks();
 
-    if (read(pipeFd, chunk, AUDIO_CHUNK_SIZE) < 0) {
+    if (availableBytes < AUDIO_CHUNK_SIZE ||
+        read(pipeFd, chunk, AUDIO_CHUNK_SIZE) < 0) {
       free(chunk);
       return NULL;
     }
@@ -61,12 +62,16 @@ class LoopbackAudio {
     nullFd = open(AUDIO_NULL, O_RDWR);
   }
 
-  void consumeExtraChunks() {
+  uint32_t consumeExtraChunks() {
     uint32_t availableBytes = 0;
 
     ioctl(pipeFd, FIONREAD, &availableBytes);
-    if (availableBytes > AUDIO_CHUNK_SIZE)
+    if (availableBytes > AUDIO_CHUNK_SIZE) {
       splice(pipeFd, NULL, nullFd, NULL, availableBytes - AUDIO_CHUNK_SIZE, 0);
+      availableBytes = AUDIO_CHUNK_SIZE;
+    }
+
+    return availableBytes;
   }
 };
 

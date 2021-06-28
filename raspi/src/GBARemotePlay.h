@@ -125,6 +125,8 @@ class GBARemotePlay {
 #ifdef PROFILE_VERBOSE
     auto idleElapsedTime = PROFILE_END(idleStartTime);
     std::cout << "  <" + std::to_string(idleElapsedTime) + "ms idle>\n";
+    if (!frame.hasAudio())
+      std::cout << "  <no audio>\n";
 #endif
 
     DEBULOG("Receiving keys and send metadata...");
