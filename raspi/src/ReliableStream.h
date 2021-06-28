@@ -27,42 +27,15 @@ class ReliableStream {
     return true;
   }
 
-  bool reliablySend(uint32_t packet,
-                    uint32_t* index,
-                    uint32_t totalPackets,
-                    uint32_t syncCommand) {
-  again:
-    uint32_t requestedIndex = spiMaster->exchange(packet);
-    if (finishSyncIfNeeded(requestedIndex, syncCommand))
-      goto again;
-    if (requestedIndex != CMD_RESET)
-      lastReceivedPacket = requestedIndex;
+  bool sendValue(uint32_t packetToSend,
+                 uint32_t packetId,
+                 uint32_t syncCommand) {
+    uint32_t index = packetId;
+    while (index == packetId &&
+           reliablySend(packetToSend, &index, 1, syncCommand))
+      ;
 
-    if (requestedIndex == CMD_RECOVERY + CMD_GBA_OFFSET) {
-      // (recovery command)
-      if (!sync(CMD_RECOVERY))
-        return false;
-      requestedIndex = spiMaster->exchange(0);
-      if (requestedIndex >= totalPackets) {
-        logReset("Reset! (recovery)", packet, *index);
-        return false;
-      }
-      *index = requestedIndex;
-      return true;
-    } else if (requestedIndex == CMD_RESET) {
-      // (reset command)
-      logReset("Reset! (stream - " + std::to_string(*index) + "/" +
-                   std::to_string(totalPackets) + ")",
-               packet, *index);
-      return false;
-    } else if (requestedIndex == *index) {
-      // (on sync)
-      (*index)++;
-      return true;
-    } else {
-      // (probably garbage => ignore)
-      return true;
-    }
+    return index != packetId;
   }
 
   bool sync(uint32_t command) {
@@ -109,6 +82,44 @@ class ReliableStream {
     } else {
       spiMaster->send(packet);
       (*index)++;
+      return true;
+    }
+  }
+
+  bool reliablySend(uint32_t packet,
+                    uint32_t* index,
+                    uint32_t totalPackets,
+                    uint32_t syncCommand) {
+  again:
+    uint32_t requestedIndex = spiMaster->exchange(packet);
+    if (finishSyncIfNeeded(requestedIndex, syncCommand))
+      goto again;
+    if (requestedIndex != CMD_RESET)
+      lastReceivedPacket = requestedIndex;
+
+    if (requestedIndex == CMD_RECOVERY + CMD_GBA_OFFSET) {
+      // (recovery command)
+      if (!sync(CMD_RECOVERY))
+        return false;
+      requestedIndex = spiMaster->exchange(0);
+      if (requestedIndex >= totalPackets) {
+        logReset("Reset! (recovery)", packet, *index);
+        return false;
+      }
+      *index = requestedIndex;
+      return true;
+    } else if (requestedIndex == CMD_RESET) {
+      // (reset command)
+      logReset("Reset! (stream - " + std::to_string(*index) + "/" +
+                   std::to_string(totalPackets) + ")",
+               packet, *index);
+      return false;
+    } else if (requestedIndex == *index) {
+      // (on sync)
+      (*index)++;
+      return true;
+    } else {
+      // (probably garbage => ignore)
       return true;
     }
   }

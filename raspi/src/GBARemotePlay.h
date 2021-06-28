@@ -199,20 +199,19 @@ class GBARemotePlay {
   }
 
   bool sendImageWithMidFrameAudio(uint32_t* packetsToSend, uint32_t size) {
+    // (first half of the pixels)
     reliableStream->send(packetsToSend, MID_FRAME_AUDIO_PERIOD - 1, CMD_PIXELS);
 
+    // (mid-frame audio load)
     auto audioChunk = loopbackAudio->loadChunk(false);
-
     bool hasAudio = audioChunk != NULL;
-    uint32_t index = MID_FRAME_AUDIO_PERIOD;
-    while (index == MID_FRAME_AUDIO_PERIOD &&
-           reliableStream->reliablySend(hasAudio, &index, 1, CMD_PIXELS))
-      ;
-    if (index == MID_FRAME_AUDIO_PERIOD) {
+    if (!reliableStream->sendValue(hasAudio, MID_FRAME_AUDIO_PERIOD,
+                                   CMD_PIXELS)) {
       free(audioChunk);
       return false;
     }
 
+    // (mid-frame audio transfer)
     if (hasAudio) {
       bool result =
           reliableStream->send(audioChunk, AUDIO_SIZE_PACKETS, CMD_PIXELS);
@@ -221,6 +220,7 @@ class GBARemotePlay {
         return false;
     }
 
+    // (second half of the pixels)
     return reliableStream->send(packetsToSend, size, CMD_PIXELS,
                                 MID_FRAME_AUDIO_PERIOD);
   }
