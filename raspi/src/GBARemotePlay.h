@@ -203,7 +203,7 @@ class GBARemotePlay {
     reliableStream->send(packetsToSend, MID_FRAME_AUDIO_PERIOD, CMD_PIXELS);
 
     // (mid-frame audio load)
-    auto audioChunk = loopbackAudio->loadChunk(false);
+    auto audioChunk = loopbackAudio->loadChunk();
     bool hasAudio = audioChunk != NULL;
     if (!reliableStream->sendValue(hasAudio, MID_FRAME_AUDIO_PERIOD,
                                    CMD_PIXELS)) {
