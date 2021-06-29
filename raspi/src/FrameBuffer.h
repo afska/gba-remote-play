@@ -76,14 +76,14 @@ class FrameBuffer {
   void openFrameBuffer() {
     fileDescriptor = open(FB_DEVFILE, O_RDWR);
     if (fileDescriptor < 0) {
-      std::cout << "Error: cannot open framebuffer device\n";
+      std::cout << "Error (Image): cannot open framebuffer device\n";
       exit(21);
     }
   }
 
   void retrieveFixedScreenInformation() {
     if (ioctl(fileDescriptor, FBIOGET_FSCREENINFO, &fixedInfo) < 0) {
-      std::cout << "Error: cannot read fixed information\n";
+      std::cout << "Error (Image): cannot read fixed information\n";
       exit(22);
     }
   }
@@ -91,19 +91,19 @@ class FrameBuffer {
   void retrieveVariableScreenInformation(uint32_t expectedXRes,
                                          uint32_t expectedYRes) {
     if (ioctl(fileDescriptor, FBIOGET_VSCREENINFO, &variableInfo) < 0) {
-      std::cout << "Error: cannot read variable information\n";
+      std::cout << "Error (Image): cannot read variable information\n";
       exit(23);
     }
 
     if (variableInfo.bits_per_pixel / 8 != FB_BYTES_PER_PIXEL) {
-      std::cout << "Error: only 32bpp is supported\n";
+      std::cout << "Error (Image): only 32bpp is supported\n";
       exit(24);
     }
 
     if (variableInfo.xres != expectedXRes ||
         variableInfo.yres != expectedYRes) {
-      std::cout
-          << "Error: frame buffer resolution doesn't match render resolution\n";
+      std::cout << "Error (Image): frame buffer resolution doesn't match "
+                   "render resolution\n";
       std::cout << "(frame buffer is " + std::to_string(variableInfo.xres) +
                        "x" + std::to_string(variableInfo.yres) + ")\n";
       exit(25);
@@ -111,7 +111,7 @@ class FrameBuffer {
 
     if (variableInfo.xres % FB_BYTES_PER_PIXEL != 0 ||
         variableInfo.yres % FB_BYTES_PER_PIXEL != 0) {
-      std::cout << "Error: resolution must be word-aligned\n";
+      std::cout << "Error (Image): resolution must be word-aligned\n";
       exit(26);
     }
   }
@@ -119,8 +119,8 @@ class FrameBuffer {
   void allocateBuffer() {
     buffer = (uint8_t*)malloc(fixedInfo.smem_len);
     if (buffer == NULL) {
-      std::cout << "Error: malloc(" + std::to_string(fixedInfo.smem_len) +
-                       ") failed\n";
+      std::cout << "Error (Image): malloc(" +
+                       std::to_string(fixedInfo.smem_len) + ") failed\n";
       exit(27);
     }
   }
@@ -130,7 +130,7 @@ class FrameBuffer {
 
     display = vc_dispmanx_display_open(0);
     if (display == DISPMANX_NO_HANDLE) {
-      std::cout << "Error: cannot open primary display\n";
+      std::cout << "Error (Image): cannot open primary display\n";
       exit(28);
     }
   }
@@ -139,7 +139,7 @@ class FrameBuffer {
     screenResource = vc_dispmanx_resource_create(
         FB_IMAGE_MODE, variableInfo.xres, variableInfo.yres, &image_prt);
     if (screenResource == DISPMANX_NO_HANDLE) {
-      printf("Error: cannot create screen resource\n");
+      printf("Error (Image): cannot create screen resource\n");
       exit(29);
     }
   }

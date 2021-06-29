@@ -31,6 +31,8 @@ LIBS		:= -ltonc -lgba
 
 BUILD		:= build
 SRCDIRS		:= src \
+						 src/gsmplayer \
+						 src/gsmplayer/core \
 						 src/data/_compiled_files
 DATADIRS	:=
 INCDIRS		:= src

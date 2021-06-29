@@ -5,9 +5,11 @@
 #include "Frame.h"
 #include "FrameBuffer.h"
 #include "ImageDiffBitArray.h"
+#include "LoopbackAudio.h"
 #include "PNGWriter.h"
 #include "Palette.h"
 #include "Protocol.h"
+#include "ReliableStream.h"
 #include "SPIMaster.h"
 #include "VirtualGamepad.h"
 
@@ -18,24 +20,23 @@ class GBARemotePlay {
   GBARemotePlay() {
     spiMaster = new SPIMaster(SPI_MODE, SPI_SLOW_FREQUENCY, SPI_FAST_FREQUENCY,
                               SPI_DELAY_MICROSECONDS);
-    frameBuffer = new FrameBuffer(RENDER_WIDTH, RENDER_HEIGHT);
+    reliableStream = new ReliableStream(spiMaster);
+    frameBuffer = new FrameBuffer(DRAW_WIDTH, DRAW_HEIGHT);
+    loopbackAudio = new LoopbackAudio();
     virtualGamepad = new VirtualGamepad(VIRTUAL_GAMEPAD_NAME);
     lastFrame = Frame{0};
-    resetKeys();
 
     PALETTE_initializeCache(PALETTE_CACHE_FILENAME);
   }
 
   void run() {
-  reset:
-    lastFrame.clean();
-    resetKeys();
-    spiMaster->send(CMD_RESET);
-
 #ifdef PROFILE
     auto startTime = PROFILE_START();
     uint32_t frames = 0;
 #endif
+
+  reset:
+    spiMaster->send(CMD_RESET);
 
     while (true) {
 #ifdef DEBUG
@@ -94,17 +95,20 @@ class GBARemotePlay {
   ~GBARemotePlay() {
     lastFrame.clean();
     delete spiMaster;
+    delete reliableStream;
     delete frameBuffer;
+    delete loopbackAudio;
     delete virtualGamepad;
   }
 
  private:
   SPIMaster* spiMaster;
+  ReliableStream* reliableStream;
   FrameBuffer* frameBuffer;
+  LoopbackAudio* loopbackAudio;
   VirtualGamepad* virtualGamepad;
   Frame lastFrame;
   uint32_t input;
-  uint32_t inputValidations;
 
   bool send(Frame& frame, ImageDiffBitArray& diffs) {
     if (!frame.hasData())
@@ -114,29 +118,41 @@ class GBARemotePlay {
     auto idleStartTime = PROFILE_START();
 #endif
 
-    DEBULOG("Sending frame start command...");
-    if (!sync(CMD_FRAME_START))
+    DEBULOG("Syncing frame start...");
+    if (!reliableStream->sync(CMD_FRAME_START))
       return false;
 
 #ifdef PROFILE_VERBOSE
     auto idleElapsedTime = PROFILE_END(idleStartTime);
     std::cout << "  <" + std::to_string(idleElapsedTime) + "ms idle>\n";
+    if (!frame.hasAudio())
+      std::cout << "  <no audio>\n";
 #endif
 
-    DEBULOG("Receiving keys and sending temporal diffs...");
-    if (!receiveKeysAndSendTemporalDiffs(diffs))
+    DEBULOG("Receiving keys and send metadata...");
+    if (!receiveKeysAndSendMetadata(frame, diffs))
       return false;
 
-    DEBULOG("Sending pixels command...");
-    if (!sync(CMD_PIXELS_START))
+    if (frame.hasAudio()) {
+      DEBULOG("Syncing audio...");
+      if (!reliableStream->sync(CMD_AUDIO))
+        return false;
+
+      DEBULOG("Sending audio...");
+      if (!sendAudio(frame))
+        return false;
+    }
+
+    DEBULOG("Syncing pixels...");
+    if (!reliableStream->sync(CMD_PIXELS))
       return false;
 
     DEBULOG("Sending pixels...");
-    if (!sendPixels(frame, diffs))
+    if (!compressAndSendPixels(frame, diffs))
       return false;
 
-    DEBULOG("Sending end command...");
-    if (!sync(CMD_FRAME_END))
+    DEBULOG("Syncing frame end...");
+    if (!reliableStream->sync(CMD_FRAME_END))
       return false;
 
 #ifdef DEBUG
@@ -149,86 +165,58 @@ class GBARemotePlay {
     return true;
   }
 
-  bool receiveKeysAndSendTemporalDiffs(ImageDiffBitArray& diffs) {
-    spiMaster->send(diffs.compressedPixels / PIXELS_PER_PACKET +
-                    diffs.compressedPixels % PIXELS_PER_PACKET);
+  bool receiveKeysAndSendMetadata(Frame& frame, ImageDiffBitArray& diffs) {
+  again:
+    uint32_t expectedPackets = (diffs.compressedPixels / PIXELS_PER_PACKET +
+                                diffs.compressedPixels % PIXELS_PER_PACKET) |
+                               (frame.hasAudio() ? AUDIO_BIT_MASK : 0);
+    uint32_t keys = spiMaster->exchange(expectedPackets);
+    if (reliableStream->finishSyncIfNeeded(keys, CMD_FRAME_START))
+      goto again;
+    if (spiMaster->exchange(keys) != expectedPackets)
+      return false;
+    processKeys(keys);
 
-    for (int i = 0; i < TEMPORAL_DIFF_SIZE / PACKET_SIZE; i++) {
-      uint32_t packet = ((uint32_t*)diffs.temporal)[i];
-
-      if (i < PRESSED_KEYS_REPETITIONS) {
-        uint32_t receivedKeys = spiMaster->exchange(packet);
-        processKeys(receivedKeys);
-      } else
-        spiMaster->send(packet);
-    }
-
-    return true;
+    return reliableStream->send(
+        diffs.temporal, TEMPORAL_DIFF_SIZE / PACKET_SIZE, CMD_FRAME_START);
   }
 
-  bool sendPixels(Frame& frame, ImageDiffBitArray& diffs) {
-    uint32_t compressedPixelId = 0;
-    uint32_t outgoingPacket = 0;
-    uint32_t sentPackets = 0;
+  bool sendAudio(Frame& frame) {
+    return reliableStream->send(frame.audioChunk, AUDIO_SIZE_PACKETS,
+                                CMD_AUDIO);
+  }
+
+  bool compressAndSendPixels(Frame& frame, ImageDiffBitArray& diffs) {
+    uint32_t packetsToSend[MAX_PIXELS_SIZE];
+    uint32_t size = 0;
+    compressPixels(frame, diffs, packetsToSend, &size);
+
+    return reliableStream->send(packetsToSend, size, CMD_PIXELS);
+  }
+
+  void compressPixels(Frame& frame,
+                      ImageDiffBitArray& diffs,
+                      uint32_t* packets,
+                      uint32_t* totalPackets) {
+    uint32_t currentPacket = 0;
     uint8_t byte = 0;
 
     for (int i = 0; i < frame.totalPixels; i++) {
       if (diffs.hasPixelChanged(i)) {
-        outgoingPacket |= frame.raw8BitPixels[i] << (byte * 8);
+        currentPacket |= frame.raw8BitPixels[i] << (byte * 8);
         byte++;
         if (byte == PACKET_SIZE) {
-          spiMaster->send(outgoingPacket);
-          outgoingPacket = 0;
+          packets[*totalPackets] = currentPacket;
+          currentPacket = 0;
           byte = 0;
-          sentPackets++;
+          (*totalPackets)++;
         }
       }
     }
 
-    if (byte > 0)
-      spiMaster->send(outgoingPacket);
-
-    return true;
-  }
-
-  void processKeys(uint16_t receivedKeys) {
-    if (input != receivedKeys) {
-      input = receivedKeys;
-      inputValidations = 0;
-    } else
-      inputValidations++;
-
-    if (inputValidations == PRESSED_KEYS_MIN_VALIDATIONS) {
-      virtualGamepad->setKeys(input);
-      resetKeys();
-    }
-  }
-
-  void resetKeys() {
-    input = 0xffffffff;
-    inputValidations = 0;
-  }
-
-  bool sync(uint32_t command) {
-    uint32_t local = command + CMD_RPI_OFFSET;
-    uint32_t remote = command + CMD_GBA_OFFSET;
-    uint32_t confirmation;
-    uint32_t lastReceivedPacket = 0;
-
-    while (true) {
-      if ((confirmation = spiMaster->exchange(local)) == remote)
-        return true;
-      else {
-        if (confirmation == CMD_RESET) {
-          LOG("Reset! (sent, expected, actual)");
-          std::cout << "0x" << std::hex << local << "\n";
-          std::cout << "0x" << std::hex << remote << "\n";
-          std::cout << "0x" << std::hex << lastReceivedPacket << "\n\n";
-          return false;
-        }
-
-        lastReceivedPacket = confirmation;
-      }
+    if (byte > 0) {
+      packets[*totalPackets] = currentPacket;
+      (*totalPackets)++;
     }
   }
 
@@ -239,13 +227,22 @@ class GBARemotePlay {
     frame.palette = MAIN_PALETTE_24BPP;
 
     frameBuffer->forEachPixel(
-        [&frame](int x, int y, uint8_t r, uint8_t g, uint8_t b) {
+        [&frame, this](int x, int y, uint8_t r, uint8_t g, uint8_t b) {
+          if (x % DRAW_SCALE_X != 0 || y % DRAW_SCALE_Y != 0)
+            return;
+          x = x / DRAW_SCALE_X;
+          y = y / DRAW_SCALE_Y;
+
           frame.raw8BitPixels[y * RENDER_WIDTH + x] =
               LUT_24BPP_TO_8BIT_PALETTE[(r << 0) | (g << 8) | (b << 16)];
         });
 
+    frame.audioChunk = loopbackAudio->loadChunk();
+
     return frame;
   }
+
+  void processKeys(uint16_t keys) { virtualGamepad->setKeys(keys); }
 };
 
 #endif  // GBA_REMOTE_PLAY_H

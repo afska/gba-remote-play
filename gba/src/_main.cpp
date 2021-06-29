@@ -6,6 +6,11 @@
 #include "Protocol.h"
 #include "SPISlave.h"
 
+extern "C" {
+#include "gsmplayer/player.h"
+}
+
+#define VBLANK_TRACKER (pal_obj_mem[0])
 #define TRY(ACTION) \
   if (!(ACTION))    \
   goto reset
@@ -18,6 +23,9 @@ typedef struct {
   u32 expectedPackets;
   u8 temporalDiffs[TEMPORAL_DIFF_SIZE];
   u8 compressedPixels[TOTAL_PIXELS];
+  u8 audioChunks[AUDIO_PADDED_SIZE];
+  bool hasAudio;
+  bool isAudioReady;
 } State;
 
 SPISlave* spiSlave = new SPISlave();
@@ -41,11 +49,14 @@ int main() {
 
 void init();
 void mainLoop();
-bool sendKeysAndReceiveTemporalDiffs(State& state);
+bool sendKeysAndReceiveMetadata(State& state);
+bool receiveAudio(State& state);
 bool receivePixels(State& state);
-void draw(State& state);
-void decompressImage(State& state);
-bool sync(u32 command);
+void render(State& state);
+bool isNewVBlank();
+void driveAudio(State& state);
+u32 transfer(State& state, u32 packetToSend, bool withRecovery = true);
+bool sync(State& state, u32 command);
 u32 x(u32 cursor);
 u32 y(u32 cursor);
 
@@ -57,6 +68,7 @@ u32 y(u32 cursor);
 int main() {
   init();
   mainLoop();
+
   return 0;
 }
 #endif
@@ -64,58 +76,78 @@ int main() {
 inline void init() {
   enableMode4AndBackground2();
   overclockEWRAM();
-  if (DRAW_SCALE == 2)
-    enable2xMosaic();
+  enableMosaic(DRAW_SCALE_X, DRAW_SCALE_Y);
   dma3_cpy(pal_bg_mem, MAIN_PALETTE, sizeof(COLOR) * PALETTE_COLORS);
+  player_init();
 }
 
 CODE_IWRAM void mainLoop() {
-reset:
   State state;
-  state.expectedPackets = 0;
+  state.isAudioReady = false;
 
-  spiSlave->transfer(CMD_RESET);
+reset:
+  transfer(state, CMD_RESET, false);
 
   while (true) {
     state.expectedPackets = 0;
+    state.hasAudio = false;
 
-    TRY(sync(CMD_FRAME_START));
-    TRY(sendKeysAndReceiveTemporalDiffs(state));
-    TRY(sync(CMD_PIXELS_START));
+    TRY(sync(state, CMD_FRAME_START));
+    TRY(sendKeysAndReceiveMetadata(state));
+    if (state.hasAudio) {
+      TRY(sync(state, CMD_AUDIO));
+      TRY(receiveAudio(state));
+    }
+    TRY(sync(state, CMD_PIXELS));
     TRY(receivePixels(state));
-    TRY(sync(CMD_FRAME_END));
+    TRY(sync(state, CMD_FRAME_END));
 
-    draw(state);
+    render(state);
   }
 }
 
-inline bool sendKeysAndReceiveTemporalDiffs(State& state) {
-  state.expectedPackets = spiSlave->transfer(0);
-
+inline bool sendKeysAndReceiveMetadata(State& state) {
   u16 keys = pressedKeys();
-  for (u32 i = 0; i < TEMPORAL_DIFF_SIZE / PACKET_SIZE; i++) {
-    ((u32*)state.temporalDiffs)[i] =
-        spiSlave->transfer(i < PRESSED_KEYS_REPETITIONS ? keys : i);
-  }
+  u32 expectedPackets = spiSlave->transfer(keys);
+  if (spiSlave->transfer(expectedPackets) != keys)
+    return false;
+
+  state.expectedPackets = expectedPackets & ~AUDIO_BIT_MASK;
+  state.hasAudio = (expectedPackets & AUDIO_BIT_MASK) != 0;
+
+  for (u32 i = 0; i < TEMPORAL_DIFF_SIZE / PACKET_SIZE; i++)
+    ((u32*)state.temporalDiffs)[i] = transfer(state, i);
+
+  return true;
+}
+
+inline bool receiveAudio(State& state) {
+  for (u32 i = 0; i < AUDIO_SIZE_PACKETS; i++)
+    ((u32*)state.audioChunks)[i] = transfer(state, i);
+
+  state.isAudioReady = true;
 
   return true;
 }
 
 inline bool receivePixels(State& state) {
   for (u32 i = 0; i < state.expectedPackets; i++)
-    ((u32*)state.compressedPixels)[i] = spiSlave->transfer(i);
+    ((u32*)state.compressedPixels)[i] = transfer(state, i);
 
   return true;
 }
 
-inline void draw(State& state) {
-  decompressImage(state);
-}
-
-inline void decompressImage(State& state) {
+inline void render(State& state) {
   u32 decompressedPixels = 0;
+  bool wasVBlank = IS_VBLANK;
 
   for (u32 cursor = 0; cursor < TOTAL_PIXELS; cursor++) {
+    if (!wasVBlank && IS_VBLANK) {
+      wasVBlank = true;
+      driveAudio(state);
+    } else if (wasVBlank && !IS_VBLANK)
+      wasVBlank = false;
+
     u32 temporalByte = cursor / 8;
     u32 temporalBit = cursor % 8;
     u32 temporalDiff = state.temporalDiffs[temporalByte];
@@ -139,8 +171,7 @@ inline void decompressImage(State& state) {
     if ((temporalDiff >> temporalBit) & 1) {
       // (a pixel changed)
 
-      u32 drawCursor =
-          DRAW_SCALE == 1 ? cursor : y(cursor) * DRAW_WIDTH + x(cursor);
+      u32 drawCursor = y(cursor) * DRAW_WIDTH + x(cursor);
       u32 drawCursor32Bit = drawCursor / 4;
       frameBuffer[drawCursor] = state.compressedPixels[decompressedPixels];
       ((u32*)vid_mem_front)[drawCursor32Bit] =
@@ -151,34 +182,77 @@ inline void decompressImage(State& state) {
   }
 }
 
-inline bool sync(u32 command) {
+inline bool isNewVBlank() {
+  if (!VBLANK_TRACKER && IS_VBLANK) {
+    VBLANK_TRACKER = true;
+    return true;
+  } else if (VBLANK_TRACKER && !IS_VBLANK)
+    VBLANK_TRACKER = false;
+
+  return false;
+}
+
+CODE_IWRAM void driveAudio(State& state) {
+  if (player_needsData() && state.isAudioReady) {
+    player_play((const unsigned char*)state.audioChunks, AUDIO_CHUNK_SIZE);
+    state.isAudioReady = false;
+  }
+
+  spiSlave->stop();
+  player_run();
+  spiSlave->start();
+}
+
+inline u32 transfer(State& state, u32 packetToSend, bool withRecovery) {
+  bool breakFlag = false;
+  u32 receivedPacket =
+      spiSlave->transfer(packetToSend, isNewVBlank, &breakFlag);
+
+  if (breakFlag) {
+    driveAudio(state);
+
+    if (withRecovery) {
+      sync(state, CMD_RECOVERY);
+      spiSlave->transfer(packetToSend);
+      receivedPacket = spiSlave->transfer(packetToSend);
+    }
+  }
+
+  return receivedPacket;
+}
+
+inline bool sync(State& state, u32 command) {
   u32 local = command + CMD_GBA_OFFSET;
   u32 remote = command + CMD_RPI_OFFSET;
-  u32 blindFrames = 0;
   bool wasVBlank = IS_VBLANK;
 
   while (true) {
-    if (spiSlave->transfer(local) == remote)
+    bool breakFlag = false;
+    bool isOnSync =
+        spiSlave->transfer(local, isNewVBlank, &breakFlag) == remote;
+
+    if (breakFlag) {
+      driveAudio(state);
+      continue;
+    }
+
+    if (isOnSync)
       return true;
     else {
       bool isVBlank = IS_VBLANK;
 
-      if (!wasVBlank && isVBlank) {
-        blindFrames++;
+      if (!wasVBlank && isVBlank)
         wasVBlank = true;
-      } else if (wasVBlank && !isVBlank)
-        wasVBlank = false;
-
-      if (blindFrames >= MAX_BLIND_FRAMES)
+      else if (wasVBlank && !isVBlank)
         return false;
     }
   }
 }
 
 inline u32 x(u32 cursor) {
-  return (cursor % RENDER_WIDTH) * DRAW_SCALE;
+  return (cursor % RENDER_WIDTH) * DRAW_SCALE_X;
 }
 
 inline u32 y(u32 cursor) {
-  return (cursor / RENDER_WIDTH) * DRAW_SCALE;
+  return (cursor / RENDER_WIDTH) * DRAW_SCALE_Y;
 }

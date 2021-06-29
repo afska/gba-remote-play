@@ -3,6 +3,7 @@
 
 #include <stdint.h>
 #include <stdio.h>
+#include <string>
 #include "../lib/code/lodepng.h"
 
 #define PNG_TARGET_COLORS 256
@@ -12,6 +13,7 @@ void WritePNG(std::string fileName,
               const uint32_t* raw24bppPalette,
               uint32_t width,
               uint32_t height) {
+#ifdef DEBUG
   LodePNGState state;
   lodepng_state_init(&state);
   state.info_raw.colortype = LCT_PALETTE;
@@ -31,24 +33,26 @@ void WritePNG(std::string fileName,
 
   unsigned char* outputFileData;
   size_t outputFileSize;
-  unsigned int out_status = lodepng_encode(
-      &outputFileData, &outputFileSize, raw8BitPixels, width, height, &state);
-  if (out_status) {
-    fprintf(stderr, "Can't encode image: %s\n", lodepng_error_text(out_status));
+  unsigned int outStatus = lodepng_encode(&outputFileData, &outputFileSize,
+                                          raw8BitPixels, width, height, &state);
+  if (outStatus) {
+    fprintf(stderr, "Error (PNG): cannot encode image %s\n",
+            lodepng_error_text(outStatus));
     exit(91);
   }
 
   const char* outputPath = fileName.c_str();
-  FILE* fp = fopen(outputPath, "wb");
-  if (!fp) {
-    fprintf(stderr, "Unable to write to %s\n", outputPath);
+  FILE* file = fopen(outputPath, "wb");
+  if (!file) {
+    fprintf(stderr, "Error (PNG): unable to write to %s\n", outputPath);
     exit(92);
   }
-  fwrite(outputFileData, 1, outputFileSize, fp);
-  fclose(fp);
+  fwrite(outputFileData, 1, outputFileSize, file);
+  fclose(file);
 
   printf("Written %s!\n", outputPath);
   lodepng_state_cleanup(&state);
+#endif
 }
 
 #endif  // PNG_WRITER_H
