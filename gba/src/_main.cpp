@@ -198,7 +198,9 @@ CODE_IWRAM void driveAudio(State& state) {
     state.isAudioReady = false;
   }
 
+  spiSlave->stop();
   player_run();
+  spiSlave->start();
 }
 
 inline u32 transfer(State& state, u32 packetToSend, bool withRecovery) {
