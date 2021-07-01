@@ -13,7 +13,7 @@ extern "C" {
 #define VBLANK_TRACKER (pal_obj_mem[0])
 #define TRY(ACTION) \
   if (!(ACTION))    \
-  goto reset
+    goto reset;
 
 // -----
 // STATE
@@ -21,14 +21,14 @@ extern "C" {
 
 typedef struct {
   u32 expectedPackets;
-  u8 temporalDiffs[TEMPORAL_DIFF_SIZE];
-  u8 compressedPixels[TOTAL_PIXELS];
+  u32 pixelCount;
   u8 audioChunks[AUDIO_PADDED_SIZE];
   bool hasAudio;
   bool isAudioReady;
 } State;
 
 SPISlave* spiSlave = new SPISlave();
+DATA_EWRAM u16 temporalDiffJumps[TOTAL_PIXELS];
 DATA_EWRAM u8 frameBuffer[TOTAL_SCREEN_PIXELS];
 
 // ---------
@@ -52,7 +52,6 @@ void mainLoop();
 bool sendKeysAndReceiveMetadata(State& state);
 bool receiveAudio(State& state);
 bool receivePixels(State& state);
-void render(State& state);
 bool isNewVBlank();
 void driveAudio(State& state);
 u32 transfer(State& state, u32 packetToSend, bool withRecovery = true);
@@ -90,19 +89,18 @@ reset:
 
   while (true) {
     state.expectedPackets = 0;
+    state.pixelCount = 0;
     state.hasAudio = false;
 
-    TRY(sync(state, CMD_FRAME_START));
-    TRY(sendKeysAndReceiveMetadata(state));
+    TRY(sync(state, CMD_FRAME_START))
+    TRY(sendKeysAndReceiveMetadata(state))
     if (state.hasAudio) {
-      TRY(sync(state, CMD_AUDIO));
-      TRY(receiveAudio(state));
+      TRY(sync(state, CMD_AUDIO))
+      TRY(receiveAudio(state))
     }
-    TRY(sync(state, CMD_PIXELS));
-    TRY(receivePixels(state));
-    TRY(sync(state, CMD_FRAME_END));
-
-    render(state);
+    TRY(sync(state, CMD_PIXELS))
+    TRY(receivePixels(state))
+    TRY(sync(state, CMD_FRAME_END))
   }
 }
 
@@ -115,8 +113,63 @@ inline bool sendKeysAndReceiveMetadata(State& state) {
   state.expectedPackets = expectedPackets & ~AUDIO_BIT_MASK;
   state.hasAudio = (expectedPackets & AUDIO_BIT_MASK) != 0;
 
-  for (u32 i = 0; i < TEMPORAL_DIFF_SIZE / PACKET_SIZE; i++)
-    ((u32*)state.temporalDiffs)[i] = transfer(state, i);
+  u32 cursor = 0;
+  u32 currentJump = 0;
+#define SAVE_JUMP(CHANGED_BIT)               \
+  currentJump++;                             \
+  if ((CHANGED_BIT) != 0) {                  \
+    temporalDiffJumps[cursor] = currentJump; \
+    currentJump = 0;                         \
+    cursor++;                                \
+  }
+
+  for (u32 i = 0; i < TEMPORAL_DIFF_SIZE / PACKET_SIZE; i++) {
+    u32 packet = transfer(state, i);
+
+    // TODO: TEST OPTIMIZATION
+    // TODO: Clear raspberry's diffs on reset
+    // if (packet == 0) {
+    //   cursor += 32 - (i == 0);
+    //   continue;
+    // }
+
+    if (i > 0) {
+      SAVE_JUMP(packet & (1 << 0))
+    }
+    SAVE_JUMP(packet & (1 << 1))
+    SAVE_JUMP(packet & (1 << 2))
+    SAVE_JUMP(packet & (1 << 3))
+    SAVE_JUMP(packet & (1 << 4))
+    SAVE_JUMP(packet & (1 << 5))
+    SAVE_JUMP(packet & (1 << 6))
+    SAVE_JUMP(packet & (1 << 7))
+    SAVE_JUMP(packet & (1 << 8))
+    SAVE_JUMP(packet & (1 << 9))
+    SAVE_JUMP(packet & (1 << 10))
+    SAVE_JUMP(packet & (1 << 11))
+    SAVE_JUMP(packet & (1 << 12))
+    SAVE_JUMP(packet & (1 << 13))
+    SAVE_JUMP(packet & (1 << 14))
+    SAVE_JUMP(packet & (1 << 15))
+    SAVE_JUMP(packet & (1 << 16))
+    SAVE_JUMP(packet & (1 << 17))
+    SAVE_JUMP(packet & (1 << 18))
+    SAVE_JUMP(packet & (1 << 19))
+    SAVE_JUMP(packet & (1 << 20))
+    SAVE_JUMP(packet & (1 << 21))
+    SAVE_JUMP(packet & (1 << 22))
+    SAVE_JUMP(packet & (1 << 23))
+    SAVE_JUMP(packet & (1 << 24))
+    SAVE_JUMP(packet & (1 << 25))
+    SAVE_JUMP(packet & (1 << 26))
+    SAVE_JUMP(packet & (1 << 27))
+    SAVE_JUMP(packet & (1 << 28))
+    SAVE_JUMP(packet & (1 << 29))
+    SAVE_JUMP(packet & (1 << 30))
+    SAVE_JUMP(packet & (1 << 31))
+  }
+
+  state.pixelCount = cursor;
 
   return true;
 }
@@ -131,55 +184,33 @@ inline bool receiveAudio(State& state) {
 }
 
 inline bool receivePixels(State& state) {
-  for (u32 i = 0; i < state.expectedPackets; i++)
-    ((u32*)state.compressedPixels)[i] = transfer(state, i);
+  if (state.expectedPackets == 0)
+    return true;
+
+  u32 pixelCursor = temporalDiffJumps[0];
+  u32 diffCursor = 1;
+  u32 drawCursor, drawCursor32Bit;
+#define DRAW(PIXEL)                                          \
+  if (diffCursor >= state.pixelCount)                        \
+    return true;                                             \
+  drawCursor = y(pixelCursor) * DRAW_WIDTH + x(pixelCursor); \
+  drawCursor32Bit = drawCursor / 4;                          \
+  frameBuffer[drawCursor] = PIXEL;                           \
+  ((u32*)vid_mem_front)[drawCursor32Bit] =                   \
+      ((u32*)frameBuffer)[drawCursor32Bit];                  \
+  pixelCursor += temporalDiffJumps[diffCursor];              \
+  diffCursor++;
+
+  for (u32 i = 0; i < state.expectedPackets; i++) {
+    u32 packet = transfer(state, i);
+
+    DRAW((packet >> 0) & 0xff)
+    DRAW((packet >> 8) & 0xff)
+    DRAW((packet >> 16) & 0xff)
+    DRAW((packet >> 24) & 0xff)
+  }
 
   return true;
-}
-
-inline void render(State& state) {
-  u32 decompressedPixels = 0;
-  bool wasVBlank = IS_VBLANK;
-
-  for (u32 cursor = 0; cursor < TOTAL_PIXELS; cursor++) {
-    if (!wasVBlank && IS_VBLANK) {
-      wasVBlank = true;
-      driveAudio(state);
-    } else if (wasVBlank && !IS_VBLANK)
-      wasVBlank = false;
-
-    u32 temporalByte = cursor / 8;
-    u32 temporalBit = cursor % 8;
-    u32 temporalDiff = state.temporalDiffs[temporalByte];
-
-    if (temporalBit == 0) {
-      if (((u32*)state.temporalDiffs)[temporalByte / 4] == 0) {
-        // (no changes in the next 32 pixels)
-        cursor += 31;
-        continue;
-      } else if (((u16*)state.temporalDiffs)[temporalByte / 2] == 0) {
-        // (no changes in the next 16 pixels)
-        cursor += 15;
-        continue;
-      } else if (temporalDiff == 0) {
-        // (no changes in the next 8 pixels)
-        cursor += 7;
-        continue;
-      }
-    }
-
-    if ((temporalDiff >> temporalBit) & 1) {
-      // (a pixel changed)
-
-      u32 drawCursor = y(cursor) * DRAW_WIDTH + x(cursor);
-      u32 drawCursor32Bit = drawCursor / 4;
-      frameBuffer[drawCursor] = state.compressedPixels[decompressedPixels];
-      ((u32*)vid_mem_front)[drawCursor32Bit] =
-          ((u32*)frameBuffer)[drawCursor32Bit];
-
-      decompressedPixels++;
-    }
-  }
 }
 
 inline bool isNewVBlank() {
