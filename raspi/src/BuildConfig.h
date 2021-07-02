@@ -1,11 +1,9 @@
-#ifndef CONFIG_H
-#define CONFIG_H
+#ifndef BUILD_CONFIG_H
+#define BUILD_CONFIG_H
 
 #define PROFILE
 // #define PROFILE_VERBOSE
 // #define DEBUG
 // #define BENCHMARK
 
-#include "Utils.h"
-
-#endif  // CONFIG_H
+#endif  // BUILD_CONFIG_H

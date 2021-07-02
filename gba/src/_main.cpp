@@ -1,10 +1,11 @@
 #include <tonc.h>
 
 #include "Benchmark.h"
-#include "Config.h"
+#include "BuildConfig.h"
 #include "Palette.h"
 #include "Protocol.h"
 #include "SPISlave.h"
+#include "Utils.h"
 
 extern "C" {
 #include "gsmplayer/player.h"

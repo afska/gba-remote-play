@@ -1,7 +1,7 @@
 #ifndef GBA_REMOTE_PLAY_H
 #define GBA_REMOTE_PLAY_H
 
-#include "Config.h"
+#include "BuildConfig.h"
 #include "Frame.h"
 #include "FrameBuffer.h"
 #include "ImageDiffBitArray.h"
@@ -11,6 +11,7 @@
 #include "Protocol.h"
 #include "ReliableStream.h"
 #include "SPIMaster.h"
+#include "Utils.h"
 #include "VirtualGamepad.h"
 
 uint8_t LUT_24BPP_TO_8BIT_PALETTE[PALETTE_24BIT_MAX_COLORS];
@@ -65,7 +66,7 @@ class GBARemotePlay {
 #endif
 
       if (!send(frame, diffs)) {
-        frame.clean(); // TODO: CLEAN LAST FRAME TOO
+        frame.clean();  // TODO: CLEAN LAST FRAME TOO
         goto reset;
       }
 
