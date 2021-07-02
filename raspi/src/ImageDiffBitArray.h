@@ -6,13 +6,32 @@
 #include "Protocol.h"
 
 typedef struct {
-  uint8_t temporal[TEMPORAL_DIFF_SIZE];
   uint32_t compressedPixels;
+  uint8_t temporal[TEMPORAL_DIFF_SIZE];
+  uint8_t paletteIndexByCompressedIndex[PALETTE_COLORS];
+  uint8_t compressedIndexByPaletteIndex[PALETTE_COLORS];
+  bool usedColorFlags[PALETTE_COLORS];
+  uint32_t uniqueColors;
 
   void initialize(Frame currentFrame, Frame previousFrame) {
     compressedPixels = 0;
+    uniqueColors = 0;
+
+    for (int i = 0; i < PALETTE_COLORS; i++) {
+      usedColorFlags[i] = false;
+      paletteIndexByCompressedIndex[i] = 0;
+      compressedIndexByPaletteIndex[i] = 0;
+    }
 
     for (int i = 0; i < TOTAL_PIXELS; i++) {
+      if (!usedColorFlags[currentFrame.raw8BitPixels[i]]) {
+        uint8_t colorIndex = currentFrame.raw8BitPixels[i];
+        usedColorFlags[colorIndex] = true;
+        paletteIndexByCompressedIndex[uniqueColors] = colorIndex;
+        compressedIndexByPaletteIndex[colorIndex] = uniqueColors;
+        uniqueColors++;
+      }
+
       if (currentFrame.hasPixelChanged(i, previousFrame)) {
         setBit(temporal, i, true);
         compressedPixels++;
@@ -21,7 +40,15 @@ typedef struct {
     }
   }
 
+  bool isSpatialCompressed() { return uniqueColors < SPATIAL_DIFF_COLOR_LIMIT; }
+
   bool hasPixelChanged(uint32_t pixelId) { return getBit(temporal, pixelId); }
+
+  bool isRepeatedColor(Frame frame, uint32_t pixelId) {
+    return isSpatialCompressed() && pixelId < TOTAL_PIXELS &&
+           hasPixelChanged(pixelId + 1) &&
+           frame.raw8BitPixels[pixelId + 1] == frame.raw8BitPixels[pixelId];
+  }
 
  private:
   void setBit(uint8_t* bitarray, uint32_t n, bool value) {

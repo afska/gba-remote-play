@@ -65,7 +65,7 @@ class GBARemotePlay {
 #endif
 
       if (!send(frame, diffs)) {
-        frame.clean();
+        frame.clean(); // TODO: CLEAN LAST FRAME TOO
         goto reset;
       }
 
@@ -125,13 +125,17 @@ class GBARemotePlay {
 #ifdef PROFILE_VERBOSE
     auto idleElapsedTime = PROFILE_END(idleStartTime);
     std::cout << "  <" + std::to_string(idleElapsedTime) + "ms idle>\n";
-    if (!frame.hasAudio())
-      std::cout << "  <no audio>\n";
+    auto metadataStartTime = PROFILE_START();
 #endif
 
     DEBULOG("Receiving keys and send metadata...");
     if (!receiveKeysAndSendMetadata(frame, diffs))
       return false;
+
+#ifdef PROFILE_VERBOSE
+    auto metadataElapsedTime = PROFILE_END(metadataStartTime);
+    std::cout << "  <" + std::to_string(idleElapsedTime) + "ms metadata>\n";
+#endif
 
     if (frame.hasAudio()) {
       DEBULOG("Syncing audio...");
@@ -167,9 +171,11 @@ class GBARemotePlay {
 
   bool receiveKeysAndSendMetadata(Frame& frame, ImageDiffBitArray& diffs) {
   again:
-    uint32_t expectedPackets = (diffs.compressedPixels / PIXELS_PER_PACKET +
-                                diffs.compressedPixels % PIXELS_PER_PACKET) |
-                               (frame.hasAudio() ? AUDIO_BIT_MASK : 0);
+    uint32_t expectedPackets =
+        (diffs.compressedPixels / PIXELS_PER_PACKET +
+         diffs.compressedPixels % PIXELS_PER_PACKET) |
+        (frame.hasAudio() ? AUDIO_BIT_MASK : 0) |
+        (diffs.isSpatialCompressed() ? COMPR_BIT_MASK : 0);
     uint32_t keys = spiMaster->exchange(expectedPackets);
     if (reliableStream->finishSyncIfNeeded(keys, CMD_FRAME_START))
       goto again;
@@ -177,8 +183,16 @@ class GBARemotePlay {
       return false;
     processKeys(keys);
 
-    return reliableStream->send(
-        diffs.temporal, TEMPORAL_DIFF_SIZE / PACKET_SIZE, CMD_FRAME_START);
+    if (!reliableStream->send(diffs.temporal, TEMPORAL_DIFF_SIZE / PACKET_SIZE,
+                              CMD_FRAME_START))
+      return false;
+
+    if (diffs.isSpatialCompressed())
+      return reliableStream->send(diffs.paletteIndexByCompressedIndex,
+                                  SPATIAL_DIFF_COLOR_LIMIT / PACKET_SIZE,
+                                  CMD_FRAME_START);
+
+    return true;
   }
 
   bool sendAudio(Frame& frame) {
@@ -191,6 +205,11 @@ class GBARemotePlay {
     uint32_t size = 0;
     compressPixels(frame, diffs, packetsToSend, &size);
 
+#ifdef PROFILE_VERBOSE
+    std::cout << "  <" + std::to_string(size * PACKET_SIZE) + "bytes" +
+                     (frame.hasAudio() ? ">" : ", no audio>") + "\n";
+#endif
+
     return reliableStream->send(packetsToSend, size, CMD_PIXELS);
   }
 
@@ -200,10 +219,24 @@ class GBARemotePlay {
                       uint32_t* totalPackets) {
     uint32_t currentPacket = 0;
     uint8_t byte = 0;
+    bool isRepeating = false;
 
     for (int i = 0; i < frame.totalPixels; i++) {
       if (diffs.hasPixelChanged(i)) {
-        currentPacket |= frame.raw8BitPixels[i] << (byte * 8);
+        if (isRepeating) {
+          isRepeating = false;
+          continue;
+        }
+        if (diffs.isRepeatedColor(frame, i))
+          isRepeating = true;
+
+        uint8_t currentByte =
+            diffs.isSpatialCompressed()
+                ? diffs.compressedIndexByPaletteIndex[frame.raw8BitPixels[i]] |
+                      (isRepeating ? SPATIAL_DIFF_COLOR_LIMIT : 0)
+                : frame.raw8BitPixels[i];
+
+        currentPacket |= currentByte << (byte * 8);
         byte++;
         if (byte == PACKET_SIZE) {
           packets[*totalPackets] = currentPacket;
@@ -235,6 +268,8 @@ class GBARemotePlay {
 
           frame.raw8BitPixels[y * RENDER_WIDTH + x] =
               LUT_24BPP_TO_8BIT_PALETTE[(r << 0) | (g << 8) | (b << 16)];
+
+          // TODO: Initialize diffs and compress here
         });
 
     frame.audioChunk = loopbackAudio->loadChunk();
