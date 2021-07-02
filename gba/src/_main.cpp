@@ -21,6 +21,7 @@ extern "C" {
 
 typedef struct {
   u32 expectedPackets;
+  u8 temporalDiffs[TEMPORAL_DIFF_SIZE];
   u32 pixelCount;
   u8 audioChunks[AUDIO_PADDED_SIZE];
   bool hasAudio;
@@ -113,6 +114,11 @@ inline bool sendKeysAndReceiveMetadata(State& state) {
   state.expectedPackets = expectedPackets & ~AUDIO_BIT_MASK;
   state.hasAudio = (expectedPackets & AUDIO_BIT_MASK) != 0;
 
+  for (u32 i = 0; i < TEMPORAL_DIFF_SIZE / PACKET_SIZE; i++)
+    ((u32*)state.temporalDiffs)[i] = transfer(state, i);
+
+  // ---
+  // TODO: REFACTOR
   u32 cursor = 0;
   u32 currentJump = 0;
 #define SAVE_JUMP(CHANGED_BIT)               \
@@ -123,15 +129,15 @@ inline bool sendKeysAndReceiveMetadata(State& state) {
     cursor++;                                \
   }
 
-  for (u32 i = 0; i < TEMPORAL_DIFF_SIZE / PACKET_SIZE; i++) {
-    u32 packet = transfer(state, i);
+  // TODO: Clear raspberry's diffs on reset
 
-    // TODO: TEST OPTIMIZATION
-    // TODO: Clear raspberry's diffs on reset
-    // if (packet == 0) {
-    //   cursor += 32 - (i == 0);
-    //   continue;
-    // }
+  for (u32 i = 0; i < TEMPORAL_DIFF_SIZE; i++) {
+    u8 packet = state.temporalDiffs[i];
+
+    if (packet == 0) {
+      currentJump += 8 - (i == 0);
+      continue;
+    }
 
     if (i > 0) {
       SAVE_JUMP(packet & (1 << 0))
@@ -143,33 +149,10 @@ inline bool sendKeysAndReceiveMetadata(State& state) {
     SAVE_JUMP(packet & (1 << 5))
     SAVE_JUMP(packet & (1 << 6))
     SAVE_JUMP(packet & (1 << 7))
-    SAVE_JUMP(packet & (1 << 8))
-    SAVE_JUMP(packet & (1 << 9))
-    SAVE_JUMP(packet & (1 << 10))
-    SAVE_JUMP(packet & (1 << 11))
-    SAVE_JUMP(packet & (1 << 12))
-    SAVE_JUMP(packet & (1 << 13))
-    SAVE_JUMP(packet & (1 << 14))
-    SAVE_JUMP(packet & (1 << 15))
-    SAVE_JUMP(packet & (1 << 16))
-    SAVE_JUMP(packet & (1 << 17))
-    SAVE_JUMP(packet & (1 << 18))
-    SAVE_JUMP(packet & (1 << 19))
-    SAVE_JUMP(packet & (1 << 20))
-    SAVE_JUMP(packet & (1 << 21))
-    SAVE_JUMP(packet & (1 << 22))
-    SAVE_JUMP(packet & (1 << 23))
-    SAVE_JUMP(packet & (1 << 24))
-    SAVE_JUMP(packet & (1 << 25))
-    SAVE_JUMP(packet & (1 << 26))
-    SAVE_JUMP(packet & (1 << 27))
-    SAVE_JUMP(packet & (1 << 28))
-    SAVE_JUMP(packet & (1 << 29))
-    SAVE_JUMP(packet & (1 << 30))
-    SAVE_JUMP(packet & (1 << 31))
   }
 
   state.pixelCount = cursor;
+  // ---
 
   return true;
 }
