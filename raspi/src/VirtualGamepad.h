@@ -10,6 +10,7 @@
 #include <sys/ioctl.h>
 #include <unistd.h>
 #include <iostream>
+#include <string>
 
 #define VG_DEVFILE "/dev/uinput"
 #define VG_KEY_A 0x0001

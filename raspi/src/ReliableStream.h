@@ -2,7 +2,6 @@
 #define RELIABLE_STREAM_H
 
 #include <stdint.h>
-#include <iostream>
 #include "Protocol.h"
 #include "SPIMaster.h"
 #include "Utils.h"

@@ -2,6 +2,7 @@
 #define GBA_REMOTE_PLAY_H
 
 #include "BuildConfig.h"
+#include "Config.h"
 #include "Frame.h"
 #include "FrameBuffer.h"
 #include "ImageDiffBitArray.h"
@@ -19,12 +20,14 @@ uint8_t LUT_24BPP_TO_8BIT_PALETTE[PALETTE_24BIT_MAX_COLORS];
 class GBARemotePlay {
  public:
   GBARemotePlay() {
-    spiMaster = new SPIMaster(SPI_MODE, SPI_SLOW_FREQUENCY, SPI_FAST_FREQUENCY,
-                              SPI_DELAY_MICROSECONDS);
+    config = new Config(CONFIG_FILENAME);
+    spiMaster =
+        new SPIMaster(SPI_MODE, config->spiSlowFrequency,
+                      config->spiFastFrequency, config->spiDelayMicroseconds);
     reliableStream = new ReliableStream(spiMaster);
     frameBuffer = new FrameBuffer(DRAW_WIDTH, DRAW_HEIGHT);
     loopbackAudio = new LoopbackAudio();
-    virtualGamepad = new VirtualGamepad(VIRTUAL_GAMEPAD_NAME);
+    virtualGamepad = new VirtualGamepad(config->virtualGamepadName);
     lastFrame = Frame{0};
 
     PALETTE_initializeCache(PALETTE_CACHE_FILENAME);
@@ -95,6 +98,7 @@ class GBARemotePlay {
 
   ~GBARemotePlay() {
     lastFrame.clean();
+    delete config;
     delete spiMaster;
     delete reliableStream;
     delete frameBuffer;
@@ -103,6 +107,7 @@ class GBARemotePlay {
   }
 
  private:
+  Config* config;
   SPIMaster* spiMaster;
   ReliableStream* reliableStream;
   FrameBuffer* frameBuffer;
