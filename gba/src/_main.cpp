@@ -22,16 +22,19 @@ extern "C" {
 
 typedef struct {
   u32 expectedPackets;
+  u8 temporalDiffs[TEMPORAL_DIFF_SIZE];
   u8 paletteIndexByCompressedIndex[SPATIAL_DIFF_COLOR_LIMIT];
   u8 audioChunks[AUDIO_PADDED_SIZE];
   u32 pixelCount;
+  u32 diffCursor, pixelCursor, currentJump;
   bool isSpatialCompressed;
   bool hasAudio;
   bool isAudioReady;
 } State;
 
 SPISlave* spiSlave = new SPISlave();
-DATA_EWRAM u16 temporalDiffJumps[TOTAL_PIXELS];
+DATA_EWRAM u16 diffJumps[TOTAL_PIXELS];
+DATA_EWRAM u8 compressedPixels[TOTAL_PIXELS];
 DATA_EWRAM u8 frameBuffer[TOTAL_SCREEN_PIXELS];
 
 // ---------
@@ -55,6 +58,8 @@ void mainLoop();
 bool sendKeysAndReceiveMetadata(State& state);
 bool receiveAudio(State& state);
 bool receivePixels(State& state);
+bool processMetadata(State& state);
+bool processPixels(State& state);
 bool isNewVBlank();
 void driveAudio(State& state);
 u32 transfer(State& state, u32 packetToSend, bool withRecovery = true);
@@ -92,18 +97,23 @@ reset:
 
   while (true) {
     state.expectedPackets = 0;
+    state.diffCursor = 0;
+    state.pixelCursor = 0;
+    state.currentJump = 0;
     state.pixelCount = 0;
     state.isSpatialCompressed = false;
     state.hasAudio = false;
 
     TRY(sync(state, CMD_FRAME_START))
     TRY(sendKeysAndReceiveMetadata(state))
+    processMetadata(state);
     if (state.hasAudio) {
       TRY(sync(state, CMD_AUDIO))
       TRY(receiveAudio(state))
     }
     TRY(sync(state, CMD_PIXELS))
     TRY(receivePixels(state))
+    processPixels(state);
     TRY(sync(state, CMD_FRAME_END))
   }
 }
@@ -118,74 +128,12 @@ inline bool sendKeysAndReceiveMetadata(State& state) {
   state.isSpatialCompressed = (expectedPackets & COMPR_BIT_MASK) != 0;
   state.hasAudio = (expectedPackets & AUDIO_BIT_MASK) != 0;
 
-  u32 cursor = 0;
-  u32 currentJump = 0;
-
-#define SAVE_JUMP(CHANGED_BIT)               \
-  currentJump++;                             \
-  if ((CHANGED_BIT) != 0) {                  \
-    temporalDiffJumps[cursor] = currentJump; \
-    currentJump = 0;                         \
-    cursor++;                                \
-  }
-
-  for (u32 i = 0; i < TEMPORAL_DIFF_SIZE / PACKET_SIZE; i++) {
-    u32 packet = transfer(state, i);
-
-    if (packet == 0) {
-      currentJump += 32 - (i == 0);
-      continue;
-    } else if (((u16)packet) == 0) {
-      currentJump += 16 - (i == 0);
-      goto nextHalfWord;
-    } else if (((u8)packet) == 0) {
-      currentJump += 8 - (i == 0);
-      goto nextByte;
-    }
-
-    if (i > 0) {
-      SAVE_JUMP(packet & (1 << 0))
-    }
-    SAVE_JUMP(packet & (1 << 1))
-    SAVE_JUMP(packet & (1 << 2))
-    SAVE_JUMP(packet & (1 << 3))
-    SAVE_JUMP(packet & (1 << 4))
-    SAVE_JUMP(packet & (1 << 5))
-    SAVE_JUMP(packet & (1 << 6))
-    SAVE_JUMP(packet & (1 << 7))
-  nextByte:
-    SAVE_JUMP(packet & (1 << 8))
-    SAVE_JUMP(packet & (1 << 9))
-    SAVE_JUMP(packet & (1 << 10))
-    SAVE_JUMP(packet & (1 << 11))
-    SAVE_JUMP(packet & (1 << 12))
-    SAVE_JUMP(packet & (1 << 13))
-    SAVE_JUMP(packet & (1 << 14))
-    SAVE_JUMP(packet & (1 << 15))
-  nextHalfWord:
-    SAVE_JUMP(packet & (1 << 16))
-    SAVE_JUMP(packet & (1 << 17))
-    SAVE_JUMP(packet & (1 << 18))
-    SAVE_JUMP(packet & (1 << 19))
-    SAVE_JUMP(packet & (1 << 20))
-    SAVE_JUMP(packet & (1 << 21))
-    SAVE_JUMP(packet & (1 << 22))
-    SAVE_JUMP(packet & (1 << 23))
-    SAVE_JUMP(packet & (1 << 24))
-    SAVE_JUMP(packet & (1 << 25))
-    SAVE_JUMP(packet & (1 << 26))
-    SAVE_JUMP(packet & (1 << 27))
-    SAVE_JUMP(packet & (1 << 28))
-    SAVE_JUMP(packet & (1 << 29))
-    SAVE_JUMP(packet & (1 << 30))
-    SAVE_JUMP(packet & (1 << 31))
-  }
+  for (u32 i = 0; i < TEMPORAL_DIFF_SIZE / PACKET_SIZE; i++)
+    ((u32*)state.temporalDiffs)[i] = transfer(state, i);
 
   if (state.isSpatialCompressed)
     for (u32 i = 0; i < SPATIAL_DIFF_COLOR_LIMIT / PACKET_SIZE; i++)
       ((u32*)state.paletteIndexByCompressedIndex)[i] = transfer(state, i);
-
-  state.pixelCount = cursor;
 
   return true;
 }
@@ -200,15 +148,56 @@ inline bool receiveAudio(State& state) {
 }
 
 inline bool receivePixels(State& state) {
+  for (u32 i = 0; i < state.expectedPackets; i++)
+    ((u32*)compressedPixels)[i] = transfer(state, i);
+
+  return true;
+}
+
+bool processMetadata(State& state) {
+#define SAVE_JUMP(CHANGED_BIT)                       \
+  state.currentJump++;                               \
+  if ((CHANGED_BIT) != 0) {                          \
+    diffJumps[state.diffCursor] = state.currentJump; \
+    state.currentJump = 0;                           \
+    state.diffCursor++;                              \
+  }
+
+  for (u32 i = 0; i < TEMPORAL_DIFF_SIZE; i++) {
+    u8 byte = state.temporalDiffs[i];
+
+    if (byte == 0) {
+      state.currentJump += 8 - (i == 0);
+      continue;
+    }
+
+    if (i > 0) {
+      SAVE_JUMP(byte & (1 << 0))
+    }
+    SAVE_JUMP(byte & (1 << 1))
+    SAVE_JUMP(byte & (1 << 2))
+    SAVE_JUMP(byte & (1 << 3))
+    SAVE_JUMP(byte & (1 << 4))
+    SAVE_JUMP(byte & (1 << 5))
+    SAVE_JUMP(byte & (1 << 6))
+    SAVE_JUMP(byte & (1 << 7))
+  }
+
+  state.pixelCount = state.diffCursor;
+  state.diffCursor = 1;
+  state.pixelCursor = diffJumps[0];
+
+  return true;
+}
+
+bool processPixels(State& state) {
   if (state.expectedPackets == 0)
     return true;
 
-  u32 pixelCursor = temporalDiffJumps[0];
-  u32 diffCursor = 1;
   u32 drawCursor, drawCursor32Bit;
 
 #define DRAW_UNIQUE_PIXEL(PIXEL)                                           \
-  drawCursor = y(pixelCursor) * DRAW_WIDTH + x(pixelCursor);               \
+  drawCursor = y(state.pixelCursor) * DRAW_WIDTH + x(state.pixelCursor);   \
   drawCursor32Bit = drawCursor / 4;                                        \
   frameBuffer[drawCursor] =                                                \
       state.isSpatialCompressed                                            \
@@ -218,24 +207,21 @@ inline bool receivePixels(State& state) {
   ((u32*)vid_mem_front)[drawCursor32Bit] = ((u32*)frameBuffer)[drawCursor32Bit];
 
 #define DRAW(PIXEL)                                                           \
-  if (diffCursor >= state.pixelCount)                                         \
+  if (state.diffCursor >= state.pixelCount)                                   \
     return true;                                                              \
   DRAW_UNIQUE_PIXEL(PIXEL);                                                   \
   if (state.isSpatialCompressed && (PIXEL & SPATIAL_DIFF_COLOR_LIMIT) != 0) { \
-    pixelCursor++;                                                            \
-    diffCursor++;                                                             \
+    state.pixelCursor++;                                                      \
+    state.diffCursor++;                                                       \
     DRAW_UNIQUE_PIXEL(PIXEL)                                                  \
   }                                                                           \
-  pixelCursor += temporalDiffJumps[diffCursor];                               \
-  diffCursor++;
+  state.pixelCursor += diffJumps[state.diffCursor];                           \
+  state.diffCursor++;
 
-  for (u32 i = 0; i < state.expectedPackets; i++) {
-    u32 packet = transfer(state, i);
+  for (u32 i = 0; i < state.expectedPackets * PIXELS_PER_PACKET; i++) {
+    u8 pixel = compressedPixels[i];
 
-    DRAW((packet >> 0) & 0xff)
-    DRAW((packet >> 8) & 0xff)
-    DRAW((packet >> 16) & 0xff)
-    DRAW((packet >> 24) & 0xff)
+    DRAW(pixel)
   }
 
   return true;
