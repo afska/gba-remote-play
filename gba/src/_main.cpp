@@ -242,12 +242,8 @@ inline u32 transfer(State& state, u32 packetToSend, bool withRecovery) {
 
   if (breakFlag) {
     driveAudio(state);
-
-    if (withRecovery) {
-      sync(state, CMD_RECOVERY);
-      spiSlave->transfer(packetToSend);
+    if (withRecovery)
       receivedPacket = spiSlave->transfer(packetToSend);
-    }
   }
 
   return receivedPacket;
