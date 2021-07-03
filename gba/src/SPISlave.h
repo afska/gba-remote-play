@@ -28,11 +28,11 @@ class SPISlave {
 
   u32 transfer(u32 value) {
     return transfer(
-        value, []() { return false; }, NULL);
+        value, []() { return false; }, NULL, []() {});
   }
 
-  template <typename F>
-  u32 transfer(u32 value, F needsBreak, bool* breakFlag) {
+  template <typename F, typename I>
+  u32 transfer(u32 value, F needsBreak, bool* breakFlag, I doWhenIdle) {
     setData(value);
     enableTransfer();
     startTransfer();
@@ -43,7 +43,8 @@ class SPISlave {
         disableTransfer();
         *breakFlag = true;
         return 0;
-      }
+      } else
+        doWhenIdle();
     }
 
     disableTransfer();
