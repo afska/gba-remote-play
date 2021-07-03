@@ -62,6 +62,9 @@ class ReliableStream {
                   uint32_t* index,
                   uint32_t totalPackets,
                   uint32_t syncCommand) {
+    if (!spiMaster->canTransfer())
+      return true;
+
     if (*index % TRANSFER_SYNC_PERIOD == 0 || *index == totalPackets - 1) {
       return reliablySend(packet, index, totalPackets, syncCommand);
     } else {
@@ -82,7 +85,18 @@ class ReliableStream {
     if (requestedIndex != CMD_RESET)
       lastReceivedPacket = requestedIndex;
 
-    if (requestedIndex == CMD_RESET) {
+    if (requestedIndex == CMD_RECOVERY + CMD_GBA_OFFSET) {
+      // (recovery command)
+      if (!sync(CMD_RECOVERY))
+        return false;
+      requestedIndex = spiMaster->exchange(0);
+      if (requestedIndex >= totalPackets) {
+        logReset("Reset! (recovery)", packet, *index);
+        return false;
+      }
+      *index = requestedIndex;
+      return true;
+    } else if (requestedIndex == CMD_RESET) {
       // (reset command)
       logReset("Reset! (stream - " + std::to_string(*index) + "/" +
                    std::to_string(totalPackets) + ")",
