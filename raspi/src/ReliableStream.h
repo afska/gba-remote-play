@@ -62,14 +62,11 @@ class ReliableStream {
                   uint32_t* index,
                   uint32_t totalPackets,
                   uint32_t syncCommand) {
-    if (!spiMaster->canTransfer())
-      return true;
-
     if (*index % TRANSFER_SYNC_PERIOD == 0 || *index == totalPackets - 1) {
       return reliablySend(packet, index, totalPackets, syncCommand);
     } else {
-      spiMaster->send(packet);
-      (*index)++;
+      if (spiMaster->send(packet))
+        (*index)++;
       return true;
     }
   }

@@ -44,5 +44,3 @@ except KeyboardInterrupt:
       c.cancel()
 
 pi.stop()
-
-

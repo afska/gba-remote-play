@@ -24,14 +24,19 @@ class SPIMaster {
     this->gpioBusyFlagPin = gpioBusyFlagPin;
   }
 
-  void send(uint32_t value) {
+  bool send(uint32_t value) {
     bcm2835_spi_set_speed_hz(fastFrequency);
-    transfer(value);
+
+    bool breakFlag = false;
+    transfer(value, &breakFlag);
+    return !breakFlag;
   }
 
   uint32_t exchange(uint32_t value) {
     bcm2835_spi_set_speed_hz(slowFrequency);
-    return transfer(value);
+
+    bool breakFlag = false;
+    return transfer(value, &breakFlag);
   }
 
   int canTransfer() { return !bcm2835_gpio_lev(gpioBusyFlagPin); }
@@ -56,17 +61,21 @@ class SPIMaster {
     }
   }
 
-  uint32_t transfer(uint32_t value) {
-    if (!canTransfer())
-      return 0xffffffff;
+  uint32_t transfer(uint32_t value, bool* breakFlag) {
+#define BREAK_IF_NEEDED() \
+  if (!canTransfer()) {   \
+    *breakFlag = true;    \
+    return 0xffffffff;    \
+  }
 
+    BREAK_IF_NEEDED()
     union {
       uint32_t u32;
       char uc[4];
     } x;
-
     x.u32 = bswap_32(value);
     bcm2835_delayMicroseconds(delayMicroseconds);
+    BREAK_IF_NEEDED()
     bcm2835_spi_transfern(x.uc, 4);
 
     return bswap_32(x.u32);
