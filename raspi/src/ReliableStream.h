@@ -67,6 +67,9 @@ class ReliableStream {
     } else {
       if (spiMaster->send(packet))
         (*index)++;
+      else
+        ;  // TODO: REMOVE TRANSFER_SYNC_PERIOD AND FORCE RECOVERY MODE
+
       return true;
     }
   }

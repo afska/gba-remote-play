@@ -131,11 +131,16 @@ inline bool sendKeysAndReceiveMetadata(State& state) {
 
   for (u32 i = 0; i < TEMPORAL_DIFF_SIZE / PACKET_SIZE; i++) {
     u32 packet = transfer(state, i);
-    spiSlave->stop();
 
     if (packet == 0) {
       currentJump += 32 - (i == 0);
-      goto nextPacket;
+      continue;
+    } else if (((u16)packet) == 0) {
+      currentJump += 16 - (i == 0);
+      goto nextHalfWord;
+    } else if (((u8)packet) == 0) {
+      currentJump += 8 - (i == 0);
+      goto nextByte;
     }
 
     if (i > 0) {
@@ -148,6 +153,7 @@ inline bool sendKeysAndReceiveMetadata(State& state) {
     SAVE_JUMP(packet & (1 << 5))
     SAVE_JUMP(packet & (1 << 6))
     SAVE_JUMP(packet & (1 << 7))
+  nextByte:
     SAVE_JUMP(packet & (1 << 8))
     SAVE_JUMP(packet & (1 << 9))
     SAVE_JUMP(packet & (1 << 10))
@@ -156,6 +162,7 @@ inline bool sendKeysAndReceiveMetadata(State& state) {
     SAVE_JUMP(packet & (1 << 13))
     SAVE_JUMP(packet & (1 << 14))
     SAVE_JUMP(packet & (1 << 15))
+  nextHalfWord:
     SAVE_JUMP(packet & (1 << 16))
     SAVE_JUMP(packet & (1 << 17))
     SAVE_JUMP(packet & (1 << 18))
@@ -172,9 +179,6 @@ inline bool sendKeysAndReceiveMetadata(State& state) {
     SAVE_JUMP(packet & (1 << 29))
     SAVE_JUMP(packet & (1 << 30))
     SAVE_JUMP(packet & (1 << 31))
-
-  nextPacket:
-    spiSlave->start();
   }
 
   if (state.isSpatialCompressed)
@@ -215,7 +219,7 @@ inline bool receivePixels(State& state) {
 
 #define DRAW(PIXEL)                                                           \
   if (diffCursor >= state.pixelCount)                                         \
-    goto finish;                                                              \
+    return true;                                                              \
   DRAW_UNIQUE_PIXEL(PIXEL);                                                   \
   if (state.isSpatialCompressed && (PIXEL & SPATIAL_DIFF_COLOR_LIMIT) != 0) { \
     pixelCursor++;                                                            \
@@ -228,16 +232,11 @@ inline bool receivePixels(State& state) {
   for (u32 i = 0; i < state.expectedPackets; i++) {
     u32 packet = transfer(state, i);
 
-    spiSlave->stop();
     DRAW((packet >> 0) & 0xff)
     DRAW((packet >> 8) & 0xff)
     DRAW((packet >> 16) & 0xff)
     DRAW((packet >> 24) & 0xff)
-    spiSlave->start();
   }
-
-finish:
-  spiSlave->start();
 
   return true;
 }
