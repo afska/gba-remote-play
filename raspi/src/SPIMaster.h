@@ -12,12 +12,16 @@ class SPIMaster {
   SPIMaster(uint8_t mode,
             uint32_t slowFrequency,
             uint32_t fastFrequency,
-            uint32_t delayMicroseconds) {
+            uint32_t delayMicroseconds,
+            uint32_t gpioBusyFlagPin) {
     initialize();
     bcm2835_spi_setDataMode(mode);
+    bcm2835_gpio_fsel(gpioBusyFlagPin, BCM2835_GPIO_FSEL_INPT);
+
     this->slowFrequency = slowFrequency;
     this->fastFrequency = fastFrequency;
     this->delayMicroseconds = delayMicroseconds;
+    this->gpioBusyFlagPin = gpioBusyFlagPin;
   }
 
   void send(uint32_t value) {
@@ -30,12 +34,15 @@ class SPIMaster {
     return transfer(value);
   }
 
+  int canTransfer() { return !bcm2835_gpio_lev(gpioBusyFlagPin); }
+
   ~SPIMaster() { bcm2835_spi_end(); }
 
  private:
   uint32_t slowFrequency;
   uint32_t fastFrequency;
   uint32_t delayMicroseconds;
+  uint32_t gpioBusyFlagPin;
 
   void initialize() {
     if (!bcm2835_init()) {
@@ -50,6 +57,9 @@ class SPIMaster {
   }
 
   uint32_t transfer(uint32_t value) {
+    if (!canTransfer())
+      return 0xffffffff;
+
     union {
       uint32_t u32;
       char uc[4];
