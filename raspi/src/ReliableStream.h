@@ -82,18 +82,7 @@ class ReliableStream {
     if (requestedIndex != CMD_RESET)
       lastReceivedPacket = requestedIndex;
 
-    if (requestedIndex == CMD_RECOVERY + CMD_GBA_OFFSET) {
-      // (recovery command)
-      if (!sync(CMD_RECOVERY))
-        return false;
-      requestedIndex = spiMaster->exchange(0);
-      if (requestedIndex >= totalPackets) {
-        logReset("Reset! (recovery)", packet, *index);
-        return false;
-      }
-      *index = requestedIndex;
-      return true;
-    } else if (requestedIndex == CMD_RESET) {
+    if (requestedIndex == CMD_RESET) {
       // (reset command)
       logReset("Reset! (stream - " + std::to_string(*index) + "/" +
                    std::to_string(totalPackets) + ")",

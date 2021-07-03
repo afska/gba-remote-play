@@ -68,6 +68,7 @@ class SPIMaster {
     x.u32 = bswap_32(value);
     bcm2835_delayMicroseconds(delayMicroseconds);
     bcm2835_spi_transfern(x.uc, 4);
+
     return bswap_32(x.u32);
   }
 };

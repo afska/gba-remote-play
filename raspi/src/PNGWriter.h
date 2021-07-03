@@ -13,7 +13,7 @@ void WritePNG(std::string fileName,
               const uint32_t* raw24bppPalette,
               uint32_t width,
               uint32_t height) {
-#ifdef DEBUG
+#ifdef DEBUG_PNG
   LodePNGState state;
   lodepng_state_init(&state);
   state.info_raw.colortype = LCT_PALETTE;

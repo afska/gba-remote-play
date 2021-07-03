@@ -165,7 +165,7 @@ class GBARemotePlay {
     if (!reliableStream->sync(CMD_FRAME_END))
       return false;
 
-#ifdef DEBUG
+#ifdef DEBUG_PNG
     LOG("Writing debug PNG file...");
     WritePNG("debug.png", frame.raw8BitPixels, MAIN_PALETTE_24BPP, RENDER_WIDTH,
              RENDER_HEIGHT);
