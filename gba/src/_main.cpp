@@ -25,8 +25,9 @@ typedef struct {
   u8 temporalDiffs[TEMPORAL_DIFF_SIZE];
   u8 paletteIndexByCompressedIndex[SPATIAL_DIFF_COLOR_LIMIT];
   u8 audioChunks[AUDIO_PADDED_SIZE];
-  u32 pixelCount;
-  u32 diffCursor, pixelCursor, currentJump;
+  u32 iDiff, iPixel, pixelCount;
+  u32 decompressCursor, diffCursor, pixelCursor;
+  u32 currentJump;
   bool isSpatialCompressed;
   bool hasAudio;
   bool isAudioReady;
@@ -58,6 +59,8 @@ void mainLoop();
 bool sendKeysAndReceiveMetadata(State& state);
 bool receiveAudio(State& state);
 bool receivePixels(State& state);
+void initProcessMetadata(State& state);
+void initProcessPixels(State& state);
 bool processMetadata(State& state);
 bool processPixels(State& state);
 bool isNewVBlank();
@@ -96,24 +99,21 @@ reset:
   transfer(state, CMD_RESET, false);
 
   while (true) {
-    state.expectedPackets = 0;
-    state.diffCursor = 0;
-    state.pixelCursor = 0;
-    state.currentJump = 0;
-    state.pixelCount = 0;
-    state.isSpatialCompressed = false;
-    state.hasAudio = false;
-
+    initProcessMetadata(state);
     TRY(sync(state, CMD_FRAME_START))
     TRY(sendKeysAndReceiveMetadata(state))
-    processMetadata(state);
+    while (!processMetadata(state))
+      ;
     if (state.hasAudio) {
       TRY(sync(state, CMD_AUDIO))
       TRY(receiveAudio(state))
     }
+    initProcessPixels(state);
     TRY(sync(state, CMD_PIXELS))
     TRY(receivePixels(state))
-    processPixels(state);
+    if (state.expectedPackets > 0)
+      while (!processPixels(state))
+        ;
     TRY(sync(state, CMD_FRAME_END))
   }
 }
@@ -154,7 +154,21 @@ inline bool receivePixels(State& state) {
   return true;
 }
 
-bool processMetadata(State& state) {
+inline void initProcessMetadata(State& state) {
+  state.decompressCursor = state.diffCursor = state.pixelCursor = 0;
+  state.currentJump = 0;
+  state.iDiff = 0;
+}
+
+inline void initProcessPixels(State& state) {
+  state.decompressCursor = 0;
+  state.pixelCount = state.diffCursor;
+  state.diffCursor = 1;
+  state.pixelCursor = diffJumps[0];
+  state.iPixel = 0;
+}
+
+inline bool processMetadata(State& state) {
 #define SAVE_JUMP(CHANGED_BIT)                       \
   state.currentJump++;                               \
   if ((CHANGED_BIT) != 0) {                          \
@@ -163,35 +177,36 @@ bool processMetadata(State& state) {
     state.diffCursor++;                              \
   }
 
-  for (u32 i = 0; i < TEMPORAL_DIFF_SIZE; i++) {
-    u8 byte = state.temporalDiffs[i];
+  if (state.iDiff >= TEMPORAL_DIFF_SIZE)
+    return true;
 
-    if (byte == 0) {
-      state.currentJump += 8 - (i == 0);
-      continue;
-    }
+  u8 byte = state.temporalDiffs[state.iDiff];
 
-    if (i > 0) {
-      SAVE_JUMP(byte & (1 << 0))
-    }
-    SAVE_JUMP(byte & (1 << 1))
-    SAVE_JUMP(byte & (1 << 2))
-    SAVE_JUMP(byte & (1 << 3))
-    SAVE_JUMP(byte & (1 << 4))
-    SAVE_JUMP(byte & (1 << 5))
-    SAVE_JUMP(byte & (1 << 6))
-    SAVE_JUMP(byte & (1 << 7))
+  if (byte == 0) {
+    state.currentJump += 8 - (state.iDiff == 0);
+    goto next;
   }
 
-  state.pixelCount = state.diffCursor;
-  state.diffCursor = 1;
-  state.pixelCursor = diffJumps[0];
+  if (state.iDiff > 0) {
+    SAVE_JUMP(byte & (1 << 0))
+  }
+  SAVE_JUMP(byte & (1 << 1))
+  SAVE_JUMP(byte & (1 << 2))
+  SAVE_JUMP(byte & (1 << 3))
+  SAVE_JUMP(byte & (1 << 4))
+  SAVE_JUMP(byte & (1 << 5))
+  SAVE_JUMP(byte & (1 << 6))
+  SAVE_JUMP(byte & (1 << 7))
 
-  return true;
+next:
+  state.iDiff++;
+  return false;
 }
 
-bool processPixels(State& state) {
-  if (state.expectedPackets == 0)
+inline bool processPixels(State& state) {
+#define HAS_FINISHED_PIXELS() state.diffCursor >= state.pixelCount
+
+  if (HAS_FINISHED_PIXELS())
     return true;
 
   u32 drawCursor, drawCursor32Bit;
@@ -207,8 +222,6 @@ bool processPixels(State& state) {
   ((u32*)vid_mem_front)[drawCursor32Bit] = ((u32*)frameBuffer)[drawCursor32Bit];
 
 #define DRAW(PIXEL)                                                           \
-  if (state.diffCursor >= state.pixelCount)                                   \
-    return true;                                                              \
   DRAW_UNIQUE_PIXEL(PIXEL);                                                   \
   if (state.isSpatialCompressed && (PIXEL & SPATIAL_DIFF_COLOR_LIMIT) != 0) { \
     state.pixelCursor++;                                                      \
@@ -218,13 +231,11 @@ bool processPixels(State& state) {
   state.pixelCursor += diffJumps[state.diffCursor];                           \
   state.diffCursor++;
 
-  for (u32 i = 0; i < state.expectedPackets * PIXELS_PER_PACKET; i++) {
-    u8 pixel = compressedPixels[i];
+  u8 pixel = compressedPixels[state.iPixel];
+  DRAW(pixel)
+  state.iPixel++;
 
-    DRAW(pixel)
-  }
-
-  return true;
+  return false;
 }
 
 inline bool isNewVBlank() {
