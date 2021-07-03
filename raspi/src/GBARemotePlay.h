@@ -274,8 +274,6 @@ class GBARemotePlay {
 
           frame.raw8BitPixels[y * RENDER_WIDTH + x] =
               LUT_24BPP_TO_8BIT_PALETTE[(r << 0) | (g << 8) | (b << 16)];
-
-          // TODO: Initialize diffs and compress here
         });
 
     frame.audioChunk = loopbackAudio->loadChunk();
