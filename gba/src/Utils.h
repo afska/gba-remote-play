@@ -22,6 +22,12 @@ inline void enableMosaic(u16 scaleX, u16 scaleY) {
   REG_BG2CNT = 1 << 6;
 }
 
+inline void m4Draw(u32 cursor, u8 colorIndex) {
+  u16* dst = &vid_mem_front[cursor >> 1];
+  *dst = cursor & 1 ? (*dst & 0xFF) | (colorIndex << 8)
+                    : (*dst & ~0xFF) | colorIndex;
+}
+
 inline u16 pressedKeys() {
   return ~REG_KEYS & KEY_ANY;
 }
