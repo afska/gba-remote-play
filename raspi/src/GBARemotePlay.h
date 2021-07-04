@@ -140,7 +140,7 @@ class GBARemotePlay {
 
 #ifdef PROFILE_VERBOSE
     auto metadataElapsedTime = PROFILE_END(metadataStartTime);
-    std::cout << "  <" + std::to_string(idleElapsedTime) + "ms metadata>\n";
+    std::cout << "  <" + std::to_string(metadataElapsedTime) + "ms metadata>\n";
 #endif
 
     if (frame.hasAudio()) {
