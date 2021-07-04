@@ -31,7 +31,7 @@
 #define AUDIO_CHUNK_PADDING 0   // (so every chunk it's exactly 132 packets)
 #define AUDIO_SIZE_PACKETS 132  // -----------------------------^^^
 #define SPI_MODE 3
-#define TRANSFER_SYNC_PERIOD 1  // TODO: RESTORE 8
+#define TRANSFER_SYNC_PERIOD 32
 #define COLORS_PER_PACKET (PACKET_SIZE / COLOR_SIZE)
 #define PIXELS_PER_PACKET (PACKET_SIZE / PIXEL_SIZE)
 #define MAX_PIXELS_SIZE (TOTAL_PIXELS / PIXELS_PER_PACKET)
