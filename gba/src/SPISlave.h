@@ -12,7 +12,6 @@
 #define SPI_BIT_START 7
 #define SPI_BIT_LENGTH 12
 #define SPI_BIT_IRQ 14
-#define SPI_BUSY_FLAG Pin::SD
 
 // A Link Port connection for Normal mode (slave, 32bit packets)
 
@@ -27,17 +26,19 @@ class SPISlave {
     disableTransfer();
   }
 
-  u32 transfer(u32 value) { return transfer(value, false, NULL); }
+  u32 transfer(u32 value) {
+    return transfer(
+        value, []() { return false; }, NULL);
+  }
 
-  u32 transfer(u32 value, bool breakOnVBlank, bool* breakFlag) {
+  template <typename F>
+  u32 transfer(u32 value, F needsBreak, bool* breakFlag) {
     setData(value);
     enableTransfer();
     startTransfer();
 
-    bool wasVBlank = IS_VBLANK;
-
     while (!isReady()) {
-      if (breakOnVBlank && !wasVBlank && IS_VBLANK) {
+      if (needsBreak()) {
         setData(0xffffffff);
         disableTransfer();
         *breakFlag = true;

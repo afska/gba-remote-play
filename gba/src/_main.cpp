@@ -11,6 +11,7 @@ extern "C" {
 #include "gsmplayer/player.h"
 }
 
+#define VBLANK_TRACKER (*((u8*)MEM_IWRAM + 31000))
 #define TRY(ACTION) \
   if (!(ACTION))    \
     goto reset;
@@ -56,6 +57,7 @@ bool sendKeysAndReceiveMetadata(State& state);
 bool receiveAudio(State& state);
 bool receivePixels(State& state);
 void render(State& state);
+bool isNewVBlank();
 void driveAudio(State& state);
 u32 transfer(State& state, u32 packetToSend, bool withRecovery = true);
 bool sync(State& state, u32 command);
@@ -152,7 +154,8 @@ inline void render(State& state) {
   u32 decompressedPixels = 0;
   // bool wasVBlank = IS_VBLANK; // TODO: RECOVER
 
-  for (u32 cursor = 0; cursor < TOTAL_PIXELS; cursor++) {
+  u32 cursor = 0;
+  while (cursor < TOTAL_PIXELS) {
     // if (!wasVBlank && IS_VBLANK) {
     //   wasVBlank = true;
     //   driveAudio(state);
@@ -166,15 +169,15 @@ inline void render(State& state) {
     if (temporalBit == 0) {
       if (((u32*)state.temporalDiffs)[temporalByte / 4] == 0) {
         // (no changes in the next 32 pixels)
-        cursor += 31;
+        cursor += 32;
         continue;
       } else if (((u16*)state.temporalDiffs)[temporalByte / 2] == 0) {
         // (no changes in the next 16 pixels)
-        cursor += 15;
+        cursor += 16;
         continue;
       } else if (temporalDiff == 0) {
         // (no changes in the next 8 pixels)
-        cursor += 7;
+        cursor += 8;
         continue;
       }
     }
@@ -184,6 +187,7 @@ inline void render(State& state) {
 
       u8 pixel = compressedPixels[decompressedPixels];
       DRAW_PIXEL(pixel);
+
       if (state.isSpatialCompressed &&
           (pixel & SPATIAL_DIFF_COLOR_LIMIT) != 0) {
         // (repeated color)
@@ -193,7 +197,19 @@ inline void render(State& state) {
 
       decompressedPixels++;
     }
+
+    cursor++;
   }
+}
+
+inline bool isNewVBlank() {
+  if (!VBLANK_TRACKER && IS_VBLANK) {
+    VBLANK_TRACKER = true;
+    return true;
+  } else if (VBLANK_TRACKER && !IS_VBLANK)
+    VBLANK_TRACKER = false;
+
+  return false;
 }
 
 CODE_IWRAM void driveAudio(State& state) {
@@ -209,7 +225,8 @@ CODE_IWRAM void driveAudio(State& state) {
 
 inline u32 transfer(State& state, u32 packetToSend, bool withRecovery) {
   bool breakFlag = false;
-  u32 receivedPacket = spiSlave->transfer(packetToSend, true, &breakFlag);
+  u32 receivedPacket =
+      spiSlave->transfer(packetToSend, isNewVBlank, &breakFlag);
 
   if (breakFlag) {
     driveAudio(state);
@@ -231,7 +248,8 @@ inline bool sync(State& state, u32 command) {
 
   while (true) {
     bool breakFlag = false;
-    bool isOnSync = spiSlave->transfer(local, true, &breakFlag) == remote;
+    bool isOnSync =
+        spiSlave->transfer(local, isNewVBlank, &breakFlag) == remote;
 
     if (breakFlag) {
       driveAudio(state);
