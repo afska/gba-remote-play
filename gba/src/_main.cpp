@@ -21,11 +21,11 @@ extern "C" {
 // -----
 
 typedef struct {
-  u32 expectedPackets;
   u8 temporalDiffs[TEMPORAL_DIFF_SIZE];
   u8 paletteIndexByCompressedIndex[SPATIAL_DIFF_COLOR_LIMIT];
   u8 audioChunks[AUDIO_PADDED_SIZE];
-  u32 pixelCount;
+  u32 expectedPackets;
+  u32 startPixel;
   bool isSpatialCompressed;
   bool hasAudio;
   bool isAudioReady;
@@ -112,7 +112,9 @@ inline bool sendKeysAndReceiveMetadata(State& state) {
   if (spiSlave->transfer(expectedPackets) != keys)
     return false;
 
-  state.expectedPackets = expectedPackets & PACKS_BIT_MASK;
+  state.expectedPackets =
+      (expectedPackets >> PACKS_BIT_OFFSET) & PACKS_BIT_MASK;
+  state.startPixel = expectedPackets & START_BIT_MASK;
   state.isSpatialCompressed = (expectedPackets & COMPR_BIT_MASK) != 0;
   state.hasAudio = (expectedPackets & AUDIO_BIT_MASK) != 0;
 
@@ -153,7 +155,7 @@ inline void render(State& state) {
   u32 decompressedPixels = 0;
   bool wasVBlank = IS_VBLANK;
 
-  u32 cursor = 0;
+  u32 cursor = state.startPixel;
   while (cursor < TOTAL_PIXELS) {
     if (!wasVBlank && IS_VBLANK) {
       wasVBlank = true;

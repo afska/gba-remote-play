@@ -12,10 +12,13 @@ typedef struct {
   uint8_t compressedIndexByPaletteIndex[PALETTE_COLORS];
   bool usedColorFlags[PALETTE_COLORS];
   uint32_t uniqueColors;
+  uint32_t startPixel;
 
   void initialize(Frame currentFrame, Frame previousFrame) {
     compressedPixels = 0;
     uniqueColors = 0;
+    startPixel = TOTAL_PIXELS;
+    bool hasStartPixel = false;
 
     for (int i = 0; i < PALETTE_COLORS; i++) {
       usedColorFlags[i] = false;
@@ -33,6 +36,10 @@ typedef struct {
       }
 
       if (currentFrame.hasPixelChanged(i, previousFrame)) {
+        if (!hasStartPixel) {
+          startPixel = i;
+          hasStartPixel = true;
+        }
         setBit(temporal, i, true);
         compressedPixels++;
       } else

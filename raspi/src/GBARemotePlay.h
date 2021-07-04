@@ -178,8 +178,10 @@ class GBARemotePlay {
   bool receiveKeysAndSendMetadata(Frame& frame, ImageDiffBitArray& diffs) {
   again:
     uint32_t expectedPackets =
-        (diffs.compressedPixels / PIXELS_PER_PACKET +
-         diffs.compressedPixels % PIXELS_PER_PACKET) |
+        diffs.startPixel |
+        ((diffs.compressedPixels / PIXELS_PER_PACKET +
+          diffs.compressedPixels % PIXELS_PER_PACKET)
+         << PACKS_BIT_OFFSET) |
         (frame.hasAudio() ? AUDIO_BIT_MASK : 0) |
         (diffs.isSpatialCompressed() ? COMPR_BIT_MASK : 0);
     uint32_t keys = spiMaster->exchange(expectedPackets);
