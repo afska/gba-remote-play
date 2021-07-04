@@ -144,14 +144,14 @@ inline bool receivePixels(State& state) {
 }
 
 inline void render(State& state) {
-#define DRAW_PIXEL()                                                          \
-  u32 drawCursor = y(cursor) * DRAW_WIDTH + x(cursor);                        \
-  u32 drawCursor32Bit = drawCursor / 4;                                       \
-  frameBuffer[drawCursor] = state.isSpatialCompressed                         \
-                                ? state.paletteIndexByCompressedIndex         \
-                                      [compressedPixels[decompressedPixels] & \
-                                       ~SPATIAL_DIFF_COLOR_LIMIT]             \
-                                : compressedPixels[decompressedPixels];       \
+#define DRAW_PIXEL(PIXEL)                                                  \
+  u32 drawCursor = y(cursor) * DRAW_WIDTH + x(cursor);                     \
+  u32 drawCursor32Bit = drawCursor / 4;                                    \
+  frameBuffer[drawCursor] =                                                \
+      state.isSpatialCompressed                                            \
+          ? state.paletteIndexByCompressedIndex[PIXEL &                    \
+                                                ~SPATIAL_DIFF_COLOR_LIMIT] \
+          : PIXEL;                                                         \
   ((u32*)vid_mem_front)[drawCursor32Bit] = ((u32*)frameBuffer)[drawCursor32Bit];
 
   u32 decompressedPixels = 0;
@@ -187,12 +187,13 @@ inline void render(State& state) {
     if ((temporalDiff >> temporalBit) & 1) {
       // (a pixel changed)
 
-      DRAW_PIXEL();
-      if (state.isSpatialCompressed && (compressedPixels[decompressedPixels] &
-                                        SPATIAL_DIFF_COLOR_LIMIT) != 0) {
+      u8 pixel = compressedPixels[decompressedPixels];
+      DRAW_PIXEL(pixel);
+      if (state.isSpatialCompressed &&
+          (pixel & SPATIAL_DIFF_COLOR_LIMIT) != 0) {
         // (repeated color)
         cursor++;
-        DRAW_PIXEL();
+        DRAW_PIXEL(pixel);
       }
 
       decompressedPixels++;
