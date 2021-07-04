@@ -32,7 +32,7 @@ typedef struct {
 } State;
 
 SPISlave* spiSlave = new SPISlave();
-u8 compressedPixels[TOTAL_PIXELS];
+DATA_EWRAM u8 compressedPixels[TOTAL_PIXELS];
 
 // ---------
 // BENCHMARK
