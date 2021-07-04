@@ -33,7 +33,6 @@ typedef struct {
 
 SPISlave* spiSlave = new SPISlave();
 u8 compressedPixels[TOTAL_PIXELS];
-// DATA_EWRAM u8 frameBuffer[TOTAL_SCREEN_PIXELS]; // TODO: REMOVE
 
 // ---------
 // BENCHMARK
@@ -152,15 +151,15 @@ inline void render(State& state) {
              : PIXEL);
 
   u32 decompressedPixels = 0;
-  // bool wasVBlank = IS_VBLANK; // TODO: RECOVER
+  bool wasVBlank = IS_VBLANK;
 
   u32 cursor = 0;
   while (cursor < TOTAL_PIXELS) {
-    // if (!wasVBlank && IS_VBLANK) {
-    //   wasVBlank = true;
-    //   driveAudio(state);
-    // } else if (wasVBlank && !IS_VBLANK)
-    //   wasVBlank = false;
+    if (!wasVBlank && IS_VBLANK) {
+      wasVBlank = true;
+      driveAudio(state);
+    } else if (wasVBlank && !IS_VBLANK)
+      wasVBlank = false;
 
     u32 temporalByte = cursor / 8;
     u32 temporalBit = cursor % 8;
@@ -182,7 +181,7 @@ inline void render(State& state) {
       }
     }
 
-    if ((temporalDiff >> temporalBit) & 1) {
+    if (BIT_IS_HIGH(temporalDiff, temporalBit)) {
       // (a pixel changed)
 
       u8 pixel = compressedPixels[decompressedPixels];

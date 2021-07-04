@@ -3,7 +3,6 @@
 
 #include <tonc.h>
 
-#include "GPIO.h"
 #include "Utils.h"
 
 #define SPI_BIT_CLOCK 0
@@ -61,10 +60,6 @@ class SPISlave {
     //  This doesn't make any sense, but it somehow fixes a ~random~ CPU crash
     //  when using DMA1 for audio and SPI transfers. Source: experimentation.
     // )
-
-    GPIO_enable();
-    GPIO_setMode(SPI_BUSY_FLAG, PinDirection::OUTPUT);
-    GPIO_setData(SPI_BUSY_FLAG, true);
   }
 
  private:

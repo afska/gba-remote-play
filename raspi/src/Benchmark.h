@@ -13,8 +13,7 @@ auto config = new Config(CONFIG_FILENAME);
 auto spiMaster = new SPIMaster(SPI_MODE,
                                config->spiSlowFrequency,
                                config->spiFastFrequency,
-                               config->spiDelayMicroseconds,
-                               config->gpioBusyFlagPin);
+                               config->spiDelayMicroseconds);
 uint32_t goodPackets = 0;
 uint32_t badPackets = 0;
 uint32_t vblanks = 0;

@@ -11,7 +11,6 @@ class Config {
   uint32_t spiSlowFrequency = 0;
   uint32_t spiFastFrequency = 0;
   uint32_t spiDelayMicroseconds = 0;
-  uint32_t gpioBusyFlagPin = 0;
   std::string virtualGamepadName = "";
 
   Config(std::string fileName) {
@@ -21,7 +20,7 @@ class Config {
     parse(data);
 
     if (!spiSlowFrequency || !spiFastFrequency || !spiDelayMicroseconds ||
-        !gpioBusyFlagPin || virtualGamepadName == "") {
+        virtualGamepadName == "") {
       std::cout << "Error (Config): invalid configuration, check " + fileName +
                        "\n";
       exit(1);
@@ -46,8 +45,6 @@ class Config {
         spiFastFrequency = std::stoi(value);
       else if (key == "SPI_DELAY_MICROSECONDS")
         spiDelayMicroseconds = std::stoi(value);
-      else if (key == "GPIO_BUSY_FLAG_PIN")
-        gpioBusyFlagPin = std::stoi(value);
       else if (key == "VIRTUAL_GAMEPAD_NAME")
         virtualGamepadName = value;
     }

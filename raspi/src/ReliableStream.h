@@ -62,16 +62,9 @@ class ReliableStream {
                   uint32_t* index,
                   uint32_t totalPackets,
                   uint32_t syncCommand) {
-    if (*index % TRANSFER_SYNC_PERIOD == 0 || *index == totalPackets - 1) {
-      return reliablySend(packet, index, totalPackets, syncCommand);
-    } else {
-      if (spiMaster->send(packet))
-        (*index)++;
-      else
-        ;  // TODO: REMOVE TRANSFER_SYNC_PERIOD AND FORCE RECOVERY MODE
-
-      return true;
-    }
+    return *index % TRANSFER_SYNC_PERIOD == 0 || *index == totalPackets - 1
+               ? reliablySend(packet, index, totalPackets, syncCommand)
+               : unreliablySend(packet, index);
   }
 
   bool reliablySend(uint32_t packet,
@@ -110,6 +103,13 @@ class ReliableStream {
       // (probably garbage => ignore)
       return true;
     }
+  }
+
+  bool unreliablySend(uint32_t packet, uint32_t* index) {
+    spiMaster->send(packet);
+    (*index)++;
+
+    return true;
   }
 
   void logReset(std::string title, uint32_t sent, uint32_t expected) {

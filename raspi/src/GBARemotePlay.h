@@ -21,9 +21,9 @@ class GBARemotePlay {
  public:
   GBARemotePlay() {
     config = new Config(CONFIG_FILENAME);
-    spiMaster = new SPIMaster(
-        SPI_MODE, config->spiSlowFrequency, config->spiFastFrequency,
-        config->spiDelayMicroseconds, config->gpioBusyFlagPin);
+    spiMaster =
+        new SPIMaster(SPI_MODE, config->spiSlowFrequency,
+                      config->spiFastFrequency, config->spiDelayMicroseconds);
     reliableStream = new ReliableStream(spiMaster);
     frameBuffer = new FrameBuffer(DRAW_WIDTH, DRAW_HEIGHT);
     loopbackAudio = new LoopbackAudio();
