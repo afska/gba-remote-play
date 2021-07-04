@@ -11,7 +11,7 @@ extern "C" {
 #include "gsmplayer/player.h"
 }
 
-#define VBLANK_TRACKER (*((u8*)MEM_IWRAM + 31000))
+#define VBLANK_TRACKER (pal_obj_mem[0])
 #define TRY(ACTION) \
   if (!(ACTION))    \
     goto reset;
