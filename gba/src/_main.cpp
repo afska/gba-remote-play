@@ -11,6 +11,7 @@ extern "C" {
 #include "gsmplayer/player.h"
 }
 
+#define DRAW_PIXEL(PIXEL) m4Draw(y(cursor) * DRAW_WIDTH + x(cursor), PIXEL);
 #define VBLANK_TRACKER (pal_obj_mem[0])
 #define TRY(ACTION) \
   if (!(ACTION))    \
@@ -21,12 +22,11 @@ extern "C" {
 // -----
 
 typedef struct {
-  u8 temporalDiffs[TEMPORAL_DIFF_SIZE];
-  u8 paletteIndexByCompressedIndex[SPATIAL_DIFF_COLOR_LIMIT];
+  u8 temporalDiffs[DIFF_SIZE];
+  u8 spatialDiffs[DIFF_SIZE];
   u8 audioChunks[AUDIO_PADDED_SIZE];
   u32 expectedPackets;
   u32 startPixel;
-  bool isSpatialCompressed;
   bool hasAudio;
   bool isAudioReady;
 } State;
@@ -114,16 +114,15 @@ inline bool sendKeysAndReceiveMetadata(State& state) {
 
   state.expectedPackets = (metadata >> PACKS_BIT_OFFSET) & PACKS_BIT_MASK;
   state.startPixel = metadata & START_BIT_MASK;
-  state.isSpatialCompressed = (metadata & COMPR_BIT_MASK) != 0;
   state.hasAudio = (metadata & AUDIO_BIT_MASK) != 0;
 
-  for (u32 i = (state.startPixel / 8) / 4; i < TEMPORAL_DIFF_SIZE / PACKET_SIZE;
-       i++)
+  u32 diffsStart = (state.startPixel / 8) / PACKET_SIZE;
+
+  for (u32 i = diffsStart; i < DIFF_SIZE / PACKET_SIZE; i++)
     ((u32*)state.temporalDiffs)[i] = transfer(state, i);
 
-  if (state.isSpatialCompressed)
-    for (u32 i = 0; i < SPATIAL_DIFF_COLOR_LIMIT / PACKET_SIZE; i++)
-      ((u32*)state.paletteIndexByCompressedIndex)[i] = transfer(state, i);
+  for (u32 i = diffsStart; i < DIFF_SIZE / PACKET_SIZE; i++)
+    ((u32*)state.spatialDiffs)[i] = transfer(state, i);
 
   return true;
 }
@@ -145,13 +144,6 @@ inline bool receivePixels(State& state) {
 }
 
 inline void render(State& state) {
-#define DRAW_PIXEL(PIXEL)                                                     \
-  m4Draw(y(cursor) * DRAW_WIDTH + x(cursor),                                  \
-         state.isSpatialCompressed                                            \
-             ? state.paletteIndexByCompressedIndex[PIXEL &                    \
-                                                   ~SPATIAL_DIFF_COLOR_LIMIT] \
-             : PIXEL);
-
   u32 decompressedPixels = 0;
   bool wasVBlank = IS_VBLANK;
 
@@ -163,16 +155,16 @@ inline void render(State& state) {
     } else if (wasVBlank && !IS_VBLANK)
       wasVBlank = false;
 
-    u32 temporalByte = cursor / 8;
-    u32 temporalBit = cursor % 8;
-    u32 temporalDiff = state.temporalDiffs[temporalByte];
+    u32 diffByte = cursor / 8;
+    u32 diffBit = cursor % 8;
+    u32 temporalDiff = state.temporalDiffs[diffByte];
 
-    if (temporalBit == 0) {
-      if (((u32*)state.temporalDiffs)[temporalByte / 4] == 0) {
+    if (diffBit == 0) {
+      if (((u32*)state.temporalDiffs)[diffByte / 4] == 0) {
         // (no changes in the next 32 pixels)
         cursor += 32;
         continue;
-      } else if (((u16*)state.temporalDiffs)[temporalByte / 2] == 0) {
+      } else if (((u16*)state.temporalDiffs)[diffByte / 2] == 0) {
         // (no changes in the next 16 pixels)
         cursor += 16;
         continue;
@@ -183,14 +175,14 @@ inline void render(State& state) {
       }
     }
 
-    if (BIT_IS_HIGH(temporalDiff, temporalBit)) {
+    if (BIT_IS_HIGH(temporalDiff, diffBit)) {
       // (a pixel changed)
 
       u8 pixel = compressedPixels[decompressedPixels];
       DRAW_PIXEL(pixel);
 
-      if (state.isSpatialCompressed &&
-          (pixel & SPATIAL_DIFF_COLOR_LIMIT) != 0) {
+      u32 spatialDiff = state.spatialDiffs[diffByte];
+      if (BIT_IS_HIGH(spatialDiff, diffBit)) {
         // (repeated color)
         cursor++;
         DRAW_PIXEL(pixel);
