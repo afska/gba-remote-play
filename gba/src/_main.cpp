@@ -108,17 +108,17 @@ reset:
 
 inline bool sendKeysAndReceiveMetadata(State& state) {
   u16 keys = pressedKeys();
-  u32 expectedPackets = spiSlave->transfer(keys);
-  if (spiSlave->transfer(expectedPackets) != keys)
+  u32 metadata = spiSlave->transfer(keys);
+  if (spiSlave->transfer(metadata) != keys)
     return false;
 
-  state.expectedPackets =
-      (expectedPackets >> PACKS_BIT_OFFSET) & PACKS_BIT_MASK;
-  state.startPixel = expectedPackets & START_BIT_MASK;
-  state.isSpatialCompressed = (expectedPackets & COMPR_BIT_MASK) != 0;
-  state.hasAudio = (expectedPackets & AUDIO_BIT_MASK) != 0;
+  state.expectedPackets = (metadata >> PACKS_BIT_OFFSET) & PACKS_BIT_MASK;
+  state.startPixel = metadata & START_BIT_MASK;
+  state.isSpatialCompressed = (metadata & COMPR_BIT_MASK) != 0;
+  state.hasAudio = (metadata & AUDIO_BIT_MASK) != 0;
 
-  for (u32 i = 0; i < TEMPORAL_DIFF_SIZE / PACKET_SIZE; i++)
+  for (u32 i = (state.startPixel / 8) / 4; i < TEMPORAL_DIFF_SIZE / PACKET_SIZE;
+       i++)
     ((u32*)state.temporalDiffs)[i] = transfer(state, i);
 
   if (state.isSpatialCompressed)

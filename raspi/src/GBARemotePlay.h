@@ -178,22 +178,21 @@ class GBARemotePlay {
 
   bool receiveKeysAndSendMetadata(Frame& frame, ImageDiffBitArray& diffs) {
   again:
-    uint32_t expectedPackets =
-        diffs.startPixel |
-        ((diffs.compressedPixels / PIXELS_PER_PACKET +
-          diffs.compressedPixels % PIXELS_PER_PACKET)
-         << PACKS_BIT_OFFSET) |
-        (frame.hasAudio() ? AUDIO_BIT_MASK : 0) |
-        (diffs.isSpatialCompressed() ? COMPR_BIT_MASK : 0);
-    uint32_t keys = spiMaster->exchange(expectedPackets);
+    uint32_t metadata = diffs.startPixel |
+                        ((diffs.compressedPixels / PIXELS_PER_PACKET +
+                          diffs.compressedPixels % PIXELS_PER_PACKET)
+                         << PACKS_BIT_OFFSET) |
+                        (frame.hasAudio() ? AUDIO_BIT_MASK : 0) |
+                        (diffs.isSpatialCompressed() ? COMPR_BIT_MASK : 0);
+    uint32_t keys = spiMaster->exchange(metadata);
     if (reliableStream->finishSyncIfNeeded(keys, CMD_FRAME_START))
       goto again;
-    if (spiMaster->exchange(keys) != expectedPackets)
+    if (spiMaster->exchange(keys) != metadata)
       return false;
     processKeys(keys);
 
     if (!reliableStream->send(diffs.temporal, TEMPORAL_DIFF_SIZE / PACKET_SIZE,
-                              CMD_FRAME_START))
+                              CMD_FRAME_START, (diffs.startPixel / 8) / 4))
       return false;
 
     if (diffs.isSpatialCompressed())
