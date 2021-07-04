@@ -11,7 +11,6 @@ extern "C" {
 #include "gsmplayer/player.h"
 }
 
-#define VBLANK_TRACKER (pal_obj_mem[0])
 #define TRY(ACTION) \
   if (!(ACTION))    \
     goto reset;
@@ -57,7 +56,6 @@ bool sendKeysAndReceiveMetadata(State& state);
 bool receiveAudio(State& state);
 bool receivePixels(State& state);
 void render(State& state);
-bool isNewVBlank();
 void driveAudio(State& state);
 u32 transfer(State& state, u32 packetToSend, bool withRecovery = true);
 bool sync(State& state, u32 command);
@@ -198,18 +196,6 @@ inline void render(State& state) {
   }
 }
 
-inline bool isNewVBlank() {
-  return false;  // TODO: RECOVER
-
-  if (!VBLANK_TRACKER && IS_VBLANK) {
-    VBLANK_TRACKER = true;
-    return true;
-  } else if (VBLANK_TRACKER && !IS_VBLANK)
-    VBLANK_TRACKER = false;
-
-  return false;
-}
-
 CODE_IWRAM void driveAudio(State& state) {
   if (player_needsData() && state.isAudioReady) {
     player_play((const unsigned char*)state.audioChunks, AUDIO_CHUNK_SIZE);
@@ -223,8 +209,7 @@ CODE_IWRAM void driveAudio(State& state) {
 
 inline u32 transfer(State& state, u32 packetToSend, bool withRecovery) {
   bool breakFlag = false;
-  u32 receivedPacket =
-      spiSlave->transfer(packetToSend, isNewVBlank, &breakFlag);
+  u32 receivedPacket = spiSlave->transfer(packetToSend, true, &breakFlag);
 
   if (breakFlag) {
     driveAudio(state);
@@ -246,8 +231,7 @@ inline bool sync(State& state, u32 command) {
 
   while (true) {
     bool breakFlag = false;
-    bool isOnSync =
-        spiSlave->transfer(local, isNewVBlank, &breakFlag) == remote;
+    bool isOnSync = spiSlave->transfer(local, true, &breakFlag) == remote;
 
     if (breakFlag) {
       driveAudio(state);

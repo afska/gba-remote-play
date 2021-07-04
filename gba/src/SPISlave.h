@@ -4,6 +4,7 @@
 #include <tonc.h>
 
 #include "GPIO.h"
+#include "Utils.h"
 
 #define SPI_BIT_CLOCK 0
 #define SPI_BIT_SI 2
@@ -26,19 +27,17 @@ class SPISlave {
     disableTransfer();
   }
 
-  u32 transfer(u32 value) {
-    return transfer(
-        value, []() { return false; }, NULL);
-  }
+  u32 transfer(u32 value) { return transfer(value, false, NULL); }
 
-  template <typename F>
-  u32 transfer(u32 value, F needsBreak, bool* breakFlag) {
+  u32 transfer(u32 value, bool breakOnVBlank, bool* breakFlag) {
     setData(value);
     enableTransfer();
     startTransfer();
 
+    bool wasVBlank = IS_VBLANK;
+
     while (!isReady()) {
-      if (needsBreak()) {
+      if (breakOnVBlank && !wasVBlank && IS_VBLANK) {
         setData(0xffffffff);
         disableTransfer();
         *breakFlag = true;
