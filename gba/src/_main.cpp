@@ -25,7 +25,7 @@ typedef struct {
   u8 temporalDiffs[TEMPORAL_DIFF_SIZE];
   u8 paletteIndexByCompressedIndex[SPATIAL_DIFF_COLOR_LIMIT];
   u8 audioChunks[AUDIO_PADDED_SIZE];
-  u32 iDiff, iPixel, pDiff, pPixel, pixelCount;
+  u32 iDiff, iPixel, pixelCount;
   u32 decompressCursor, diffCursor, pixelCursor;
   u32 currentJump;
   bool isSpatialCompressed;
@@ -65,6 +65,7 @@ bool processMetadata(State& state);
 bool processPixels(State& state);
 bool isNewVBlank();
 void driveAudio(State& state);
+u32 transfer(State& state, u32 packetToSend, bool withRecovery = true);
 bool sync(State& state, u32 command);
 u32 x(u32 cursor);
 u32 y(u32 cursor);
@@ -72,28 +73,6 @@ u32 y(u32 cursor);
 // -----------
 // DEFINITIONS
 // -----------
-
-template <typename F>
-inline u32 transfer(State& state,
-                    u32 packetToSend,
-                    F doWhenIdle,
-                    bool withRecovery = true) {
-  bool breakFlag = false;
-  u32 receivedPacket =
-      spiSlave->transfer(packetToSend, isNewVBlank, &breakFlag, doWhenIdle);
-
-  if (breakFlag) {
-    driveAudio(state);
-
-    if (withRecovery) {
-      sync(state, CMD_RECOVERY);
-      spiSlave->transfer(packetToSend);
-      receivedPacket = spiSlave->transfer(packetToSend);
-    }
-  }
-
-  return receivedPacket;
-}
 
 #ifndef BENCHMARK
 int main() {
@@ -117,26 +96,27 @@ CODE_IWRAM void mainLoop() {
   state.isAudioReady = false;
 
 reset:
-  transfer(
-      state, CMD_RESET, []() {}, false);
+  transfer(state, CMD_RESET, false);
 
   while (true) {
-    initProcessMetadata(state);
     TRY(sync(state, CMD_FRAME_START))
     TRY(sendKeysAndReceiveMetadata(state))
     if (state.hasAudio) {
       TRY(sync(state, CMD_AUDIO))
       TRY(receiveAudio(state))
     }
-    while (!processMetadata(state))
-      ;
-    initProcessPixels(state);
     TRY(sync(state, CMD_PIXELS))
     TRY(receivePixels(state))
-    if (state.expectedPackets > 0)
+    TRY(sync(state, CMD_FRAME_END))
+
+    if (state.expectedPackets > 0) {
+      initProcessMetadata(state);
+      while (!processMetadata(state))
+        ;
+      initProcessPixels(state);
       while (!processPixels(state))
         ;
-    TRY(sync(state, CMD_FRAME_END))
+    }
   }
 }
 
@@ -150,23 +130,19 @@ inline bool sendKeysAndReceiveMetadata(State& state) {
   state.isSpatialCompressed = (expectedPackets & COMPR_BIT_MASK) != 0;
   state.hasAudio = (expectedPackets & AUDIO_BIT_MASK) != 0;
 
-  for (state.pDiff = 0; state.pDiff < TEMPORAL_DIFF_SIZE / PACKET_SIZE;
-       state.pDiff++)
-    ((u32*)state.temporalDiffs)[state.pDiff] =
-        transfer(state, state.pDiff, [&state]() { processMetadata(state); });
+  for (u32 i = 0; i < TEMPORAL_DIFF_SIZE / PACKET_SIZE; i++)
+    ((u32*)state.temporalDiffs)[i] = transfer(state, i);
 
   if (state.isSpatialCompressed)
     for (u32 i = 0; i < SPATIAL_DIFF_COLOR_LIMIT / PACKET_SIZE; i++)
-      ((u32*)state.paletteIndexByCompressedIndex)[i] =
-          transfer(state, i, [&state]() { processMetadata(state); });
+      ((u32*)state.paletteIndexByCompressedIndex)[i] = transfer(state, i);
 
   return true;
 }
 
 inline bool receiveAudio(State& state) {
   for (u32 i = 0; i < AUDIO_SIZE_PACKETS; i++)
-    ((u32*)state.audioChunks)[i] =
-        transfer(state, i, [&state]() { processMetadata(state); });
+    ((u32*)state.audioChunks)[i] = transfer(state, i);
 
   state.isAudioReady = true;
 
@@ -174,9 +150,8 @@ inline bool receiveAudio(State& state) {
 }
 
 inline bool receivePixels(State& state) {
-  for (state.pPixel = 0; state.pPixel < state.expectedPackets; state.pPixel++)
-    ((u32*)compressedPixels)[state.pPixel] =
-        transfer(state, state.pPixel, [&state]() { processPixels(state); });
+  for (u32 i = 0; i < state.expectedPackets; i++)
+    ((u32*)compressedPixels)[i] = transfer(state, i);
 
   return true;
 }
@@ -206,8 +181,6 @@ inline bool processMetadata(State& state) {
 
   if (state.iDiff >= TEMPORAL_DIFF_SIZE)
     return true;
-  else if (state.iDiff >= state.pDiff * PACKET_SIZE)
-    return false;
 
   u8 byte = state.temporalDiffs[state.iDiff];
 
@@ -237,8 +210,6 @@ inline bool processPixels(State& state) {
 
   if (HAS_FINISHED_PIXELS())
     return true;
-  else if (state.iPixel >= state.pPixel * PACKET_SIZE)
-    return false;
 
   u32 drawCursor, drawCursor32Bit;
 
@@ -292,6 +263,24 @@ CODE_IWRAM void driveAudio(State& state) {
   spiSlave->start();
 }
 
+inline u32 transfer(State& state, u32 packetToSend, bool withRecovery) {
+  bool breakFlag = false;
+  u32 receivedPacket =
+      spiSlave->transfer(packetToSend, isNewVBlank, &breakFlag);
+
+  if (breakFlag) {
+    driveAudio(state);
+
+    if (withRecovery) {
+      sync(state, CMD_RECOVERY);
+      spiSlave->transfer(packetToSend);
+      receivedPacket = spiSlave->transfer(packetToSend);
+    }
+  }
+
+  return receivedPacket;
+}
+
 inline bool sync(State& state, u32 command) {
   u32 local = command + CMD_GBA_OFFSET;
   u32 remote = command + CMD_RPI_OFFSET;
@@ -300,7 +289,7 @@ inline bool sync(State& state, u32 command) {
   while (true) {
     bool breakFlag = false;
     bool isOnSync =
-        spiSlave->transfer(local, isNewVBlank, &breakFlag, []() {}) == remote;
+        spiSlave->transfer(local, isNewVBlank, &breakFlag) == remote;
 
     if (breakFlag) {
       driveAudio(state);
