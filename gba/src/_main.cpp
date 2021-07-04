@@ -33,7 +33,7 @@ typedef struct {
 
 SPISlave* spiSlave = new SPISlave();
 u8 compressedPixels[TOTAL_PIXELS];
-DATA_EWRAM u8 frameBuffer[TOTAL_SCREEN_PIXELS];
+// DATA_EWRAM u8 frameBuffer[TOTAL_SCREEN_PIXELS]; // TODO: REMOVE
 
 // ---------
 // BENCHMARK
@@ -80,7 +80,7 @@ int main() {
 inline void init() {
   enableMode4AndBackground2();
   overclockEWRAM();
-  enableMosaic(DRAW_SCALE_X, DRAW_SCALE_Y);
+  // enableMosaic(DRAW_SCALE_X, DRAW_SCALE_Y); // TODO: RESTORE?
   dma3_cpy(pal_bg_mem, MAIN_PALETTE, sizeof(COLOR) * PALETTE_COLORS);
   player_init();
 }
@@ -145,14 +145,11 @@ inline bool receivePixels(State& state) {
 
 inline void render(State& state) {
 #define DRAW_PIXEL(PIXEL)                                                  \
-  u32 drawCursor = y(cursor) * DRAW_WIDTH + x(cursor);                     \
-  u32 drawCursor32Bit = drawCursor / 4;                                    \
-  frameBuffer[drawCursor] =                                                \
+  ((u8*)vid_mem_front)[y(cursor) * DRAW_WIDTH + x(cursor)] =               \
       state.isSpatialCompressed                                            \
           ? state.paletteIndexByCompressedIndex[PIXEL &                    \
                                                 ~SPATIAL_DIFF_COLOR_LIMIT] \
-          : PIXEL;                                                         \
-  ((u32*)vid_mem_front)[drawCursor32Bit] = ((u32*)frameBuffer)[drawCursor32Bit];
+          : PIXEL;
 
   u32 decompressedPixels = 0;
   // bool wasVBlank = IS_VBLANK; // TODO: RECOVER
