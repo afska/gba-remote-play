@@ -115,7 +115,6 @@ inline bool sendKeysAndReceiveMetadata(State& state) {
   state.hasAudio = (metadata & AUDIO_BIT_MASK) != 0;
 
   u32 diffsStart = (state.startPixel / 8) / PACKET_SIZE;
-
   for (u32 i = diffsStart; i < TEMPORAL_DIFF_SIZE / PACKET_SIZE; i++)
     ((u32*)state.temporalDiffs)[i] = transfer(state, i);
 

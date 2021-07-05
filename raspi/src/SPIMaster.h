@@ -21,19 +21,14 @@ class SPIMaster {
     this->delayMicroseconds = delayMicroseconds;
   }
 
-  bool send(uint32_t value) {
+  void send(uint32_t value) {
     bcm2835_spi_set_speed_hz(fastFrequency);
-
-    bool breakFlag = false;
-    transfer(value, &breakFlag);
-    return !breakFlag;
+    transfer(value);
   }
 
   uint32_t exchange(uint32_t value) {
     bcm2835_spi_set_speed_hz(slowFrequency);
-
-    bool breakFlag = false;
-    return transfer(value, &breakFlag);
+    return transfer(value);
   }
 
   ~SPIMaster() { bcm2835_spi_end(); }
@@ -55,7 +50,7 @@ class SPIMaster {
     }
   }
 
-  uint32_t transfer(uint32_t value, bool* breakFlag) {
+  uint32_t transfer(uint32_t value) {
     union {
       uint32_t u32;
       char uc[4];
