@@ -7,8 +7,7 @@
 
 typedef struct {
   uint32_t compressedPixels;
-  uint8_t temporal[DIFF_SIZE];
-  uint8_t spatial[DIFF_SIZE];
+  uint8_t temporal[TEMPORAL_DIFF_SIZE];
   uint32_t startPixel;
 
   void initialize(Frame currentFrame, Frame previousFrame) {
@@ -24,21 +23,13 @@ typedef struct {
         }
 
         setBit(temporal, i, true);
-        setBit(spatial, i,
-               i < TOTAL_PIXELS - 1 && currentFrame.raw8BitPixels[i + 1] ==
-                                           currentFrame.raw8BitPixels[i]);
-
         compressedPixels++;
-      } else {
+      } else
         setBit(temporal, i, false);
-        if (i > 0)
-          setBit(spatial, i - 1, false);
-      }
     }
   }
 
   bool hasPixelChanged(uint32_t pixelId) { return getBit(temporal, pixelId); }
-  bool isRepeatedColor(uint32_t pixelId) { return getBit(spatial, pixelId); }
 
  private:
   void setBit(uint8_t* bitarray, uint32_t n, bool value) {

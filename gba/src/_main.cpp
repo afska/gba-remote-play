@@ -21,8 +21,7 @@ extern "C" {
 // -----
 
 typedef struct {
-  u8 temporalDiffs[DIFF_SIZE];
-  u8 spatialDiffs[DIFF_SIZE];
+  u8 temporalDiffs[TEMPORAL_DIFF_SIZE];
   u8 audioChunks[AUDIO_PADDED_SIZE];
   u32 expectedPackets;
   u32 startPixel;
@@ -117,11 +116,8 @@ inline bool sendKeysAndReceiveMetadata(State& state) {
 
   u32 diffsStart = (state.startPixel / 8) / PACKET_SIZE;
 
-  for (u32 i = diffsStart; i < DIFF_SIZE / PACKET_SIZE; i++)
+  for (u32 i = diffsStart; i < TEMPORAL_DIFF_SIZE / PACKET_SIZE; i++)
     ((u32*)state.temporalDiffs)[i] = transfer(state, i);
-
-  // for (u32 i = diffsStart; i < DIFF_SIZE / PACKET_SIZE; i++)
-  //   ((u32*)state.spatialDiffs)[i] = transfer(state, i);
 
   return true;
 }
@@ -144,6 +140,16 @@ inline bool receivePixels(State& state) {
 
 inline void render(State& state) {
 #define DRAW_PIXEL(PIXEL) m4Draw(y(cursor) * DRAW_WIDTH + x(cursor), PIXEL);
+#define DRAW_NEXT()                                \
+  u8 pixel = compressedPixels[decompressedPixels]; \
+  DRAW_PIXEL(pixel);                               \
+  decompressedPixels++;                            \
+  cursor++;
+#define DRAW_BATCH(TIMES)                         \
+  u32 target = min(cursor + TIMES, TOTAL_PIXELS); \
+  while (cursor < target) {                       \
+    DRAW_NEXT()                                   \
+  }
 
   u32 decompressedPixels = 0;
   // bool wasVBlank = IS_VBLANK;
@@ -156,104 +162,45 @@ inline void render(State& state) {
     // } else if (wasVBlank && !IS_VBLANK)
     //   wasVBlank = false; // TODO: DO ONCE AT THE END
 
-    u32 diffByte = cursor / 8;
-    u32 diffBit = cursor % 8;
-    if (diffBit == 0) {
-      u32 diffWord, diffHalfWord, diff;
+    u32 diffCursor = cursor / 8;
+    u32 diffCursorBit = cursor % 8;
+    if (diffCursorBit == 0) {
+      u32 diffWord, diffHalfWord, diffByte;
 
-      if ((diffWord = ((u32*)state.temporalDiffs)[diffByte / 4]) == 0) {
-        // (no changes in the next 32 pixels)
+      if ((diffWord = ((u32*)state.temporalDiffs)[diffCursor / 4]) == 0) {
+        // (none of the next 32 pixels changed)
         cursor += 32;
         continue;
       } else if (diffWord == 0xffffffff) {
         // (all next 32 pixels changed)
-        u32 target = min(cursor + 32, TOTAL_PIXELS);
-        while (cursor < target) {
-          u8 pixel = compressedPixels[decompressedPixels];
-          DRAW_PIXEL(pixel);
-
-          // u32 diffByte = cursor / 8;
-          // u32 diffBit = cursor % 8;
-          // u8 spatialDiff = state.spatialDiffs[diffByte];
-          // if (BIT_IS_HIGH(spatialDiff, diffBit)) {
-          //   // (repeated color)
-          //   cursor++;
-          //   DRAW_PIXEL(pixel);
-          // }
-
-          decompressedPixels++;
-          cursor++;
-        }
+        DRAW_BATCH(32)
         continue;
-      } else if ((diffHalfWord = ((u16*)state.temporalDiffs)[diffByte / 2]) ==
+      } else if ((diffHalfWord = ((u16*)state.temporalDiffs)[diffCursor / 2]) ==
                  0) {
-        // (no changes in the next 16 pixels)
+        // (none of the next 16 pixels changed)
         cursor += 16;
         continue;
       } else if (diffHalfWord == 0xffff) {
         // (all next 16 pixels changed)
-        u32 target = min(cursor + 16, TOTAL_PIXELS);
-        while (cursor < target) {
-          u8 pixel = compressedPixels[decompressedPixels];
-          DRAW_PIXEL(pixel);
-
-          // u32 diffByte = cursor / 8;
-          // u32 diffBit = cursor % 8;
-          // u8 spatialDiff = state.spatialDiffs[diffByte];
-          // if (BIT_IS_HIGH(spatialDiff, diffBit)) {
-          //   // (repeated color)
-          //   cursor++;
-          //   DRAW_PIXEL(pixel);
-          // }
-
-          decompressedPixels++;
-          cursor++;
-        }
+        DRAW_BATCH(16)
         continue;
-      } else if ((diff = state.temporalDiffs[diffByte]) == 0) {
-        // (no changes in the next 8 pixels)
+      } else if ((diffByte = state.temporalDiffs[diffCursor]) == 0) {
+        // (none of the 8 pixels changed)
         cursor += 8;
         continue;
-      } else if (diff == 0xff) {
+      } else if (diffByte == 0xff) {
         // (all next 8 pixels changed)
-        u32 target = min(cursor + 8, TOTAL_PIXELS);
-        while (cursor < target) {
-          u8 pixel = compressedPixels[decompressedPixels];
-          DRAW_PIXEL(pixel);
-
-          // u32 diffByte = cursor / 8;
-          // u32 diffBit = cursor % 8;
-          // u8 spatialDiff = state.spatialDiffs[diffByte];
-          // if (BIT_IS_HIGH(spatialDiff, diffBit)) {
-          //   // (repeated color)
-          //   cursor++;
-          //   DRAW_PIXEL(pixel);
-          // }
-
-          decompressedPixels++;
-          cursor++;
-        }
+        DRAW_BATCH(8)
         continue;
       }
     }
 
-    u8 temporalDiff = state.temporalDiffs[diffByte];
-    if (BIT_IS_HIGH(temporalDiff, diffBit)) {
+    u8 diffByte = state.temporalDiffs[diffCursor];
+    if (BIT_IS_HIGH(diffByte, diffCursorBit)) {
       // (a pixel changed)
-      u8 pixel = compressedPixels[decompressedPixels];
-      DRAW_PIXEL(pixel);
-
-      // u8 spatialDiff = state.spatialDiffs[diffByte];
-      // if (BIT_IS_HIGH(spatialDiff, diffBit)) {
-      //   // (repeated color)
-      //   cursor++;
-      //   DRAW_PIXEL(pixel);
-      // }
-
-      decompressedPixels++;
-    }
-
-    cursor++;
+      DRAW_NEXT()
+    } else
+      cursor++;
   }
 }
 

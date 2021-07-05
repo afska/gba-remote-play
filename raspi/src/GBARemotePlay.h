@@ -191,10 +191,8 @@ class GBARemotePlay {
     processKeys(keys);
 
     uint32_t diffsStart = (diffs.startPixel / 8) / PACKET_SIZE;
-
-    return reliableStream->send(diffs.temporal, DIFF_SIZE / PACKET_SIZE,
-                                CMD_FRAME_START, diffsStart) &&
-           reliableStream->send(diffs.spatial, DIFF_SIZE / PACKET_SIZE,
+    return reliableStream->send(diffs.temporal,
+                                TEMPORAL_DIFF_SIZE / PACKET_SIZE,
                                 CMD_FRAME_START, diffsStart);
   }
 
@@ -222,17 +220,9 @@ class GBARemotePlay {
                       uint32_t* totalPackets) {
     uint32_t currentPacket = 0;
     uint8_t byte = 0;
-    bool isRepeating = false;
 
     for (int i = 0; i < frame.totalPixels; i++) {
       if (diffs.hasPixelChanged(i)) {
-        if (isRepeating) {
-          isRepeating = false;
-          continue;
-        }
-        if (diffs.isRepeatedColor(i))
-          isRepeating = true;
-
         uint8_t pixel = frame.raw8BitPixels[i];
         currentPacket |= pixel << (byte * 8);
         byte++;
