@@ -130,7 +130,6 @@ inline bool receivePixels() {
 }
 
 inline void render() {
-  bool wasVBlank = IS_VBLANK;
   u32 decompressedPixels = 0;
   u32 cursor = state.startPixel;
 
