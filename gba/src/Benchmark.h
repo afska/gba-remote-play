@@ -1,11 +1,9 @@
 #include "BuildConfig.h"
-#include "SPISlave.h"
-#include "Utils.h"
 
 #ifdef BENCHMARK
 
-#include <tonc.h>
-#include <string>
+#include "SPISlave.h"
+#include "Utils.h"
 
 namespace Benchmark {
 
