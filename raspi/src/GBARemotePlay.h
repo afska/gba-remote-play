@@ -182,6 +182,7 @@ class GBARemotePlay {
                         ((diffs.compressedPixels / PIXELS_PER_PACKET +
                           diffs.compressedPixels % PIXELS_PER_PACKET)
                          << PACKS_BIT_OFFSET) |
+                        (diffs.isSpatialCompressed() ? COMPR_BIT_MASK : 0) |
                         (frame.hasAudio() ? AUDIO_BIT_MASK : 0);
     uint32_t keys = spiMaster->exchange(metadata);
     if (reliableStream->finishSyncIfNeeded(keys, CMD_FRAME_START))
@@ -191,11 +192,16 @@ class GBARemotePlay {
     processKeys(keys);
 
     uint32_t diffsStart = (diffs.startPixel / 8) / PACKET_SIZE;
+    if (!reliableStream->send(diffs.temporal, TEMPORAL_DIFF_SIZE / PACKET_SIZE,
+                              CMD_FRAME_START, diffsStart))
+      return false;
 
-    return reliableStream->send(diffs.temporal, DIFF_SIZE / PACKET_SIZE,
-                                CMD_FRAME_START, diffsStart) &&
-           reliableStream->send(diffs.spatial, DIFF_SIZE / PACKET_SIZE,
-                                CMD_FRAME_START, diffsStart);
+    if (diffs.isSpatialCompressed())
+      return reliableStream->send(diffs.paletteIndexByCompressedIndex,
+                                  SPATIAL_DIFF_COLOR_LIMIT / PACKET_SIZE,
+                                  CMD_FRAME_START);
+
+    return true;
   }
 
   bool sendAudio(Frame& frame) {
@@ -230,11 +236,16 @@ class GBARemotePlay {
           isRepeating = false;
           continue;
         }
-        if (diffs.isRepeatedColor(i))
+        if (diffs.isRepeatedColor(frame, i))
           isRepeating = true;
 
-        uint8_t pixel = frame.raw8BitPixels[i];
-        currentPacket |= pixel << (byte * 8);
+        uint8_t currentByte =
+            diffs.isSpatialCompressed()
+                ? diffs.compressedIndexByPaletteIndex[frame.raw8BitPixels[i]] |
+                      (isRepeating ? SPATIAL_DIFF_COLOR_LIMIT : 0)
+                : frame.raw8BitPixels[i];
+
+        currentPacket |= currentByte << (byte * 8);
         byte++;
         if (byte == PACKET_SIZE) {
           packets[*totalPackets] = currentPacket;
