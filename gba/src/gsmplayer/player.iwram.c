@@ -23,7 +23,8 @@ inline void player_stop() {
 }
 
 inline bool player_needsData() {
-  return src_pos >= src_end;
+  return src_pos == NULL ||
+         ((int)src_pos) >= ((int)src_end) - (sizeof(gsm_frame));
 }
 
 inline void player_run() {
