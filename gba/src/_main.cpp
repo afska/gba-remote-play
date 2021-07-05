@@ -11,7 +11,6 @@ extern "C" {
 #include "gsmplayer/player.h"
 }
 
-#define DRAW_PIXEL(PIXEL) m4Draw(y(cursor) * DRAW_WIDTH + x(cursor), PIXEL);
 #define VBLANK_TRACKER (pal_obj_mem[0])
 #define TRY(ACTION) \
   if (!(ACTION))    \
@@ -121,8 +120,8 @@ inline bool sendKeysAndReceiveMetadata(State& state) {
   for (u32 i = diffsStart; i < DIFF_SIZE / PACKET_SIZE; i++)
     ((u32*)state.temporalDiffs)[i] = transfer(state, i);
 
-  for (u32 i = diffsStart; i < DIFF_SIZE / PACKET_SIZE; i++)
-    ((u32*)state.spatialDiffs)[i] = transfer(state, i);
+  // for (u32 i = diffsStart; i < DIFF_SIZE / PACKET_SIZE; i++)
+  //   ((u32*)state.spatialDiffs)[i] = transfer(state, i);
 
   return true;
 }
@@ -144,49 +143,112 @@ inline bool receivePixels(State& state) {
 }
 
 inline void render(State& state) {
+#define DRAW_PIXEL(PIXEL) m4Draw(y(cursor) * DRAW_WIDTH + x(cursor), PIXEL);
+
   u32 decompressedPixels = 0;
-  bool wasVBlank = IS_VBLANK;
+  // bool wasVBlank = IS_VBLANK;
 
   u32 cursor = state.startPixel;
   while (cursor < TOTAL_PIXELS) {
-    if (!wasVBlank && IS_VBLANK) {
-      wasVBlank = true;
-      driveAudio(state);
-    } else if (wasVBlank && !IS_VBLANK)
-      wasVBlank = false;
+    // if (!wasVBlank && IS_VBLANK) {
+    //   wasVBlank = true;
+    //   driveAudio(state);
+    // } else if (wasVBlank && !IS_VBLANK)
+    //   wasVBlank = false; // TODO: DO ONCE AT THE END
 
     u32 diffByte = cursor / 8;
     u32 diffBit = cursor % 8;
-    u32 temporalDiff = state.temporalDiffs[diffByte];
-
     if (diffBit == 0) {
-      if (((u32*)state.temporalDiffs)[diffByte / 4] == 0) {
+      u32 diffWord, diffHalfWord, diff;
+
+      if ((diffWord = ((u32*)state.temporalDiffs)[diffByte / 4]) == 0) {
         // (no changes in the next 32 pixels)
         cursor += 32;
         continue;
-      } else if (((u16*)state.temporalDiffs)[diffByte / 2] == 0) {
+      } else if (diffWord == 0xffffffff) {
+        // (all next 32 pixels changed)
+        u32 target = min(cursor + 32, TOTAL_PIXELS);
+        while (cursor < target) {
+          u8 pixel = compressedPixels[decompressedPixels];
+          DRAW_PIXEL(pixel);
+
+          // u32 diffByte = cursor / 8;
+          // u32 diffBit = cursor % 8;
+          // u8 spatialDiff = state.spatialDiffs[diffByte];
+          // if (BIT_IS_HIGH(spatialDiff, diffBit)) {
+          //   // (repeated color)
+          //   cursor++;
+          //   DRAW_PIXEL(pixel);
+          // }
+
+          decompressedPixels++;
+          cursor++;
+        }
+        continue;
+      } else if ((diffHalfWord = ((u16*)state.temporalDiffs)[diffByte / 2]) ==
+                 0) {
         // (no changes in the next 16 pixels)
         cursor += 16;
         continue;
-      } else if (temporalDiff == 0) {
+      } else if (diffHalfWord == 0xffff) {
+        // (all next 16 pixels changed)
+        u32 target = min(cursor + 16, TOTAL_PIXELS);
+        while (cursor < target) {
+          u8 pixel = compressedPixels[decompressedPixels];
+          DRAW_PIXEL(pixel);
+
+          // u32 diffByte = cursor / 8;
+          // u32 diffBit = cursor % 8;
+          // u8 spatialDiff = state.spatialDiffs[diffByte];
+          // if (BIT_IS_HIGH(spatialDiff, diffBit)) {
+          //   // (repeated color)
+          //   cursor++;
+          //   DRAW_PIXEL(pixel);
+          // }
+
+          decompressedPixels++;
+          cursor++;
+        }
+        continue;
+      } else if ((diff = state.temporalDiffs[diffByte]) == 0) {
         // (no changes in the next 8 pixels)
         cursor += 8;
+        continue;
+      } else if (diff == 0xff) {
+        // (all next 8 pixels changed)
+        u32 target = min(cursor + 8, TOTAL_PIXELS);
+        while (cursor < target) {
+          u8 pixel = compressedPixels[decompressedPixels];
+          DRAW_PIXEL(pixel);
+
+          // u32 diffByte = cursor / 8;
+          // u32 diffBit = cursor % 8;
+          // u8 spatialDiff = state.spatialDiffs[diffByte];
+          // if (BIT_IS_HIGH(spatialDiff, diffBit)) {
+          //   // (repeated color)
+          //   cursor++;
+          //   DRAW_PIXEL(pixel);
+          // }
+
+          decompressedPixels++;
+          cursor++;
+        }
         continue;
       }
     }
 
+    u8 temporalDiff = state.temporalDiffs[diffByte];
     if (BIT_IS_HIGH(temporalDiff, diffBit)) {
       // (a pixel changed)
-
       u8 pixel = compressedPixels[decompressedPixels];
       DRAW_PIXEL(pixel);
 
-      u32 spatialDiff = state.spatialDiffs[diffByte];
-      if (BIT_IS_HIGH(spatialDiff, diffBit)) {
-        // (repeated color)
-        cursor++;
-        DRAW_PIXEL(pixel);
-      }
+      // u8 spatialDiff = state.spatialDiffs[diffByte];
+      // if (BIT_IS_HIGH(spatialDiff, diffBit)) {
+      //   // (repeated color)
+      //   cursor++;
+      //   DRAW_PIXEL(pixel);
+      // }
 
       decompressedPixels++;
     }
@@ -196,6 +258,8 @@ inline void render(State& state) {
 }
 
 inline bool isNewVBlank() {
+  return false;
+
   if (!VBLANK_TRACKER && IS_VBLANK) {
     VBLANK_TRACKER = true;
     return true;
@@ -269,3 +333,4 @@ inline u32 x(u32 cursor) {
 inline u32 y(u32 cursor) {
   return (cursor / RENDER_WIDTH) * DRAW_SCALE_Y;
 }
+// TODO: FRACUMUL
