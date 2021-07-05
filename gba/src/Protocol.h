@@ -28,9 +28,9 @@
 #define PACKET_SIZE 4
 #define COLOR_SIZE 2
 #define PIXEL_SIZE 1
-#define AUDIO_CHUNK_SIZE 528    // (sizeof(gsm_frame) * 16)
-#define AUDIO_CHUNK_PADDING 0   // (so every chunk it's exactly 132 packets)
-#define AUDIO_SIZE_PACKETS 132  // -----------------------------^^^
+#define AUDIO_CHUNK_SIZE 132   // (sizeof(gsm_frame) * 4)
+#define AUDIO_CHUNK_PADDING 0  // (so every chunk it's exactly 33 packets)
+#define AUDIO_SIZE_PACKETS 33  // -----------------------------^^
 #define SPI_MODE 3
 #define TRANSFER_SYNC_PERIOD 32
 #define COLORS_PER_PACKET (PACKET_SIZE / COLOR_SIZE)
