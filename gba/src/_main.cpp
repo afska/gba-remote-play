@@ -138,6 +138,17 @@ inline bool receivePixels(State& state) {
 }
 
 inline void render(State& state) {
+  bool wasVBlank = IS_VBLANK;
+  u32 decompressedPixels = 0;
+  u32 cursor = state.startPixel;
+
+#define DRIVE_AUDIO_IF_NEEDED()         \
+  if (!wasVBlank && IS_VBLANK) {        \
+    wasVBlank = true;                   \
+    driveAudio(state);                  \
+  } else if (wasVBlank && !IS_VBLANK) { \
+    wasVBlank = false;                  \
+  }
 #define DRAW_PIXEL(PIXEL) m4Draw(y(cursor) * DRAW_WIDTH + x(cursor), PIXEL);
 #define DRAW_NEXT()                                \
   u8 pixel = compressedPixels[decompressedPixels]; \
@@ -147,19 +158,12 @@ inline void render(State& state) {
 #define DRAW_BATCH(TIMES)                         \
   u32 target = min(cursor + TIMES, TOTAL_PIXELS); \
   while (cursor < target) {                       \
+    DRIVE_AUDIO_IF_NEEDED()                       \
     DRAW_NEXT()                                   \
   }
 
-  u32 decompressedPixels = 0;
-  // bool wasVBlank = IS_VBLANK;
-
-  u32 cursor = state.startPixel;
   while (cursor < TOTAL_PIXELS) {
-    // if (!wasVBlank && IS_VBLANK) {
-    //   wasVBlank = true;
-    //   driveAudio(state);
-    // } else if (wasVBlank && !IS_VBLANK)
-    //   wasVBlank = false; // TODO: DO ONCE AT THE END
+    DRIVE_AUDIO_IF_NEEDED()
 
     u32 diffCursor = cursor / 8;
     u32 diffCursorBit = cursor % 8;
@@ -204,8 +208,6 @@ inline void render(State& state) {
 }
 
 inline bool isNewVBlank() {
-  return false;
-
   if (!VBLANK_TRACKER && IS_VBLANK) {
     VBLANK_TRACKER = true;
     return true;
@@ -279,4 +281,3 @@ inline u32 x(u32 cursor) {
 inline u32 y(u32 cursor) {
   return (cursor / RENDER_WIDTH) * DRAW_SCALE_Y;
 }
-// TODO: FRACUMUL
