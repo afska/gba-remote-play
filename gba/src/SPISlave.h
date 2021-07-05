@@ -16,9 +16,7 @@
 
 class SPISlave {
  public:
-  SPISlave() { start(); }
-
-  void start() {
+  SPISlave() {
     setNormalMode();
     set32BitPackets();
     setSlaveMode();
@@ -49,17 +47,6 @@ class SPISlave {
     u32 data = getData();
 
     return data;
-  }
-
-  void stop() {
-    stopTransfer();
-    disableTransfer();
-    BIT_SET_LOW(REG_SIOCNT, SPI_BIT_IRQ);
-    BIT_SET_HIGH(REG_SIOCNT, SPI_BIT_IRQ);
-    // (
-    //  This doesn't make any sense, but it somehow fixes a ~random~ CPU crash
-    //  when using DMA1 for audio and SPI transfers. Source: experimentation.
-    // )
   }
 
  private:

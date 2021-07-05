@@ -6,12 +6,12 @@
 #include "Protocol.h"
 #include "SPISlave.h"
 #include "Utils.h"
+#include "_state.h"
 
 extern "C" {
 #include "gsmplayer/player.h"
 }
 
-#define VBLANK_TRACKER (pal_obj_mem[0])
 #define TRY(ACTION) \
   if (!(ACTION))    \
     goto reset;
@@ -19,15 +19,6 @@ extern "C" {
 // -----
 // STATE
 // -----
-
-typedef struct {
-  u8 temporalDiffs[TEMPORAL_DIFF_PADDED_SIZE];
-  u8 audioChunks[AUDIO_PADDED_SIZE];
-  u32 expectedPackets;
-  u32 startPixel;
-  bool hasAudio;
-  bool isAudioReady;
-} State;
 
 SPISlave* spiSlave = new SPISlave();
 DATA_EWRAM u8 compressedPixels[TOTAL_PIXELS];
@@ -50,14 +41,14 @@ int main() {
 
 void init();
 void mainLoop();
-bool sendKeysAndReceiveMetadata(State& state);
-bool receiveAudio(State& state);
-bool receivePixels(State& state);
-void render(State& state);
+bool sendKeysAndReceiveMetadata();
+bool receiveAudio();
+bool receivePixels();
+void render();
 bool isNewVBlank();
-void driveAudio(State& state);
-u32 transfer(State& state, u32 packetToSend, bool withRecovery = true);
-bool sync(State& state, u32 command);
+void driveAudio();
+u32 transfer(u32 packetToSend, bool withRecovery = true);
+bool sync(u32 command);
 u32 x(u32 cursor);
 u32 y(u32 cursor);
 
@@ -83,28 +74,29 @@ inline void init() {
 }
 
 CODE_IWRAM void mainLoop() {
-  State state;
+  state.hasAudio = false;
+  state.isVBlank = false;
   state.isAudioReady = false;
 
 reset:
-  transfer(state, CMD_RESET, false);
+  transfer(CMD_RESET, false);
 
   while (true) {
-    TRY(sync(state, CMD_FRAME_START))
-    TRY(sendKeysAndReceiveMetadata(state))
+    TRY(sync(CMD_FRAME_START))
+    TRY(sendKeysAndReceiveMetadata())
     if (state.hasAudio) {
-      TRY(sync(state, CMD_AUDIO))
-      TRY(receiveAudio(state))
+      TRY(sync(CMD_AUDIO))
+      TRY(receiveAudio())
     }
-    TRY(sync(state, CMD_PIXELS))
-    TRY(receivePixels(state))
-    TRY(sync(state, CMD_FRAME_END))
+    TRY(sync(CMD_PIXELS))
+    TRY(receivePixels())
+    TRY(sync(CMD_FRAME_END))
 
-    render(state);
+    render();
   }
 }
 
-inline bool sendKeysAndReceiveMetadata(State& state) {
+inline bool sendKeysAndReceiveMetadata() {
   u16 keys = pressedKeys();
   u32 metadata = spiSlave->transfer(keys);
   if (spiSlave->transfer(metadata) != keys)
@@ -116,39 +108,31 @@ inline bool sendKeysAndReceiveMetadata(State& state) {
 
   u32 diffsStart = (state.startPixel / 8) / PACKET_SIZE;
   for (u32 i = diffsStart; i < TEMPORAL_DIFF_SIZE / PACKET_SIZE; i++)
-    ((u32*)state.temporalDiffs)[i] = transfer(state, i);
+    ((u32*)state.temporalDiffs)[i] = transfer(i);
 
   return true;
 }
 
-inline bool receiveAudio(State& state) {
+inline bool receiveAudio() {
   for (u32 i = 0; i < AUDIO_SIZE_PACKETS; i++)
-    ((u32*)state.audioChunks)[i] = transfer(state, i);
+    ((u32*)state.audioChunks)[i] = transfer(i);
 
   state.isAudioReady = true;
 
   return true;
 }
 
-inline bool receivePixels(State& state) {
+inline bool receivePixels() {
   for (u32 i = 0; i < state.expectedPackets; i++)
-    ((u32*)compressedPixels)[i] = transfer(state, i);
+    ((u32*)compressedPixels)[i] = transfer(i);
 
   return true;
 }
 
-inline void render(State& state) {
-  bool wasVBlank = IS_VBLANK;
+inline void render() {
   u32 decompressedPixels = 0;
   u32 cursor = state.startPixel;
 
-#define DRIVE_AUDIO_IF_NEEDED()         \
-  if (!wasVBlank && IS_VBLANK) {        \
-    wasVBlank = true;                   \
-    driveAudio(state);                  \
-  } else if (wasVBlank && !IS_VBLANK) { \
-    wasVBlank = false;                  \
-  }
 #define DRAW_PIXEL(PIXEL) m4Draw(y(cursor) * DRAW_WIDTH + x(cursor), PIXEL);
 #define DRAW_NEXT()                                \
   u8 pixel = compressedPixels[decompressedPixels]; \
@@ -158,13 +142,10 @@ inline void render(State& state) {
 #define DRAW_BATCH(TIMES)                         \
   u32 target = min(cursor + TIMES, TOTAL_PIXELS); \
   while (cursor < target) {                       \
-    DRIVE_AUDIO_IF_NEEDED()                       \
     DRAW_NEXT()                                   \
   }
 
   while (cursor < TOTAL_PIXELS) {
-    DRIVE_AUDIO_IF_NEEDED()
-
     u32 diffCursor = cursor / 8;
     u32 diffCursorBit = cursor % 8;
     if (diffCursorBit == 0) {
@@ -208,36 +189,32 @@ inline void render(State& state) {
 }
 
 inline bool isNewVBlank() {
-  if (!VBLANK_TRACKER && IS_VBLANK) {
-    VBLANK_TRACKER = true;
+  if (!state.isVBlank && IS_VBLANK) {
+    state.isVBlank = true;
     return true;
-  } else if (VBLANK_TRACKER && !IS_VBLANK)
-    VBLANK_TRACKER = false;
+  } else if (state.isVBlank && !IS_VBLANK)
+    state.isVBlank = false;
 
   return false;
 }
 
-CODE_IWRAM void driveAudio(State& state) {
+inline void driveAudio() {
   if (player_needsData() && state.isAudioReady) {
     player_play((const unsigned char*)state.audioChunks, AUDIO_CHUNK_SIZE);
     state.isAudioReady = false;
   }
 
-  spiSlave->stop();
   player_run();
-  spiSlave->start();
 }
 
-inline u32 transfer(State& state, u32 packetToSend, bool withRecovery) {
+inline u32 transfer(u32 packetToSend, bool withRecovery) {
   bool breakFlag = false;
   u32 receivedPacket =
       spiSlave->transfer(packetToSend, isNewVBlank, &breakFlag);
 
   if (breakFlag) {
-    driveAudio(state);
-
     if (withRecovery) {
-      sync(state, CMD_RECOVERY);
+      sync(CMD_RECOVERY);
       spiSlave->transfer(packetToSend);
       receivedPacket = spiSlave->transfer(packetToSend);
     }
@@ -246,30 +223,24 @@ inline u32 transfer(State& state, u32 packetToSend, bool withRecovery) {
   return receivedPacket;
 }
 
-inline bool sync(State& state, u32 command) {
+inline bool sync(u32 command) {
   u32 local = command + CMD_GBA_OFFSET;
   u32 remote = command + CMD_RPI_OFFSET;
-  bool wasVBlank = IS_VBLANK;
+  u32 vblanks = 0;
 
   while (true) {
     bool breakFlag = false;
     bool isOnSync =
         spiSlave->transfer(local, isNewVBlank, &breakFlag) == remote;
 
-    if (breakFlag) {
-      driveAudio(state);
-      continue;
-    }
-
     if (isOnSync)
       return true;
     else {
-      bool isVBlank = IS_VBLANK;
-
-      if (!wasVBlank && isVBlank)
-        wasVBlank = true;
-      else if (wasVBlank && !isVBlank)
-        return false;
+      if (isNewVBlank()) {
+        vblanks++;
+        if (vblanks > MAX_BLIND_FRAMES)
+          return false;
+      }
     }
   }
 }
