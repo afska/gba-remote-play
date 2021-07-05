@@ -133,10 +133,9 @@ inline void render() {
   u32 decompressedPixels = 0;
   u32 cursor = state.startPixel;
 
-#define DRIVE_AUDIO_IF_NEEDED() \
-  if (isNewVBlank()) {          \
-    driveAudio();               \
-  }
+#define DRIVE_AUDIO_IF_NEEDED()       \
+  if (!(cursor % 8) && isNewVBlank()) \
+    driveAudio();
 #define DRAW_PIXEL(PIXEL) m4Draw(y(cursor) * DRAW_WIDTH + x(cursor), PIXEL);
 #define DRAW_NEXT()                                \
   u8 pixel = compressedPixels[decompressedPixels]; \
