@@ -3,15 +3,14 @@
 
 #include <tonc.h>
 
+#include "Utils.h"
+
 #define SPI_BIT_CLOCK 0
 #define SPI_BIT_SI 2
 #define SPI_BIT_SO 3
 #define SPI_BIT_START 7
 #define SPI_BIT_LENGTH 12
 #define SPI_BIT_IRQ 14
-#define SPI_SET_HIGH(REG, BIT) REG |= 1 << BIT
-#define SPI_SET_LOW(REG, BIT) REG &= ~(1 << BIT)
-#define SPI_IS_HIGH(REG, BIT) ((REG >> BIT) & 1)
 
 // A Link Port connection for Normal mode (slave, 32bit packets)
 
@@ -55,8 +54,8 @@ class SPISlave {
   void stop() {
     stopTransfer();
     disableTransfer();
-    SPI_SET_LOW(REG_SIOCNT, SPI_BIT_IRQ);
-    SPI_SET_HIGH(REG_SIOCNT, SPI_BIT_IRQ);
+    BIT_SET_LOW(REG_SIOCNT, SPI_BIT_IRQ);
+    BIT_SET_HIGH(REG_SIOCNT, SPI_BIT_IRQ);
     // (
     //  This doesn't make any sense, but it somehow fixes a ~random~ CPU crash
     //  when using DMA1 for audio and SPI transfers. Source: experimentation.
@@ -72,14 +71,14 @@ class SPISlave {
   void setData(u32 data) { REG_SIODATA32 = data; }
   u32 getData() { return REG_SIODATA32; }
 
-  void enableTransfer() { SPI_SET_LOW(REG_SIOCNT, SPI_BIT_SO); }
-  void disableTransfer() { SPI_SET_HIGH(REG_SIOCNT, SPI_BIT_SO); }
-  void startTransfer() { SPI_SET_HIGH(REG_SIOCNT, SPI_BIT_START); }
-  void stopTransfer() { SPI_SET_LOW(REG_SIOCNT, SPI_BIT_START); }
-  bool isReady() { return !SPI_IS_HIGH(REG_SIOCNT, SPI_BIT_START); }
+  void enableTransfer() { BIT_SET_LOW(REG_SIOCNT, SPI_BIT_SO); }
+  void disableTransfer() { BIT_SET_HIGH(REG_SIOCNT, SPI_BIT_SO); }
+  void startTransfer() { BIT_SET_HIGH(REG_SIOCNT, SPI_BIT_START); }
+  void stopTransfer() { BIT_SET_LOW(REG_SIOCNT, SPI_BIT_START); }
+  bool isReady() { return !BIT_IS_HIGH(REG_SIOCNT, SPI_BIT_START); }
 
-  void set32BitPackets() { SPI_SET_HIGH(REG_SIOCNT, SPI_BIT_LENGTH); }
-  void setSlaveMode() { SPI_SET_LOW(REG_SIOCNT, SPI_BIT_CLOCK); }
+  void set32BitPackets() { BIT_SET_HIGH(REG_SIOCNT, SPI_BIT_LENGTH); }
+  void setSlaveMode() { BIT_SET_LOW(REG_SIOCNT, SPI_BIT_CLOCK); }
 };
 
 extern SPISlave* spiSlave;

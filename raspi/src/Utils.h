@@ -4,6 +4,7 @@
 #include <chrono>
 #include <iostream>
 #include <string>
+#include <vector>
 
 #define PROFILE_START() std::chrono::high_resolution_clock::now()
 #define PROFILE_END(START)                               \
@@ -33,6 +34,22 @@ inline int getDistanceSquared(int r1, int g1, int b1, int color2) {
   int diffB = b1 - b2;
 
   return diffR * diffR + diffG * diffG + diffB * diffB;
+}
+
+inline std::vector<std::string> split(std::string str, std::string delimiter) {
+  std::vector<std::string> output;
+
+  auto start = 0U;
+  auto end = str.find(delimiter);
+  while (end != std::string::npos) {
+    output.push_back(str.substr(start, end - start));
+    start = end + delimiter.length();
+    end = str.find(delimiter, start);
+  }
+
+  output.push_back(str.substr(start, end));
+
+  return output;
 }
 
 #endif  // UTILS_H

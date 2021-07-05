@@ -4,7 +4,11 @@
 #include <tonc.h>
 
 #define CODE_IWRAM __attribute__((section(".iwram"), target("arm")))
+#define DATA_IWRAM __attribute__((section(".iwram")))
 #define DATA_EWRAM __attribute__((section(".ewram")))
+#define BIT_SET_HIGH(REG, BIT) (REG) |= 1 << (BIT)
+#define BIT_SET_LOW(REG, BIT) (REG) &= ~(1 << (BIT))
+#define BIT_IS_HIGH(REG, BIT) ((REG) & (1 << (BIT)))
 #define IS_VBLANK (REG_DISPSTAT & 1)
 
 inline void enableMode4AndBackground2() {
@@ -20,6 +24,12 @@ inline void enableMosaic(u16 scaleX, u16 scaleY) {
   u16 y = scaleY - 1;
   REG_MOSAIC = MOS_BUILD(x, y, 0, 0);
   REG_BG2CNT = 1 << 6;
+}
+
+inline void m4Draw(u32 cursor, u8 colorIndex) {
+  u16* dst = &vid_mem_front[cursor >> 1];
+  *dst = cursor & 1 ? (*dst & 0xFF) | (colorIndex << 8)
+                    : (*dst & ~0xFF) | colorIndex;
 }
 
 inline u16 pressedKeys() {

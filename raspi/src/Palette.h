@@ -3,8 +3,6 @@
 
 #include <stdint.h>
 #include <stdio.h>
-#include <fstream>
-#include <iostream>
 #include "Utils.h"
 
 #define PALETTE_24BIT_MAX_COLORS 16777216

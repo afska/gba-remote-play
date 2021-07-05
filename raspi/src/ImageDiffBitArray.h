@@ -6,14 +6,22 @@
 #include "Protocol.h"
 
 typedef struct {
-  uint8_t temporal[TEMPORAL_DIFF_SIZE];
   uint32_t compressedPixels;
+  uint8_t temporal[TEMPORAL_DIFF_SIZE];
+  uint32_t startPixel;
 
   void initialize(Frame currentFrame, Frame previousFrame) {
     compressedPixels = 0;
+    startPixel = TOTAL_PIXELS;
+    bool hasStartPixel = false;
 
     for (int i = 0; i < TOTAL_PIXELS; i++) {
       if (currentFrame.hasPixelChanged(i, previousFrame)) {
+        if (!hasStartPixel) {
+          startPixel = i;
+          hasStartPixel = true;
+        }
+
         setBit(temporal, i, true);
         compressedPixels++;
       } else

@@ -1,4 +1,4 @@
-#ifdef DEBUG
+#ifdef DEBUG_PNG
 
 /*
 LodePNG version 20201017

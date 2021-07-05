@@ -11,8 +11,9 @@
 #include <string>
 #include "Protocol.h"
 
-#define AUDIO_COMMAND                                                  \
-  "ffmpeg -f alsa -i hw:0,1,0 -y -ac 1 -af 'aresample=18157' -strict " \
+#define AUDIO_COMMAND_DRIVER "sudo modprobe snd-aloop"
+#define AUDIO_COMMAND_ENCODER                                        \
+  "ffmpeg -f alsa -i hw:0,1 -y -ac 1 -af 'aresample=18157' -strict " \
   "unofficial -c:a gsm -f gsm -loglevel quiet -"
 
 #define AUDIO_NULL "/dev/null"
@@ -46,17 +47,22 @@ class LoopbackAudio {
   int pipeFd;
 
   void launchEncoder() {
-    pipe = popen(AUDIO_COMMAND, "r");
+    if (system(AUDIO_COMMAND_DRIVER) != 0) {
+      std::cout << "Error (Audio): cannot start loopback audio driver\n";
+      exit(31);
+    }
+
+    pipe = popen(AUDIO_COMMAND_ENCODER, "r");
     pipeFd = fileno(pipe);
 
     if (!pipe) {
       std::cout << "Error (Audio): cannot launch ffmpeg\n";
-      exit(31);
+      exit(32);
     }
 
     if (fcntl(pipeFd, F_SETFL, O_NONBLOCK) < 0) {
       std::cout << "Error (Audio): cannot set non-blocking I/O\n";
-      exit(32);
+      exit(33);
     }
 
     nullFd = open(AUDIO_NULL, O_RDWR);
