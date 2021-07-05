@@ -2,6 +2,7 @@
 
 #include "Benchmark.h"
 #include "BuildConfig.h"
+#include "Config.h"
 #include "Palette.h"
 #include "Protocol.h"
 #include "SPISlave.h"
@@ -77,6 +78,8 @@ CODE_IWRAM void mainLoop() {
   state.hasAudio = false;
   state.isVBlank = false;
   state.isAudioReady = false;
+
+  ConfigMenu();
 
 reset:
   transfer(CMD_RESET, false);
