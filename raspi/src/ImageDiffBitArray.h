@@ -7,34 +7,16 @@
 
 typedef struct {
   uint32_t compressedPixels;
-  uint8_t temporal[TEMPORAL_DIFF_SIZE];
-  uint8_t paletteIndexByCompressedIndex[PALETTE_COLORS];
-  uint8_t compressedIndexByPaletteIndex[PALETTE_COLORS];
-  bool usedColorFlags[PALETTE_COLORS];
-  uint32_t uniqueColors;
+  uint8_t temporal[DIFF_SIZE];
+  uint8_t spatial[DIFF_SIZE];
   uint32_t startPixel;
 
   void initialize(Frame currentFrame, Frame previousFrame) {
     compressedPixels = 0;
-    uniqueColors = 0;
     startPixel = TOTAL_PIXELS;
     bool hasStartPixel = false;
 
-    for (int i = 0; i < PALETTE_COLORS; i++) {
-      usedColorFlags[i] = false;
-      paletteIndexByCompressedIndex[i] = 0;
-      compressedIndexByPaletteIndex[i] = 0;
-    }
-
     for (int i = 0; i < TOTAL_PIXELS; i++) {
-      if (!usedColorFlags[currentFrame.raw8BitPixels[i]]) {
-        uint8_t colorIndex = currentFrame.raw8BitPixels[i];
-        usedColorFlags[colorIndex] = true;
-        paletteIndexByCompressedIndex[uniqueColors] = colorIndex;
-        compressedIndexByPaletteIndex[colorIndex] = uniqueColors;
-        uniqueColors++;
-      }
-
       if (currentFrame.hasPixelChanged(i, previousFrame)) {
         if (!hasStartPixel) {
           startPixel = i;
@@ -42,21 +24,21 @@ typedef struct {
         }
 
         setBit(temporal, i, true);
+        setBit(spatial, i,
+               i < TOTAL_PIXELS - 1 && currentFrame.raw8BitPixels[i + 1] ==
+                                           currentFrame.raw8BitPixels[i]);
+
         compressedPixels++;
-      } else
+      } else {
         setBit(temporal, i, false);
+        if (i > 0)
+          setBit(spatial, i - 1, false);
+      }
     }
   }
 
-  bool isSpatialCompressed() { return uniqueColors < SPATIAL_DIFF_COLOR_LIMIT; }
-
   bool hasPixelChanged(uint32_t pixelId) { return getBit(temporal, pixelId); }
-
-  bool isRepeatedColor(Frame frame, uint32_t pixelId) {
-    return isSpatialCompressed() && pixelId < TOTAL_PIXELS &&
-           hasPixelChanged(pixelId + 1) &&
-           frame.raw8BitPixels[pixelId + 1] == frame.raw8BitPixels[pixelId];
-  }
+  bool isRepeatedColor(uint32_t pixelId) { return getBit(spatial, pixelId); }
 
  private:
   void setBit(uint8_t* bitarray, uint32_t n, bool value) {

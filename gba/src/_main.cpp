@@ -21,12 +21,11 @@ extern "C" {
 // -----
 
 typedef struct {
-  u8 temporalDiffs[TEMPORAL_DIFF_SIZE];
-  u8 paletteIndexByCompressedIndex[SPATIAL_DIFF_COLOR_LIMIT];
+  u8 temporalDiffs[DIFF_SIZE];
+  u8 spatialDiffs[DIFF_SIZE];
   u8 audioChunks[AUDIO_PADDED_SIZE];
   u32 expectedPackets;
   u32 startPixel;
-  bool isSpatialCompressed;
   bool hasAudio;
   bool isAudioReady;
 } State;
@@ -114,16 +113,15 @@ inline bool sendKeysAndReceiveMetadata(State& state) {
 
   state.expectedPackets = (metadata >> PACKS_BIT_OFFSET) & PACKS_BIT_MASK;
   state.startPixel = metadata & START_BIT_MASK;
-  state.isSpatialCompressed = (metadata & COMPR_BIT_MASK) != 0;
   state.hasAudio = (metadata & AUDIO_BIT_MASK) != 0;
 
   u32 diffsStart = (state.startPixel / 8) / PACKET_SIZE;
-  for (u32 i = diffsStart; i < TEMPORAL_DIFF_SIZE / PACKET_SIZE; i++)
+
+  for (u32 i = diffsStart; i < DIFF_SIZE / PACKET_SIZE; i++)
     ((u32*)state.temporalDiffs)[i] = transfer(state, i);
 
-  if (state.isSpatialCompressed)
-    for (u32 i = 0; i < SPATIAL_DIFF_COLOR_LIMIT / PACKET_SIZE; i++)
-      ((u32*)state.paletteIndexByCompressedIndex)[i] = transfer(state, i);
+  // for (u32 i = diffsStart; i < DIFF_SIZE / PACKET_SIZE; i++)
+  //   ((u32*)state.spatialDiffs)[i] = transfer(state, i);
 
   return true;
 }
@@ -145,12 +143,7 @@ inline bool receivePixels(State& state) {
 }
 
 inline void render(State& state) {
-#define DRAW_PIXEL(PIXEL)                                                     \
-  m4Draw(y(cursor) * DRAW_WIDTH + x(cursor),                                  \
-         state.isSpatialCompressed                                            \
-             ? state.paletteIndexByCompressedIndex[PIXEL &                    \
-                                                   ~SPATIAL_DIFF_COLOR_LIMIT] \
-             : PIXEL);
+#define DRAW_PIXEL(PIXEL) m4Draw(y(cursor) * DRAW_WIDTH + x(cursor), PIXEL);
 
   u32 decompressedPixels = 0;
   // bool wasVBlank = IS_VBLANK;
@@ -179,12 +172,14 @@ inline void render(State& state) {
           u8 pixel = compressedPixels[decompressedPixels];
           DRAW_PIXEL(pixel);
 
-          if (state.isSpatialCompressed &&
-              BIT_IS_HIGH(pixel, SPATIAL_DIFF_BIT)) {
-            // (repeated color)
-            cursor++;
-            DRAW_PIXEL(pixel);
-          }
+          // u32 diffByte = cursor / 8;
+          // u32 diffBit = cursor % 8;
+          // u8 spatialDiff = state.spatialDiffs[diffByte];
+          // if (BIT_IS_HIGH(spatialDiff, diffBit)) {
+          //   // (repeated color)
+          //   cursor++;
+          //   DRAW_PIXEL(pixel);
+          // }
 
           decompressedPixels++;
           cursor++;
@@ -202,12 +197,14 @@ inline void render(State& state) {
           u8 pixel = compressedPixels[decompressedPixels];
           DRAW_PIXEL(pixel);
 
-          if (state.isSpatialCompressed &&
-              BIT_IS_HIGH(pixel, SPATIAL_DIFF_BIT)) {
-            // (repeated color)
-            cursor++;
-            DRAW_PIXEL(pixel);
-          }
+          // u32 diffByte = cursor / 8;
+          // u32 diffBit = cursor % 8;
+          // u8 spatialDiff = state.spatialDiffs[diffByte];
+          // if (BIT_IS_HIGH(spatialDiff, diffBit)) {
+          //   // (repeated color)
+          //   cursor++;
+          //   DRAW_PIXEL(pixel);
+          // }
 
           decompressedPixels++;
           cursor++;
@@ -224,12 +221,14 @@ inline void render(State& state) {
           u8 pixel = compressedPixels[decompressedPixels];
           DRAW_PIXEL(pixel);
 
-          if (state.isSpatialCompressed &&
-              BIT_IS_HIGH(pixel, SPATIAL_DIFF_BIT)) {
-            // (repeated color)
-            cursor++;
-            DRAW_PIXEL(pixel);
-          }
+          // u32 diffByte = cursor / 8;
+          // u32 diffBit = cursor % 8;
+          // u8 spatialDiff = state.spatialDiffs[diffByte];
+          // if (BIT_IS_HIGH(spatialDiff, diffBit)) {
+          //   // (repeated color)
+          //   cursor++;
+          //   DRAW_PIXEL(pixel);
+          // }
 
           decompressedPixels++;
           cursor++;
@@ -244,11 +243,12 @@ inline void render(State& state) {
       u8 pixel = compressedPixels[decompressedPixels];
       DRAW_PIXEL(pixel);
 
-      if (state.isSpatialCompressed && BIT_IS_HIGH(pixel, SPATIAL_DIFF_BIT)) {
-        // (repeated color)
-        cursor++;
-        DRAW_PIXEL(pixel);
-      }
+      // u8 spatialDiff = state.spatialDiffs[diffByte];
+      // if (BIT_IS_HIGH(spatialDiff, diffBit)) {
+      //   // (repeated color)
+      //   cursor++;
+      //   DRAW_PIXEL(pixel);
+      // }
 
       decompressedPixels++;
     }
