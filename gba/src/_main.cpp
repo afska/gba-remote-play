@@ -198,13 +198,15 @@ inline bool isNewVBlank() {
   return false;
 }
 
-inline void driveAudio() {
+CODE_IWRAM void driveAudio() {
   if (player_needsData() && state.isAudioReady) {
     player_play((const unsigned char*)state.audioChunks, AUDIO_CHUNK_SIZE);
     state.isAudioReady = false;
   }
 
+  spiSlave->stop();
   player_run();
+  spiSlave->start();
 }
 
 inline u32 transfer(u32 packetToSend, bool withRecovery) {
@@ -213,6 +215,8 @@ inline u32 transfer(u32 packetToSend, bool withRecovery) {
       spiSlave->transfer(packetToSend, isNewVBlank, &breakFlag);
 
   if (breakFlag) {
+    driveAudio();
+
     if (withRecovery) {
       sync(CMD_RECOVERY);
       spiSlave->transfer(packetToSend);
@@ -226,21 +230,27 @@ inline u32 transfer(u32 packetToSend, bool withRecovery) {
 inline bool sync(u32 command) {
   u32 local = command + CMD_GBA_OFFSET;
   u32 remote = command + CMD_RPI_OFFSET;
-  u32 vblanks = 0;
+  bool wasVBlank = IS_VBLANK;
 
   while (true) {
     bool breakFlag = false;
     bool isOnSync =
         spiSlave->transfer(local, isNewVBlank, &breakFlag) == remote;
 
+    if (breakFlag) {
+      // driveAudio();
+      continue;
+    }
+
     if (isOnSync)
       return true;
     else {
-      if (isNewVBlank()) {
-        vblanks++;
-        if (vblanks > MAX_BLIND_FRAMES)
-          return false;
-      }
+      bool isVBlank = IS_VBLANK;
+
+      if (!wasVBlank && isVBlank)
+        wasVBlank = true;
+      else if (wasVBlank && !isVBlank)
+        return false;
     }
   }
 }
