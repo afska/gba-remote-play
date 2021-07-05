@@ -130,9 +130,14 @@ inline bool receivePixels() {
 }
 
 inline void render() {
+  bool wasVBlank = IS_VBLANK;
   u32 decompressedPixels = 0;
   u32 cursor = state.startPixel;
 
+#define DRIVE_AUDIO_IF_NEEDED() \
+  if (isNewVBlank()) {          \
+    driveAudio();               \
+  }
 #define DRAW_PIXEL(PIXEL) m4Draw(y(cursor) * DRAW_WIDTH + x(cursor), PIXEL);
 #define DRAW_NEXT()                                \
   u8 pixel = compressedPixels[decompressedPixels]; \
@@ -142,10 +147,12 @@ inline void render() {
 #define DRAW_BATCH(TIMES)                         \
   u32 target = min(cursor + TIMES, TOTAL_PIXELS); \
   while (cursor < target) {                       \
+    DRIVE_AUDIO_IF_NEEDED()                       \
     DRAW_NEXT()                                   \
   }
 
   while (cursor < TOTAL_PIXELS) {
+    DRIVE_AUDIO_IF_NEEDED()
     u32 diffCursor = cursor / 8;
     u32 diffCursorBit = cursor % 8;
     if (diffCursorBit == 0) {
@@ -238,7 +245,7 @@ inline bool sync(u32 command) {
         spiSlave->transfer(local, isNewVBlank, &breakFlag) == remote;
 
     if (breakFlag) {
-      // driveAudio();
+      driveAudio();
       continue;
     }
 
