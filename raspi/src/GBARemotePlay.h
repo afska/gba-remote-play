@@ -273,7 +273,7 @@ class GBARemotePlay {
     frame.raw8BitPixels = (uint8_t*)malloc(TOTAL_PIXELS);
     frame.palette = MAIN_PALETTE_24BPP;
 
-    usleep(20 * 1000);
+    usleep(30 * 1000);
 
     frameBuffer->forEachPixel(
         [&frame, this](int x, int y, uint8_t r, uint8_t g, uint8_t b) {
