@@ -53,6 +53,7 @@ inline void send() {
 
   u32 len;
   u32* data = (u32*)gbfs_get_obj(fs, "record.bin", &len);
+  u32 frame = 0;
 
 reset:
   u32 cursor = 0;
@@ -86,6 +87,11 @@ reset:
     // frame end
     if (!sync(CMD_FRAME_END))
       goto reset;
+
+    frame++;
+    print(std::to_string(frame));
+    while (!(pressedKeys() & KEY_START))
+      ;
 
     // loop!
     if (cursor > len)

@@ -37,12 +37,12 @@ class SPISlave {
     startTransfer();
 
     while (!isReady()) {
-      if (needsBreak()) {
-        setData(0xffffffff);
-        disableTransfer();
-        *breakFlag = true;
-        return 0;
-      }
+      // if (needsBreak()) {
+      //   setData(0xffffffff);
+      //   disableTransfer();
+      //   *breakFlag = true;
+      //   return 0;
+      // }
     }
 
     disableTransfer();
