@@ -13,6 +13,10 @@ extern "C" {
 #include "gsmplayer/player.h"
 }
 
+#define TRY(ACTION) \
+  if (!(ACTION))    \
+    goto reset;
+
 // -----
 // STATE
 // -----
@@ -82,16 +86,17 @@ reset:
 
   while (true) {
     TRY(sync(CMD_FRAME_START))
-    TRY(sendKeysAndReceiveMetadata())
-    // if (state.hasAudio) {
-    //   TRY(sync(CMD_AUDIO))
-    //   TRY(receiveAudio())
-    // }
-    // TRY(sync(CMD_PIXELS))
-    // TRY(receivePixels())
-    // TRY(sync(CMD_FRAME_END))
 
-    // render();
+    TRY(sendKeysAndReceiveMetadata())
+    if (state.hasAudio) {
+      TRY(sync(CMD_AUDIO))
+      TRY(receiveAudio())
+    }
+    TRY(sync(CMD_PIXELS))
+    TRY(receivePixels())
+    TRY(sync(CMD_FRAME_END))
+
+    render();
   }
 }
 

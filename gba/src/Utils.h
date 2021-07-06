@@ -10,9 +10,6 @@
 #define BIT_SET_LOW(REG, BIT) (REG) &= ~(1 << (BIT))
 #define BIT_IS_HIGH(REG, BIT) ((REG) & (1 << (BIT)))
 #define IS_VBLANK (REG_DISPSTAT & 1)
-#define TRY(ACTION) \
-  if (!(ACTION))    \
-    goto reset;
 
 inline void enableMode4AndBackground2() {
   REG_DISPCNT = DCNT_MODE4 | DCNT_BG2;

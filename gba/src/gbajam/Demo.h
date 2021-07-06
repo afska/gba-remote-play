@@ -13,7 +13,8 @@ extern "C" {
 namespace Demo {
 
 void send();
-bool sendMetadata(u32* data, u32* cursor, u32* metadata);
+void sendMetadata(u32* data, u32* cursor, u32* metadata);
+void sendChunk(u32* data, u32* cursor, u32 chunkSize, u32 start = 0);
 bool sync(u32 command);
 void printOptions();
 void print(std::string text);
@@ -52,27 +53,65 @@ inline void send() {
 
   u32 len;
   u32* data = (u32*)gbfs_get_obj(fs, "record.bin", &len);
-  u32 frameStart = 0;
+
+reset:
+  u32 cursor = 0;
 
   while (true) {
-  reset:
-    u32 cursor = frameStart;
-    TRY(sync(CMD_FRAME_START))
+    // frame start
+    if (!sync(CMD_FRAME_START))
+      goto reset;
+
+    // send metadata
     u32 metadata;
-    TRY(sendMetadata(data, &cursor, &metadata))
-    // TODO: CONTINUE
+    sendMetadata(data, &cursor, &metadata);
+    u32 expectedPackets = (metadata >> PACKS_BIT_OFFSET) & PACKS_BIT_MASK;
+    u32 startPixel = metadata & START_BIT_MASK;
+    bool hasAudio = (metadata & AUDIO_BIT_MASK) != 0;
+    u32 diffsStart = (startPixel / 8) / PACKET_SIZE;
+    sendChunk(data, &cursor, TEMPORAL_DIFF_SIZE / PACKET_SIZE, diffsStart);
+
+    // send audio
+    if (hasAudio) {
+      if (!sync(CMD_AUDIO))
+        goto reset;
+      sendChunk(data, &cursor, AUDIO_SIZE_PACKETS);
+    }
+
+    // send pixels
+    if (!sync(CMD_PIXELS))
+      goto reset;
+    sendChunk(data, &cursor, expectedPackets);
+
+    // frame end
+    if (!sync(CMD_FRAME_END))
+      goto reset;
+
+    // loop!
+    if (cursor > len)
+      cursor = 0;
   }
 }
 
-inline bool sendMetadata(u32* data, u32* cursor, u32* metadata) {
+inline void sendMetadata(u32* data, u32* cursor, u32* metadata) {
   *metadata = data[*cursor];
   *cursor += PACKET_SIZE;
   u32 keys = spiMaster->transfer(*metadata);
 
-  if (spiMaster->transfer(keys) != *metadata)
-    return false;
+  u32 confirmation;
+  if ((confirmation = spiMaster->transfer(keys)) != *metadata) {
+    print(std::string("") + "Error!\nAre you using Normal Mode?\n\n" +
+          "Received: " + std::to_string(confirmation));
+    while (true)
+      ;
+  }
+}
 
-  return true;
+inline void sendChunk(u32* data, u32* cursor, u32 chunkSize, u32 start) {
+  for (u32 i = start; i < chunkSize; i++) {
+    spiMaster->transfer(data[*cursor]);
+    *cursor += PACKET_SIZE;
+  }
 }
 
 inline bool sync(u32 command) {
