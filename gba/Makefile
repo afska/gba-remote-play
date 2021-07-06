@@ -31,6 +31,8 @@ LIBS		:= -ltonc -lgba
 
 BUILD		:= build
 SRCDIRS		:= src \
+						 src/gbajam \
+						 src/gbajam/gbfs \
 						 src/gsmplayer \
 						 src/gsmplayer/core \
 						 src/data/_compiled_files
@@ -196,6 +198,6 @@ start: check-env $(BUILD)
 rebuild: check-env clean $(BUILD)
 
 restart: check-env rebuild
-	cp "$(TARGET).gba" "$(GBARP_OUT_DIR)"
+	./package.sh
 
 # EOF

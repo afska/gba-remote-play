@@ -7,6 +7,7 @@
 #include "SPISlave.h"
 #include "Utils.h"
 #include "_state.h"
+#include "gbajam/Demo.h"
 
 extern "C" {
 #include "gsmplayer/player.h"
@@ -58,6 +59,8 @@ u32 y(u32 cursor);
 
 #ifndef BENCHMARK
 int main() {
+  GbaJamDemo();
+
   init();
   mainLoop();
 
