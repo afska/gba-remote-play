@@ -14,7 +14,7 @@ namespace Demo {
 
 void send();
 void sendMetadata(u32* data, u32* cursor, u32* metadata);
-void sendChunk(u32* data, u32* cursor, u32 chunkSize, u32 start = 0);
+void sendChunk(u32* data, u32* cursor, u32 chunkSize);
 bool sync(u32 command);
 void printOptions();
 void print(std::string text);
@@ -64,20 +64,21 @@ reset:
       goto reset;
 
     // send metadata
+    cursor += 2;  // skip debug packet
     u32 metadata;
     sendMetadata(data, &cursor, &metadata);
     u32 expectedPackets = (metadata >> PACKS_BIT_OFFSET) & PACKS_BIT_MASK;
     u32 startPixel = metadata & START_BIT_MASK;
     bool hasAudio = (metadata & AUDIO_BIT_MASK) != 0;
     u32 diffsStart = (startPixel / 8) / PACKET_SIZE;
-    sendChunk(data, &cursor, TEMPORAL_DIFF_SIZE / PACKET_SIZE, diffsStart);
+    sendChunk(data, &cursor, TEMPORAL_DIFF_SIZE / PACKET_SIZE - diffsStart);
 
     // send audio
-    if (hasAudio) {
-      if (!sync(CMD_AUDIO))
-        goto reset;
-      sendChunk(data, &cursor, AUDIO_SIZE_PACKETS);
-    }
+    // if (hasAudio) {
+    //   if (!sync(CMD_AUDIO))
+    //     goto reset;
+    //   sendChunk(data, &cursor, AUDIO_SIZE_PACKETS);
+    // }
 
     // send pixels
     if (!sync(CMD_PIXELS))
@@ -113,8 +114,8 @@ inline void sendMetadata(u32* data, u32* cursor, u32* metadata) {
   }
 }
 
-inline void sendChunk(u32* data, u32* cursor, u32 chunkSize, u32 start) {
-  for (u32 i = start; i < chunkSize; i++) {
+inline void sendChunk(u32* data, u32* cursor, u32 chunkSize) {
+  for (u32 i = 0; i < chunkSize; i++) {
     spiMaster->transfer(data[*cursor]);
     (*cursor)++;
   }
@@ -129,8 +130,12 @@ inline bool sync(u32 command) {
     u32 confirmation = spiMaster->transfer(local);
     isOnSync = confirmation == remote;
 
-    if (confirmation == CMD_RESET)
+    if (confirmation == CMD_RESET) {
+      print("THIS SHOULD NOT HAPPEN");
+      while (true)
+        ;
       return false;
+    }
   }
 
   return true;
