@@ -13,10 +13,6 @@ extern "C" {
 #include "gsmplayer/player.h"
 }
 
-#define TRY(ACTION) \
-  if (!(ACTION))    \
-    goto reset;
-
 // -----
 // STATE
 // -----
@@ -59,7 +55,7 @@ u32 y(u32 cursor);
 
 #ifndef BENCHMARK
 int main() {
-  GbaJamDemo();
+  Demo::run();
 
   init();
   mainLoop();
