@@ -29,6 +29,11 @@ typedef struct {
     }
   }
 
+  uint32_t expectedPackets() {
+    return compressedPixels / PIXELS_PER_PACKET +
+           ((compressedPixels % PIXELS_PER_PACKET) != 0);
+  }
+
   bool hasPixelChanged(uint32_t pixelId) { return getBit(temporal, pixelId); }
 
  private:

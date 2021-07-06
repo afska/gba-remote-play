@@ -179,9 +179,7 @@ class GBARemotePlay {
   bool receiveKeysAndSendMetadata(Frame& frame, ImageDiffBitArray& diffs) {
   again:
     uint32_t metadata = diffs.startPixel |
-                        ((diffs.compressedPixels / PIXELS_PER_PACKET +
-                          diffs.compressedPixels % PIXELS_PER_PACKET)
-                         << PACKS_BIT_OFFSET) |
+                        (diffs.expectedPackets() << PACKS_BIT_OFFSET) |
                         (frame.hasAudio() ? AUDIO_BIT_MASK : 0);
     uint32_t keys = spiMaster->exchange(metadata);
     if (reliableStream->finishSyncIfNeeded(keys, CMD_FRAME_START))
@@ -205,6 +203,12 @@ class GBARemotePlay {
     uint32_t packetsToSend[MAX_PIXELS_SIZE];
     uint32_t size = 0;
     compressPixels(frame, diffs, packetsToSend, &size);
+
+#ifdef DEBUG
+    if (size != diffs.expectedPackets()) {
+      LOG("[!!!] Sizes don't match");
+    }
+#endif
 
 #ifdef PROFILE_VERBOSE
     std::cout << "  <" + std::to_string(size * PACKET_SIZE) + "bytes" +
