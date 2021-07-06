@@ -86,15 +86,14 @@ class GBARemotePlay {
       lastFrame.clean();
       lastFrame = frame;
 
-      recordFile.write("frame!!!", 8);  // (for debugging)
       recordFile.write((char*)&metadata, PACKET_SIZE);
       recordFile.write(
           (char*)(((uint32_t*)(diffs.temporal)) + diffsStart),
           (TEMPORAL_DIFF_SIZE / PACKET_SIZE - diffsStart) * PACKET_SIZE);
-      // if (frame.hasAudio()) {
-      //   recordFile.write((char*)frame.audioChunk,
-      //                    AUDIO_SIZE_PACKETS * PACKET_SIZE);
-      // }
+      if (frame.hasAudio()) {
+        recordFile.write((char*)frame.audioChunk,
+                         AUDIO_SIZE_PACKETS * PACKET_SIZE);
+      }
       recordFile.write((char*)packetsToSend, size * PACKET_SIZE);
       recordFile.flush();
 
