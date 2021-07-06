@@ -62,6 +62,10 @@ int main() {
   Demo::run();
 
   init();
+
+  for (u32 i = 0; i < TOTAL_SCREEN_PIXELS; i++)
+    m4Draw(i, 0);
+
   mainLoop();
 
   return 0;
