@@ -10,6 +10,7 @@ class SPIMaster {
   u32 transfer(u32 value) {
     setNormalMode();
     set32BitPackets();
+    set2MhzSpeed();
     setMasterMode();
 
     setData(value);
@@ -45,6 +46,7 @@ class SPIMaster {
   bool isReady() { return !BIT_IS_HIGH(REG_SIOCNT, SPI_BIT_START); }
 
   void set32BitPackets() { BIT_SET_HIGH(REG_SIOCNT, SPI_BIT_LENGTH); }
+  void set2MhzSpeed() { BIT_SET_HIGH(REG_SIOCNT, SPI_BIT_CLOCK_SPEED); }
   void setMasterMode() { BIT_SET_HIGH(REG_SIOCNT, SPI_BIT_CLOCK); }
 };
 

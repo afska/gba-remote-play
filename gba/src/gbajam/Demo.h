@@ -53,10 +53,10 @@ inline void send() {
 
   u32 len;
   u32* data = (u32*)gbfs_get_obj(fs, "record.bin", &len);
-  u32 frame = 0;
 
 reset:
   u32 cursor = 0;
+  u32 frame = 0;
 
   while (true) {
     // frame start

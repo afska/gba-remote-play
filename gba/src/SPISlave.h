@@ -6,6 +6,7 @@
 #include "Utils.h"
 
 #define SPI_BIT_CLOCK 0
+#define SPI_BIT_CLOCK_SPEED 1
 #define SPI_BIT_SI 2
 #define SPI_BIT_SO 3
 #define SPI_BIT_START 7
