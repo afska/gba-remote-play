@@ -16,12 +16,12 @@ class SPIMaster {
     setData(value);
     enableTransfer();
 
+    while (!isSlaveReady())
+      ;
+
     // waste some cycles
     for (u32 i = 0; i < 20; i++)
       pal_obj_mem[i] = i;
-
-    while (!isSlaveReady())
-      ;
 
     startTransfer();
 

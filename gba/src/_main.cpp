@@ -73,7 +73,7 @@ inline void init() {
   overclockEWRAM();
   enableMosaic(DRAW_SCALE_X, DRAW_SCANLINES ? 1 : DRAW_SCALE_Y);
   dma3_cpy(pal_bg_mem, MAIN_PALETTE, sizeof(COLOR) * PALETTE_COLORS);
-  // player_init();
+  player_init();
 }
 
 CODE_IWRAM void mainLoop() {
@@ -87,10 +87,10 @@ reset:
   while (true) {
     TRY(sync(CMD_FRAME_START))
     TRY(sendKeysAndReceiveMetadata())
-    // if (state.hasAudio) {
-    //   TRY(sync(CMD_AUDIO))
-    //   TRY(receiveAudio())
-    // }
+    if (state.hasAudio) {
+      TRY(sync(CMD_AUDIO))
+      TRY(receiveAudio())
+    }
     TRY(sync(CMD_PIXELS))
     TRY(receivePixels())
     TRY(sync(CMD_FRAME_END))
@@ -207,29 +207,27 @@ inline bool isNewVBlank() {
 }
 
 CODE_IWRAM void driveAudio() {
-  // if (player_needsData() && state.isAudioReady) {
-  //   player_play((const unsigned char*)state.audioChunks, AUDIO_CHUNK_SIZE);
-  //   state.isAudioReady = false;
-  // }
+  if (player_needsData() && state.isAudioReady) {
+    player_play((const unsigned char*)state.audioChunks, AUDIO_CHUNK_SIZE);
+    state.isAudioReady = false;
+  }
 
   // spiSlave->stop();
-  // player_run();
+  player_run();
   // spiSlave->start();
 }
 
 inline u32 transfer(u32 packetToSend, bool withRecovery) {
-  bool breakFlag = false;
-  u32 receivedPacket =
-      spiSlave->transfer(packetToSend, isNewVBlank, &breakFlag);
+  u32 receivedPacket = spiSlave->transfer(packetToSend);
 
-  if (breakFlag) {
+  if (isNewVBlank()) {
     driveAudio();
 
-    if (withRecovery) {
-      sync(CMD_RECOVERY);
-      spiSlave->transfer(packetToSend);
-      receivedPacket = spiSlave->transfer(packetToSend);
-    }
+    // if (withRecovery) {
+    //   sync(CMD_RECOVERY);
+    //   spiSlave->transfer(packetToSend);
+    //   receivedPacket = spiSlave->transfer(packetToSend);
+    // }
   }
 
   return receivedPacket;
@@ -241,14 +239,10 @@ inline bool sync(u32 command) {
   bool wasVBlank = IS_VBLANK;
 
   while (true) {
-    bool breakFlag = false;
-    bool isOnSync =
-        spiSlave->transfer(local, isNewVBlank, &breakFlag) == remote;
+    bool isOnSync = spiSlave->transfer(local) == remote;
 
-    if (breakFlag) {
+    if (isNewVBlank())
       driveAudio();
-      continue;
-    }
 
     if (isOnSync)
       return true;

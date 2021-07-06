@@ -64,7 +64,6 @@ reset:
       goto reset;
 
     // send metadata
-    cursor += 2;  // skip debug packet
     u32 metadata;
     sendMetadata(data, &cursor, &metadata);
     u32 expectedPackets = (metadata >> PACKS_BIT_OFFSET) & PACKS_BIT_MASK;
@@ -74,11 +73,11 @@ reset:
     sendChunk(data, &cursor, TEMPORAL_DIFF_SIZE / PACKET_SIZE - diffsStart);
 
     // send audio
-    // if (hasAudio) {
-    //   if (!sync(CMD_AUDIO))
-    //     goto reset;
-    //   sendChunk(data, &cursor, AUDIO_SIZE_PACKETS);
-    // }
+    if (hasAudio) {
+      if (!sync(CMD_AUDIO))
+        goto reset;
+      sendChunk(data, &cursor, AUDIO_SIZE_PACKETS);
+    }
 
     // send pixels
     if (!sync(CMD_PIXELS))
@@ -130,7 +129,7 @@ inline bool sync(u32 command) {
     isOnSync = confirmation == remote;
 
     if (confirmation == CMD_RESET) {
-      print("THIS SHOULD NOT HAPPEN");
+      print("RESET");
       while (true)
         ;
       return false;
