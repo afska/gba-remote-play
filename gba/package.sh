@@ -1,8 +1,8 @@
 #!/bin/bash
 
-FILE_INPUT="gba.mb.gba"
-FILE_TMP="gba.mb.tmp.gba"
-FILE_OUTPUT="gba.mb.out.gba"
+FILE_INPUT="gba.gba"
+FILE_TMP="gba.tmp.gba"
+FILE_OUTPUT="gba.out.gba"
 DATA="files.gbfs"
 
 if [ ! -f "$DATA" ]; then
@@ -13,7 +13,7 @@ if [ ! -f "$DATA" ]; then
 fi
 
 KB=$((1024))
-MAX_ROM_SIZE_KB=$((256 - 1))
+MAX_ROM_SIZE_KB=$((32 * $KB - 1))
 INITIAL_REQUIRED_SIZE_KB=1024
 
 ROM_SIZE=$(wc -c < $FILE_INPUT)
