@@ -10,11 +10,15 @@ class SPIMaster {
   u32 transfer(u32 value) {
     setNormalMode();
     set32BitPackets();
-    // set2MhzSpeed();
+    set2MhzSpeed();
     setMasterMode();
 
     setData(value);
     enableTransfer();
+
+    // waste some cycles
+    for (u32 i = 0; i < 20; i++)
+      pal_obj_mem[i] = i;
 
     while (!isSlaveReady())
       ;

@@ -96,9 +96,6 @@ reset:
     TRY(sync(CMD_FRAME_END))
 
     render();
-
-    while (!(pressedKeys() & KEY_SELECT))
-      ;
   }
 }
 

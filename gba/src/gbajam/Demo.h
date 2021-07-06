@@ -90,9 +90,8 @@ reset:
       goto reset;
 
     frame++;
-    print(std::to_string(frame));
-    while (!(pressedKeys() & KEY_START))
-      ;
+    if (frame % 60 == 0)
+      print(std::to_string(frame));
 
     // loop!
     if (cursor * PACKET_SIZE > len)
