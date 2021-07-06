@@ -10,7 +10,7 @@ class SPIMaster {
   u32 transfer(u32 value) {
     setNormalMode();
     set32BitPackets();
-    set2MhzSpeed();
+    // set2MhzSpeed();
     setMasterMode();
 
     setData(value);

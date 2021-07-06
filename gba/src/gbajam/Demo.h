@@ -49,7 +49,7 @@ CODE_IWRAM void run() {
 }
 
 inline void send() {
-  print("Waiting for remote gba...");
+  print("Waiting for slave...");
 
   u32 len;
   u32* data = (u32*)gbfs_get_obj(fs, "record.bin", &len);
@@ -94,14 +94,14 @@ reset:
       ;
 
     // loop!
-    if (cursor > len)
+    if (cursor * PACKET_SIZE > len)
       cursor = 0;
   }
 }
 
 inline void sendMetadata(u32* data, u32* cursor, u32* metadata) {
   *metadata = data[*cursor];
-  *cursor += PACKET_SIZE;
+  (*cursor)++;
   u32 keys = spiMaster->transfer(*metadata);
 
   u32 confirmation;
@@ -116,7 +116,7 @@ inline void sendMetadata(u32* data, u32* cursor, u32* metadata) {
 inline void sendChunk(u32* data, u32* cursor, u32 chunkSize, u32 start) {
   for (u32 i = start; i < chunkSize; i++) {
     spiMaster->transfer(data[*cursor]);
-    *cursor += PACKET_SIZE;
+    (*cursor)++;
   }
 }
 
