@@ -8,20 +8,17 @@
 class SPIMaster {
  public:
   u32 transfer(u32 value) {
+  retry:
     setNormalMode();
     set32BitPackets();
     set2MhzSpeed();
     setMasterMode();
 
-    setData(value);
+    setData(value == 0xffffffff ? ZERO_FLAG : value);
     enableTransfer();
 
     while (!isSlaveReady())
       ;
-
-    // waste some cycles
-    for (u32 i = 0; i < 20; i++)
-      pal_obj_mem[i] = i;
 
     startTransfer();
 
@@ -30,6 +27,8 @@ class SPIMaster {
 
     disableTransfer();
     u32 data = getData();
+    if (data == 0xffffffff)
+      goto retry;
 
     return data;
   }

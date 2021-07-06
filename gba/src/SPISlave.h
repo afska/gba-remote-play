@@ -12,6 +12,7 @@
 #define SPI_BIT_START 7
 #define SPI_BIT_LENGTH 12
 #define SPI_BIT_IRQ 14
+#define ZERO_FLAG 1869768058
 
 // A Link Port connection for Normal mode (slave, 32bit packets)
 
@@ -33,6 +34,7 @@ class SPISlave {
 
   template <typename F>
   u32 transfer(u32 value, F needsBreak, bool* breakFlag) {
+  retry:
     setData(value);
     enableTransfer();
     startTransfer();
@@ -48,6 +50,10 @@ class SPISlave {
 
     disableTransfer();
     u32 data = getData();
+    if (data == 0xffffffff)
+      goto retry;
+    else if (data == ZERO_FLAG)
+      data = 0xffffffff;
 
     return data;
   }
