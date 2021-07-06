@@ -11,5 +11,6 @@ build/
 
 debug.png
 palette.cache
+record.bin
 
 src/data/_compiled_files
