@@ -12,8 +12,8 @@
 #include "Protocol.h"
 
 #define AUDIO_COMMAND_DRIVER "sudo modprobe snd-aloop"
-#define AUDIO_COMMAND_ENCODER                                        \
-  "ffmpeg -f alsa -i hw:0,1 -y -ac 1 -af 'aresample=18157' -strict " \
+#define AUDIO_COMMAND_ENCODER                                          \
+  "ffmpeg -f alsa -i hw:0,1,0 -y -ac 1 -af 'aresample=18157' -strict " \
   "unofficial -c:a gsm -f gsm -loglevel quiet -"
 
 #define AUDIO_NULL "/dev/null"
