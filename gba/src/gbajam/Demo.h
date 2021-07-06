@@ -4,6 +4,7 @@
 #include <tonc.h>
 #include <string>
 #include "../Utils.h"
+#include "SPIMaster.h"
 
 extern "C" {
 #include "gbfs/gbfs.h"
@@ -14,6 +15,7 @@ void printOptions();
 void print(std::string text);
 
 static const GBFS_FILE* fs = find_first_gbfs_file(0);
+SPIMaster* spiMaster = new SPIMaster();
 
 CODE_IWRAM void GbaJamDemo() {
   u16 keys = 0, previousKeys = 0;
@@ -31,7 +33,7 @@ CODE_IWRAM void GbaJamDemo() {
       send();
     } else if (IS_PRESSED(KEY_SELECT)) {
       // RECEIVE
-      return;  // goes back to _main.cpp
+      return;  // (goes back to _main.cpp)
     }
 
     previousKeys = keys;
@@ -42,15 +44,24 @@ CODE_IWRAM void GbaJamDemo() {
 }
 
 void send() {
-  // TODO: ASD
+  u32 len;
+  const void* data = gbfs_get_obj(fs, "record.bin", &len);
+
+  // u32 cursor = 0;
+  // while (cursor < len) {
+  // }
+  print(std::to_string(*((u32*)data)));
+  while (true) {
+  }
 }
 
-void printOptions() {
+void printOptions(bool hasStarted) {
   print(std::string("") +
         "gba-remote-play demo\n\nThis will stream video to the other GBA "
         "at 2Mbps using Link\nCable's Normal Mode.\n\nAs far as I know, it can "
-        "only be tested on NO$GBA or \nreal hardware.\n\n\n\n\n\n\n\n\nPress "
-        "START to stream.\n\nPress SELECT to receive.");
+        "only be tested on NO$GBA or \nby using real "
+        "hardware.\n\n\n\n\n\n\n\n\nPress START to stream.\n\nPress SELECT to "
+        "receive.");
 }
 
 void print(std::string text) {
