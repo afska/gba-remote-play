@@ -13,7 +13,7 @@ extern "C" {
 namespace Demo {
 
 void send();
-void sendMetadata(u32* data, u32* cursor, u32* metadata);
+void sendMetadata(u32* data, u32* cursor, u32 metadata);
 void sendChunk(u32* data, u32* cursor, u32 chunkSize);
 bool sync(u32 command);
 void printOptions();
@@ -59,17 +59,18 @@ reset:
   u32 frame = 0;
 
   while (true) {
-    // frame start
-    if (!sync(CMD_FRAME_START))
-      goto reset;
-
-    // send metadata
-    u32 metadata;
-    sendMetadata(data, &cursor, &metadata);
+    u32 metadata = data[cursor];
     u32 expectedPackets = (metadata >> PACKS_BIT_OFFSET) & PACKS_BIT_MASK;
     u32 startPixel = metadata & START_BIT_MASK;
     bool hasAudio = (metadata & AUDIO_BIT_MASK) != 0;
     u32 diffsStart = (startPixel / 8) / PACKET_SIZE;
+
+    // frame start
+    if (!sync(CMD_FRAME_START))
+      goto reset;
+
+    // send metadata & diffs
+    sendMetadata(data, &cursor, metadata);
     sendChunk(data, &cursor, TEMPORAL_DIFF_SIZE / PACKET_SIZE - diffsStart);
 
     // send audio
@@ -98,13 +99,12 @@ reset:
   }
 }
 
-inline void sendMetadata(u32* data, u32* cursor, u32* metadata) {
-  *metadata = data[*cursor];
+inline void sendMetadata(u32* data, u32* cursor, u32 metadata) {
   (*cursor)++;
-  u32 keys = spiMaster->transfer(*metadata);
+  u32 keys = spiMaster->transfer(metadata);
 
   u32 confirmation;
-  if ((confirmation = spiMaster->transfer(keys)) != *metadata) {
+  if ((confirmation = spiMaster->transfer(keys)) != metadata) {
     print(std::string("") + "Error!\nAre you using Normal Mode?\n\n" +
           "Received: " + std::to_string(confirmation));
     while (true)
