@@ -200,7 +200,7 @@ class GBARemotePlay {
 
     uint32_t diffsStart = (diffs.startPixel / 8) / PACKET_SIZE;
     recordFile.write(
-        (char*)(((uint32_t*)(&diffs.temporal)) + diffsStart),
+        (char*)(((uint32_t*)(diffs.temporal)) + diffsStart),
         (TEMPORAL_DIFF_SIZE / PACKET_SIZE - diffsStart) * PACKET_SIZE);
 
     return reliableStream->send(diffs.temporal,
@@ -209,8 +209,7 @@ class GBARemotePlay {
   }
 
   bool sendAudio(Frame& frame) {
-    recordFile.write((char*)(frame.audioChunk),
-                     AUDIO_SIZE_PACKETS * PACKET_SIZE);
+    recordFile.write((char*)frame.audioChunk, AUDIO_SIZE_PACKETS * PACKET_SIZE);
 
     return reliableStream->send(frame.audioChunk, AUDIO_SIZE_PACKETS,
                                 CMD_AUDIO);
@@ -226,7 +225,7 @@ class GBARemotePlay {
                      (frame.hasAudio() ? ">" : ", no audio>") + "\n";
 #endif
 
-    recordFile.write((char*)(packetsToSend), size * PACKET_SIZE);
+    recordFile.write((char*)packetsToSend, size * PACKET_SIZE);
 
     return reliableStream->send(packetsToSend, size, CMD_PIXELS);
   }
