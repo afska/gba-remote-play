@@ -26,7 +26,7 @@ CODE_IWRAM void run() {
 #define IS_PRESSED(KEY) (keys & KEY && !(previousKeys & KEY))
 
   REG_DISPCNT = DCNT_MODE0 | DCNT_BG0;
-  tte_init_se(0, BG_CBB(0) | BG_SBB(31), 0xF000, CLR_GRAY, 0, &fwf_default,
+  tte_init_se(0, BG_CBB(0) | BG_SBB(31), 0xF000, CLR_WHITE, 0, &fwf_default,
               NULL);
 
   while (true) {
@@ -60,6 +60,7 @@ inline void send() {
     TRY(sync(CMD_FRAME_START))
     u32 metadata;
     TRY(sendMetadata(data, &cursor, &metadata))
+    // TODO: CONTINUE
   }
 }
 
@@ -67,12 +68,9 @@ inline bool sendMetadata(u32* data, u32* cursor, u32* metadata) {
   *metadata = data[*cursor];
   *cursor += PACKET_SIZE;
   u32 keys = spiMaster->transfer(*metadata);
+
   if (spiMaster->transfer(keys) != *metadata)
     return false;
-
-  print("METADATA OK");
-  while (true)
-    ;
 
   return true;
 }

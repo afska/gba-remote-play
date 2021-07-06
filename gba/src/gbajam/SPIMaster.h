@@ -7,14 +7,11 @@
 
 class SPIMaster {
  public:
-  SPIMaster() {
+  u32 transfer(u32 value) {
     setNormalMode();
     set32BitPackets();
     setMasterMode();
-    disableTransfer();
-  }
 
-  u32 transfer(u32 value) {
     setData(value);
     enableTransfer();
 
@@ -44,7 +41,6 @@ class SPIMaster {
   void enableTransfer() { BIT_SET_LOW(REG_SIOCNT, SPI_BIT_SO); }
   void disableTransfer() { BIT_SET_HIGH(REG_SIOCNT, SPI_BIT_SO); }
   void startTransfer() { BIT_SET_HIGH(REG_SIOCNT, SPI_BIT_START); }
-  void stopTransfer() { BIT_SET_LOW(REG_SIOCNT, SPI_BIT_START); }
   bool isSlaveReady() { return !BIT_IS_HIGH(REG_SIOCNT, SPI_BIT_SI); }
   bool isReady() { return !BIT_IS_HIGH(REG_SIOCNT, SPI_BIT_START); }
 
