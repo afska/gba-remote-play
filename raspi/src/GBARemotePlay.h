@@ -1,6 +1,7 @@
 #ifndef GBA_REMOTE_PLAY_H
 #define GBA_REMOTE_PLAY_H
 
+#include <fstream>
 #include "BuildConfig.h"
 #include "Config.h"
 #include "Frame.h"
@@ -14,6 +15,7 @@
 #include "SPIMaster.h"
 #include "Utils.h"
 #include "VirtualGamepad.h"
+using namespace std;
 
 uint8_t LUT_24BPP_TO_8BIT_PALETTE[PALETTE_24BIT_MAX_COLORS];
 
@@ -31,6 +33,8 @@ class GBARemotePlay {
     lastFrame = Frame{0};
 
     PALETTE_initializeCache(PALETTE_CACHE_FILENAME);
+
+    recordFile.open("record.bin", ios::out | ios::trunc | ios::binary);
   }
 
   void run() {
@@ -116,6 +120,7 @@ class GBARemotePlay {
   VirtualGamepad* virtualGamepad;
   Frame lastFrame;
   uint32_t input;
+  fstream recordFile;
 
   bool send(Frame& frame, ImageDiffBitArray& diffs) {
     if (!frame.hasData())
@@ -184,6 +189,9 @@ class GBARemotePlay {
                          << PACKS_BIT_OFFSET) |
                         (frame.hasAudio() ? AUDIO_BIT_MASK : 0);
     uint32_t keys = spiMaster->exchange(metadata);
+
+    recordFile.write((char*)&metadata, 4);
+
     if (reliableStream->finishSyncIfNeeded(keys, CMD_FRAME_START))
       goto again;
     if (spiMaster->exchange(keys) != metadata)
@@ -191,12 +199,19 @@ class GBARemotePlay {
     processKeys(keys);
 
     uint32_t diffsStart = (diffs.startPixel / 8) / PACKET_SIZE;
+    recordFile.write(
+        (char*)(((uint32_t*)(&diffs.temporal)) + diffsStart),
+        (TEMPORAL_DIFF_SIZE / PACKET_SIZE - diffsStart) * PACKET_SIZE);
+
     return reliableStream->send(diffs.temporal,
                                 TEMPORAL_DIFF_SIZE / PACKET_SIZE,
                                 CMD_FRAME_START, diffsStart);
   }
 
   bool sendAudio(Frame& frame) {
+    recordFile.write((char*)(frame.audioChunk),
+                     AUDIO_SIZE_PACKETS * PACKET_SIZE);
+
     return reliableStream->send(frame.audioChunk, AUDIO_SIZE_PACKETS,
                                 CMD_AUDIO);
   }
@@ -210,6 +225,8 @@ class GBARemotePlay {
     std::cout << "  <" + std::to_string(size * PACKET_SIZE) + "bytes" +
                      (frame.hasAudio() ? ">" : ", no audio>") + "\n";
 #endif
+
+    recordFile.write((char*)(packetsToSend), size * PACKET_SIZE);
 
     return reliableStream->send(packetsToSend, size, CMD_PIXELS);
   }
