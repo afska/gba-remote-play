@@ -95,6 +95,7 @@ class GBARemotePlay {
                          AUDIO_SIZE_PACKETS * PACKET_SIZE);
       }
       recordFile.write((char*)packetsToSend, size * PACKET_SIZE);
+      recordFile.flush();
 
 #ifdef PROFILE_VERBOSE
       auto frameTransferElapsedTime = PROFILE_END(frameTransferStartTime);
