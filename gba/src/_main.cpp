@@ -147,6 +147,7 @@ inline void render(bool withRLE) {
     while (cursor < target) {                            \
       DRIVE_AUDIO_IF_NEEDED()                            \
       DRAW_PIXEL(pixel)                                  \
+      cursor++;                                          \
     }                                                    \
   } else {                                               \
     u8 pixel = compressedPixels[decompressedPixels];     \
