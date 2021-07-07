@@ -45,8 +45,8 @@ bool sendKeysAndReceiveMetadata();
 bool receiveAudio();
 bool receivePixels();
 void render();
-bool isNewVBlank();
-void driveAudio();
+bool needsToRunAudio();
+void runAudio();
 u32 transfer(u32 packetToSend, bool withRecovery = true);
 bool sync(u32 command);
 u32 x(u32 cursor);
@@ -133,9 +133,9 @@ inline void render() {
   u32 decompressedPixels = 0;
   u32 cursor = state.startPixel;
 
-#define DRIVE_AUDIO_IF_NEEDED()       \
-  if (!(cursor % 8) && isNewVBlank()) \
-    driveAudio();
+#define RUN_AUDIO_IF_NEEDED()             \
+  if (!(cursor % 8) && needsToRunAudio()) \
+    runAudio();
 #define DRAW_PIXEL(PIXEL) m4Draw(y(cursor) * DRAW_WIDTH + x(cursor), PIXEL);
 #define DRAW_NEXT()                                \
   u8 pixel = compressedPixels[decompressedPixels]; \
@@ -145,12 +145,12 @@ inline void render() {
 #define DRAW_BATCH(TIMES)                         \
   u32 target = min(cursor + TIMES, TOTAL_PIXELS); \
   while (cursor < target) {                       \
-    DRIVE_AUDIO_IF_NEEDED()                       \
+    RUN_AUDIO_IF_NEEDED()                         \
     DRAW_NEXT()                                   \
   }
 
   while (cursor < TOTAL_PIXELS) {
-    DRIVE_AUDIO_IF_NEEDED()
+    RUN_AUDIO_IF_NEEDED()
     u32 diffCursor = cursor / 8;
     u32 diffCursorBit = cursor % 8;
     if (diffCursorBit == 0) {
@@ -193,7 +193,11 @@ inline void render() {
   }
 }
 
-inline bool isNewVBlank() {
+inline bool needsToRunAudio() {
+#ifndef WITH_AUDIO
+  return false;
+#endif
+
   if (!state.isVBlank && IS_VBLANK) {
     state.isVBlank = true;
     return true;
@@ -203,7 +207,7 @@ inline bool isNewVBlank() {
   return false;
 }
 
-CODE_IWRAM void driveAudio() {
+CODE_IWRAM void runAudio() {
   if (player_needsData() && state.isAudioReady) {
     player_play((const unsigned char*)state.audioChunks, AUDIO_CHUNK_SIZE);
     state.isAudioReady = false;
@@ -217,10 +221,10 @@ CODE_IWRAM void driveAudio() {
 inline u32 transfer(u32 packetToSend, bool withRecovery) {
   bool breakFlag = false;
   u32 receivedPacket =
-      spiSlave->transfer(packetToSend, isNewVBlank, &breakFlag);
+      spiSlave->transfer(packetToSend, needsToRunAudio, &breakFlag);
 
   if (breakFlag) {
-    driveAudio();
+    runAudio();
 
     if (withRecovery) {
       sync(CMD_RECOVERY);
@@ -240,10 +244,10 @@ inline bool sync(u32 command) {
   while (true) {
     bool breakFlag = false;
     bool isOnSync =
-        spiSlave->transfer(local, isNewVBlank, &breakFlag) == remote;
+        spiSlave->transfer(local, needsToRunAudio, &breakFlag) == remote;
 
     if (breakFlag) {
-      driveAudio();
+      runAudio();
       continue;
     }
 
