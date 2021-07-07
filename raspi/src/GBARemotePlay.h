@@ -180,6 +180,7 @@ class GBARemotePlay {
   again:
     uint32_t metadata = diffs.startPixel |
                         (diffs.expectedPackets() << PACKS_BIT_OFFSET) |
+                        (diffs.shouldUseRLE() ? COMPR_BIT_MASK : 0) |
                         (frame.hasAudio() ? AUDIO_BIT_MASK : 0);
     uint32_t keys = spiMaster->exchange(metadata);
     if (reliableStream->finishSyncIfNeeded(keys, CMD_FRAME_START))
@@ -212,7 +213,12 @@ class GBARemotePlay {
 
 #ifdef PROFILE_VERBOSE
     std::cout << "  <" + std::to_string(size * PACKET_SIZE) + "bytes" +
-                     (frame.hasAudio() ? ">" : ", no audio>") + "\n";
+                     (diffs.shouldUseRLE()
+                          ? ", rle (" +
+                                std::to_string(diffs.omittedRLEPixels()) +
+                                " omitted)>"
+                          : "") +
+                     (frame.hasAudio() ? ", audio>" : ">") + "\n";
 #endif
 
     return reliableStream->send(packetsToSend, size, CMD_PIXELS);
