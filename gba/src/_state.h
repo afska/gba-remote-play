@@ -10,6 +10,7 @@ typedef struct {
   u8 audioChunks[AUDIO_PADDED_SIZE];
   u32 expectedPackets;
   u32 startPixel;
+  bool isRLE;
   bool hasAudio;
   bool isVBlank;
   bool isAudioReady;
