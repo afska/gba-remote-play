@@ -207,7 +207,8 @@ class GBARemotePlay {
 
 #ifdef DEBUG
     if (size != diffs.expectedPackets()) {
-      LOG("[!!!] Sizes don't match");
+      LOG("[!!!] Sizes don't match (" + std::to_string(size) + " vs " +
+          std::to_string(diffs.expectedPackets()) + ")");
     }
 #endif
 

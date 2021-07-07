@@ -64,7 +64,9 @@ typedef struct {
 
 #ifdef DEBUG
     if (rleIndex + 1 != totalCompressedPixels - repeatedPixels) {
-      LOG("[!!!] RLE counters don't match");
+      LOG("[!!!] RLE counters don't match (" + std::to_string(rleIndex + 1) +
+          " vs " + std::to_string(totalCompressedPixels - repeatedPixels) +
+          ")");
     }
 #endif
   }
