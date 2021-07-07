@@ -67,18 +67,19 @@ typedef struct {
   }
 
   uint32_t expectedPackets() {
-    return compressedPixels / PIXELS_PER_PACKET +
-           ((compressedPixels % PIXELS_PER_PACKET) != 0);
+    return size() / PIXELS_PER_PACKET + ((size() % PIXELS_PER_PACKET) != 0);
   }
-
-  uint32_t sizeWithRLE() { return (rleIndex + 1) * 2; }
-  uint32_t sizeWithoutRLE() { return compressedPixels; }
-  uint32_t omittedRLEPixels() { return sizeWithoutRLE() - sizeWithRLE(); }
-  bool shouldUseRLE() { return sizeWithRLE() < sizeWithoutRLE(); }
 
   bool hasPixelChanged(uint32_t pixelId) { return getBit(temporal, pixelId); }
 
+  bool shouldUseRLE() { return omittedRLEPixels() > 0; }
+  int omittedRLEPixels() { return sizeWithoutRLE() - sizeWithRLE(); }
+  uint32_t size() { return shouldUseRLE() ? sizeWithRLE() : sizeWithoutRLE(); }
+
  private:
+  uint32_t sizeWithRLE() { return (rleIndex + 1) * 2; }
+  uint32_t sizeWithoutRLE() { return compressedPixels; }
+
   void setBit(uint8_t* bitarray, uint32_t n, bool value) {
     uint32_t byte = n / 8;
     uint8_t bit = n % 8;
