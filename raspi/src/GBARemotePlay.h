@@ -216,7 +216,7 @@ class GBARemotePlay {
                      (diffs.shouldUseRLE()
                           ? ", rle (" +
                                 std::to_string(diffs.omittedRLEPixels()) +
-                                " omitted)>"
+                                " omitted)"
                           : "") +
                      (frame.hasAudio() ? ", audio>" : ">") + "\n";
 #endif
@@ -242,16 +242,17 @@ class GBARemotePlay {
   }
 
     if (diffs.shouldUseRLE()) {
-      uint32_t rleIndex = 0;
+      uint32_t rleIndex = 0, pixelIndex = 0;
 
-      for (int i = 0; i < diffs.totalCompressedPixels; i++) {
+      while (rleIndex < diffs.rleIndex + 1) {
         uint8_t times = diffs.runLengthEncoding[rleIndex];
-        rleIndex++;
-        uint8_t pixel = diffs.compressedPixels[rleIndex];
-        rleIndex++;
+        uint8_t pixel = diffs.compressedPixels[pixelIndex];
 
         ADD_BYTE(times)
         ADD_BYTE(pixel)
+
+        pixelIndex += times;
+        rleIndex++;
       }
     } else {
       for (int i = 0; i < diffs.totalCompressedPixels; i++) {
