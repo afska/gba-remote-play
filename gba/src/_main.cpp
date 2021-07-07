@@ -44,7 +44,7 @@ void mainLoop();
 bool sendKeysAndReceiveMetadata();
 bool receiveAudio();
 bool receivePixels();
-void render();
+void render(bool withRLE);
 bool isNewVBlank();
 void driveAudio();
 u32 transfer(u32 packetToSend, bool withRecovery = true);
@@ -92,7 +92,7 @@ reset:
     TRY(receivePixels())
     TRY(sync(CMD_FRAME_END))
 
-    render();
+    render(state.isRLE);
   }
 }
 
@@ -104,6 +104,7 @@ inline bool sendKeysAndReceiveMetadata() {
 
   state.expectedPackets = (metadata >> PACKS_BIT_OFFSET) & PACKS_BIT_MASK;
   state.startPixel = metadata & START_BIT_MASK;
+  state.isRLE = (metadata & COMPR_BIT_MASK) != 0;
   state.hasAudio = (metadata & AUDIO_BIT_MASK) != 0;
 
   u32 diffsStart = (state.startPixel / 8) / PACKET_SIZE;
@@ -129,7 +130,7 @@ inline bool receivePixels() {
   return true;
 }
 
-inline void render() {
+inline void render(bool withRLE) {
   u32 decompressedPixels = 0;
   u32 cursor = state.startPixel;
 
@@ -137,11 +138,22 @@ inline void render() {
   if (!(cursor % 8) && isNewVBlank()) \
     driveAudio();
 #define DRAW_PIXEL(PIXEL) m4Draw(y(cursor) * DRAW_WIDTH + x(cursor), PIXEL);
-#define DRAW_NEXT()                                \
-  u8 pixel = compressedPixels[decompressedPixels]; \
-  DRAW_PIXEL(pixel);                               \
-  decompressedPixels++;                            \
-  cursor++;
+#define DRAW_NEXT()                                      \
+  if (withRLE) {                                         \
+    u8 times = compressedPixels[decompressedPixels];     \
+    u8 pixel = compressedPixels[decompressedPixels + 1]; \
+    decompressedPixels += 2;                             \
+    u32 target = min(cursor + times, TOTAL_PIXELS);      \
+    while (cursor < target) {                            \
+      DRIVE_AUDIO_IF_NEEDED()                            \
+      DRAW_PIXEL(pixel)                                  \
+    }                                                    \
+  } else {                                               \
+    u8 pixel = compressedPixels[decompressedPixels];     \
+    DRAW_PIXEL(pixel);                                   \
+    decompressedPixels++;                                \
+    cursor++;                                            \
+  }
 #define DRAW_BATCH(TIMES)                         \
   u32 target = min(cursor + TIMES, TOTAL_PIXELS); \
   while (cursor < target) {                       \
