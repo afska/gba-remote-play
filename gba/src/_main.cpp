@@ -72,12 +72,22 @@ int main() {
 }
 #endif
 
+CODE_IWRAM void ON_VBLANK() {
+  player_onVBlank();
+  REG_IF = IRQ_VBLANK;
+}
+
 inline void init() {
   enableMode4AndBackground2();
   overclockEWRAM();
   enableMosaic(DRAW_SCALE_X, DRAW_SCANLINES ? 1 : DRAW_SCALE_Y);
   dma3_cpy(pal_bg_mem, MAIN_PALETTE, sizeof(COLOR) * PALETTE_COLORS);
   player_init();
+
+  REG_ISR_MAIN = ON_VBLANK;  // Tell the GBA where my isr is
+  REG_DISPSTAT |= 0b1000;    // Tell the display to fire VBlank interrupts
+  REG_IE |= IRQ_VBLANK;      // Tell the GBA to catch VBlank interrupts
+  REG_IME = 1;               // Tell the GBA to enable interrupts;
 }
 
 CODE_IWRAM void mainLoop() {

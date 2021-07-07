@@ -27,7 +27,10 @@ inline bool player_needsData() {
          ((int)src_pos) >= ((int)src_end) - (sizeof(gsm_frame));
 }
 
-inline void player_run() {
+inline void player_onVBlank() {
   PLAYER_VBLANK();
+}
+
+inline void player_run() {
   PLAYER_RUN({}, {});
 }
