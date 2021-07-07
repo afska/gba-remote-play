@@ -61,7 +61,7 @@ class GBARemotePlay {
 #endif
 
       ImageDiffRLECompressor diffs;
-      diffs.initialize(frame, lastFrame);
+      diffs.initialize(frame, lastFrame, config->diffThreshold);
 
 #ifdef PROFILE_VERBOSE
       auto frameDiffsElapsedTime = PROFILE_END(frameDiffsStartTime);

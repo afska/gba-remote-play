@@ -14,38 +14,35 @@ typedef struct {
   uint32_t startPixel;
   int lastChangedPixelId = -1;
 
-  void initialize(Frame currentFrame, Frame previousFrame) {
+  void initialize(Frame currentFrame,
+                  Frame previousFrame,
+                  uint32_t diffThreshold) {
     totalCompressedPixels = repeatedPixels = 0;
     startPixel = TOTAL_PIXELS;
 
     uint32_t rleIndex = 0;
-    bool hasStartPixel = false;
 
     for (int i = 0; i < TOTAL_PIXELS; i++) {
-      if (currentFrame.hasPixelChanged(i, previousFrame)) {
+      if (currentFrame.hasPixelChanged(i, previousFrame, diffThreshold)) {
         // (a pixel changed)
-
-        if (!hasStartPixel) {
-          startPixel = i;
-          hasStartPixel = true;
-        }
-
         if (totalCompressedPixels > 0) {
-          if (currentFrame.raw8BitPixels[lastChangedPixelId] !=
+          if (lastChangedPixelId != i - 1 ||
+              currentFrame.raw8BitPixels[lastChangedPixelId] !=
                   currentFrame.raw8BitPixels[i] ||
-              runLengthEncoding[rleIndex] == 0xff) {
+              runLengthEncoding[rleIndex] == MAX_RLE) {
             // (the pixel has a new color)
-
             rleIndex++;
             runLengthEncoding[rleIndex] = 1;
           } else {
             // (the pixel has the same color as the last changed pixel)
-
             runLengthEncoding[rleIndex]++;
             repeatedPixels++;
           }
-        } else
+        } else {
+          // (first changed pixel)
+          startPixel = i;
           runLengthEncoding[0] = 1;
+        }
 
         setBit(temporalDiffs, i, true);
         compressedPixels[totalCompressedPixels] = currentFrame.raw8BitPixels[i];
