@@ -26,8 +26,7 @@ typedef struct {
       if (currentFrame.hasPixelChanged(i, previousFrame, diffThreshold)) {
         // (a pixel changed)
         if (totalCompressedPixels > 0) {
-          if (lastChangedPixelId != i - 1 ||
-              currentFrame.raw8BitPixels[lastChangedPixelId] !=
+          if (currentFrame.raw8BitPixels[lastChangedPixelId] !=
                   currentFrame.raw8BitPixels[i] ||
               runLengthEncoding[rleIndex] == MAX_RLE) {
             // (the pixel has a new color)
