@@ -10,18 +10,16 @@ typedef struct {
   uint8_t compressedPixels[TOTAL_PIXELS];
   uint8_t runLengthEncoding[TOTAL_PIXELS];
   uint32_t totalCompressedPixels;
-  uint32_t rleIndex;
+  uint32_t repeatedPixels;
   uint32_t startPixel;
   int lastChangedPixelId = -1;
 
   void initialize(Frame currentFrame, Frame previousFrame) {
-    totalCompressedPixels = rleIndex = 0;
+    totalCompressedPixels = repeatedPixels = 0;
     startPixel = TOTAL_PIXELS;
-    bool hasStartPixel = false;
 
-#ifdef DEBUG
-    uint32_t repeatedPixels = 0;
-#endif
+    uint32_t rleIndex = 0;
+    bool hasStartPixel = false;
 
     for (int i = 0; i < TOTAL_PIXELS; i++) {
       if (currentFrame.hasPixelChanged(i, previousFrame)) {
@@ -44,9 +42,7 @@ typedef struct {
             // (the pixel has the same color as the last changed pixel)
 
             runLengthEncoding[rleIndex]++;
-#ifdef DEBUG
             repeatedPixels++;
-#endif
           }
         } else
           runLengthEncoding[0] = 1;
@@ -61,14 +57,6 @@ typedef struct {
         setBit(temporalDiffs, i, false);
       }
     }
-
-#ifdef DEBUG
-    if (rleIndex + 1 != totalCompressedPixels - repeatedPixels) {
-      LOG("[!!!] RLE counters don't match (" + std::to_string(rleIndex + 1) +
-          " vs " + std::to_string(totalCompressedPixels - repeatedPixels) +
-          ")");
-    }
-#endif
   }
 
   uint32_t expectedPackets() {
@@ -79,12 +67,16 @@ typedef struct {
     return getBit(temporalDiffs, pixelId);
   }
 
+  uint32_t totalEncodedPixels() {
+    return totalCompressedPixels - repeatedPixels;
+  }
+
   bool shouldUseRLE() { return omittedRLEPixels() > 0; }
   int omittedRLEPixels() { return sizeWithoutRLE() - sizeWithRLE(); }
   uint32_t size() { return shouldUseRLE() ? sizeWithRLE() : sizeWithoutRLE(); }
 
  private:
-  uint32_t sizeWithRLE() { return (rleIndex + 1) * 2; }
+  uint32_t sizeWithRLE() { return totalEncodedPixels() * 2; }
   uint32_t sizeWithoutRLE() { return totalCompressedPixels; }
 
   void setBit(uint8_t* bitarray, uint32_t n, bool value) {

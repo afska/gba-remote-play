@@ -245,7 +245,7 @@ class GBARemotePlay {
     if (diffs.shouldUseRLE()) {
       uint32_t rleIndex = 0, pixelIndex = 0;
 
-      while (rleIndex < diffs.rleIndex + 1) {
+      while (rleIndex < diffs.totalEncodedPixels()) {
         uint8_t times = diffs.runLengthEncoding[rleIndex];
         uint8_t pixel = diffs.compressedPixels[pixelIndex];
 
