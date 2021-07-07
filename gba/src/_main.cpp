@@ -47,7 +47,7 @@ bool receivePixels();
 void render();
 bool isNewVBlank();
 void driveAudio();
-u32 transfer(u32 packetToSend);
+u32 transfer(u32 packetToSend, bool withRecovery = true);
 bool sync(u32 command);
 u32 x(u32 cursor);
 u32 y(u32 cursor);
@@ -79,7 +79,7 @@ CODE_IWRAM void mainLoop() {
   state.isAudioReady = false;
 
 reset:
-  transfer(CMD_RESET);
+  transfer(CMD_RESET, false);
 
   while (true) {
     TRY(sync(CMD_FRAME_START))
@@ -209,14 +209,25 @@ CODE_IWRAM void driveAudio() {
     state.isAudioReady = false;
   }
 
+  spiSlave->stop();
   player_run();
+  spiSlave->start();
 }
 
-inline u32 transfer(u32 packetToSend) {
-  u32 receivedPacket = spiSlave->transfer(packetToSend);
+inline u32 transfer(u32 packetToSend, bool withRecovery) {
+  bool breakFlag = false;
+  u32 receivedPacket =
+      spiSlave->transfer(packetToSend, isNewVBlank, &breakFlag);
 
-  if (isNewVBlank())
+  if (breakFlag) {
     driveAudio();
+
+    if (withRecovery) {
+      sync(CMD_RECOVERY);
+      spiSlave->transfer(packetToSend);
+      receivedPacket = spiSlave->transfer(packetToSend);
+    }
+  }
 
   return receivedPacket;
 }
@@ -227,7 +238,14 @@ inline bool sync(u32 command) {
   bool wasVBlank = IS_VBLANK;
 
   while (true) {
-    bool isOnSync = transfer(local) == remote;
+    bool breakFlag = false;
+    bool isOnSync =
+        spiSlave->transfer(local, isNewVBlank, &breakFlag) == remote;
+
+    if (breakFlag) {
+      driveAudio();
+      continue;
+    }
 
     if (isOnSync)
       return true;

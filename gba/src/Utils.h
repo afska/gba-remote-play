@@ -3,7 +3,7 @@
 
 #include <tonc.h>
 
-#define CODE_IWRAM __attribute__((section(".iwram"), target("arm"), long_call))
+#define CODE_IWRAM __attribute__((section(".iwram"), target("arm")))
 #define DATA_IWRAM __attribute__((section(".iwram")))
 #define DATA_EWRAM __attribute__((section(".ewram")))
 #define BIT_SET_HIGH(REG, BIT) (REG) |= 1 << (BIT)

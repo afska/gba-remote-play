@@ -16,7 +16,9 @@
 
 class SPISlave {
  public:
-  SPISlave() {
+  SPISlave() { start(); }
+
+  void start() {
     setNormalMode();
     set32BitPackets();
     setSlaveMode();
@@ -24,17 +26,40 @@ class SPISlave {
   }
 
   u32 transfer(u32 value) {
+    return transfer(
+        value, []() { return false; }, NULL);
+  }
+
+  template <typename F>
+  u32 transfer(u32 value, F needsBreak, bool* breakFlag) {
     setData(value);
     enableTransfer();
     startTransfer();
 
-    while (!isReady())
-      ;
+    while (!isReady()) {
+      if (needsBreak()) {
+        setData(0xffffffff);
+        disableTransfer();
+        *breakFlag = true;
+        return 0;
+      }
+    }
 
     disableTransfer();
     u32 data = getData();
 
     return data;
+  }
+
+  void stop() {
+    stopTransfer();
+    disableTransfer();
+    BIT_SET_LOW(REG_SIOCNT, SPI_BIT_IRQ);
+    BIT_SET_HIGH(REG_SIOCNT, SPI_BIT_IRQ);
+    // (
+    //  This doesn't make any sense, but it somehow fixes a ~random~ CPU crash
+    //  when using DMA1 for audio and SPI transfers. Source: experimentation.
+    // )
   }
 
  private:
