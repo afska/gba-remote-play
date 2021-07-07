@@ -50,7 +50,6 @@ typedef struct {
         lastChangedPixelId = i;
       } else {
         // (a pixel remained with the same color as in the previous frame)
-
         setBit(temporalDiffs, i, false);
       }
     }

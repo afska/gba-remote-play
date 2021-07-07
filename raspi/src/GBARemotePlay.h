@@ -79,17 +79,16 @@ class GBARemotePlay {
 
 #ifdef PROFILE_VERBOSE
       auto frameTransferElapsedTime = PROFILE_END(frameTransferStartTime);
-      std::cout << "(build: " + std::to_string(frameGenerationElapsedTime) +
-                       "ms, diffs: " + std::to_string(frameDiffsElapsedTime) +
-                       "ms, transfer: " +
-                       std::to_string(frameTransferElapsedTime) + "ms)\n";
+      LOG("(build: " + std::to_string(frameGenerationElapsedTime) +
+          "ms, diffs: " + std::to_string(frameDiffsElapsedTime) +
+          "ms, transfer: " + std::to_string(frameTransferElapsedTime) + "ms)");
 #endif
 
 #ifdef PROFILE
       frames++;
       uint32_t elapsedTime = PROFILE_END(startTime);
       if (elapsedTime >= ONE_SECOND) {
-        std::cout << "--- " + std::to_string(frames) + " frames ---\n";
+        LOG("--- " + std::to_string(frames) + " frames ---");
         startTime = PROFILE_START();
         frames = 0;
       }
@@ -131,7 +130,7 @@ class GBARemotePlay {
 
 #ifdef PROFILE_VERBOSE
     auto idleElapsedTime = PROFILE_END(idleStartTime);
-    std::cout << "  <" + std::to_string(idleElapsedTime) + "ms idle>\n";
+    LOG("  <" + std::to_string(idleElapsedTime) + "ms idle>");
     auto metadataStartTime = PROFILE_START();
 #endif
 
@@ -141,7 +140,7 @@ class GBARemotePlay {
 
 #ifdef PROFILE_VERBOSE
     auto metadataElapsedTime = PROFILE_END(metadataStartTime);
-    std::cout << "  <" + std::to_string(metadataElapsedTime) + "ms metadata>\n";
+    LOG("  <" + std::to_string(metadataElapsedTime) + "ms metadata>");
 #endif
 
     if (frame.hasAudio()) {
@@ -213,13 +212,12 @@ class GBARemotePlay {
 #endif
 
 #ifdef PROFILE_VERBOSE
-    std::cout << "  <" + std::to_string(size * PACKET_SIZE) + "bytes" +
-                     (diffs.shouldUseRLE()
-                          ? ", rle (" +
-                                std::to_string(diffs.omittedRLEPixels()) +
-                                " omitted)"
-                          : "") +
-                     (frame.hasAudio() ? ", audio>" : ">") + "\n";
+    LOG("  <" + std::to_string(size * PACKET_SIZE) + "bytes" +
+        (diffs.shouldUseRLE()
+             ? ", rle (" + std::to_string(diffs.omittedRLEPixels()) +
+                   " omitted)"
+             : "") +
+        (frame.hasAudio() ? ", audio>" : ">"));
 #endif
 
     return reliableStream->send(packetsToSend, size, CMD_PIXELS);
