@@ -92,7 +92,11 @@ reset:
     TRY(receivePixels())
     TRY(sync(CMD_FRAME_END))
 
-    render(state.isRLE);
+    // (gcc optimizes this better than `render(state.isRLE)`)
+    if (state.isRLE)
+      render(true);
+    else
+      render(false);
   }
 }
 
@@ -131,29 +135,33 @@ inline bool receivePixels() {
 }
 
 inline void render(bool withRLE) {
-  u32 decompressedPixels = 0;
   u32 cursor = state.startPixel;
+  u32 rleRepeats = compressedPixels[0];
+  u32 decompressedBytes = withRLE;
 
-#define DRIVE_AUDIO_IF_NEEDED()       \
-  if (!(cursor % 8) && isNewVBlank()) \
-    driveAudio();
+#define DRIVE_AUDIO_IF_NEEDED()         \
+  if (withRLE) {                        \
+    if (isNewVBlank())                  \
+      driveAudio();                     \
+  } else {                              \
+    if (!(cursor % 8) && isNewVBlank()) \
+      driveAudio();                     \
+  }
 #define DRAW_PIXEL(PIXEL) m4Draw(y(cursor) * DRAW_WIDTH + x(cursor), PIXEL);
-#define DRAW_NEXT()                                      \
-  if (withRLE) {                                         \
-    u8 times = compressedPixels[decompressedPixels];     \
-    u8 pixel = compressedPixels[decompressedPixels + 1]; \
-    decompressedPixels += 2;                             \
-    u32 target = min(cursor + times, TOTAL_PIXELS);      \
-    while (cursor < target) {                            \
-      DRIVE_AUDIO_IF_NEEDED()                            \
-      DRAW_PIXEL(pixel)                                  \
-      cursor++;                                          \
-    }                                                    \
-  } else {                                               \
-    u8 pixel = compressedPixels[decompressedPixels];     \
-    DRAW_PIXEL(pixel);                                   \
-    decompressedPixels++;                                \
-    cursor++;                                            \
+#define DRAW_NEXT()                                         \
+  if (withRLE) {                                            \
+    u8 pixel = compressedPixels[decompressedBytes];         \
+    if (--rleRepeats == 0) {                                \
+      rleRepeats = compressedPixels[decompressedBytes + 1]; \
+      decompressedBytes += 2;                               \
+    }                                                       \
+    DRAW_PIXEL(pixel)                                       \
+    cursor++;                                               \
+  } else {                                                  \
+    u8 pixel = compressedPixels[decompressedBytes];         \
+    DRAW_PIXEL(pixel);                                      \
+    decompressedBytes++;                                    \
+    cursor++;                                               \
   }
 #define DRAW_BATCH(TIMES)                         \
   u32 target = min(cursor + TIMES, TOTAL_PIXELS); \
