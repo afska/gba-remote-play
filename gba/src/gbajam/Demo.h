@@ -105,8 +105,11 @@ inline void sendMetadata(u32* data, u32* cursor, u32 metadata) {
 
   u32 confirmation;
   if ((confirmation = spiMaster->transfer(keys)) != metadata) {
-    print(std::string("") + "Error!\nAre you using Normal Mode?\n\n" +
-          "Received: " + std::to_string(confirmation));
+    print(
+        std::string("") +
+        "Transfer failed!\n\nIs NO$GBA in Normal Mode?\n\n\n\n\n\n\n\n\n\nIf "
+        "you are using hardware:\n\n- Use a GB Link Cable, not a\n  GBA "
+        "cable\n\n- Try again, this only works\n  reliably with short cables");
     while (true)
       ;
   }
