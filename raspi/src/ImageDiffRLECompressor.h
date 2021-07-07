@@ -8,7 +8,7 @@
 typedef struct {
   uint8_t temporalDiffs[TEMPORAL_DIFF_SIZE];
   uint8_t compressedPixels[TOTAL_PIXELS];
-  uint8_t runLengthEncoding[TOTAL_PIXELS];  // TODO: MAX 255
+  uint8_t runLengthEncoding[TOTAL_PIXELS];
   uint32_t totalCompressedPixels;
   uint32_t rleIndex;
   uint32_t startPixel;
@@ -34,7 +34,8 @@ typedef struct {
 
         if (totalCompressedPixels > 0) {
           if (currentFrame.raw8BitPixels[lastChangedPixelId] !=
-              currentFrame.raw8BitPixels[i]) {
+                  currentFrame.raw8BitPixels[i] ||
+              runLengthEncoding[rleIndex] == 0xff) {
             // (the pixel has a new color)
 
             rleIndex++;
