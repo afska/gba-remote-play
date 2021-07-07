@@ -5,7 +5,7 @@
 #include "Config.h"
 #include "Frame.h"
 #include "FrameBuffer.h"
-#include "ImageDiffBitArray.h"
+#include "ImageDiffRLECompressor.h"
 #include "LoopbackAudio.h"
 #include "PNGWriter.h"
 #include "Palette.h"
@@ -60,7 +60,7 @@ class GBARemotePlay {
       auto frameDiffsStartTime = PROFILE_START();
 #endif
 
-      ImageDiffBitArray diffs;
+      ImageDiffRLECompressor diffs;
       diffs.initialize(frame, lastFrame);
 
 #ifdef PROFILE_VERBOSE
@@ -117,7 +117,7 @@ class GBARemotePlay {
   Frame lastFrame;
   uint32_t input;
 
-  bool send(Frame& frame, ImageDiffBitArray& diffs) {
+  bool send(Frame& frame, ImageDiffRLECompressor& diffs) {
     if (!frame.hasData())
       return false;
 
@@ -176,7 +176,7 @@ class GBARemotePlay {
     return true;
   }
 
-  bool receiveKeysAndSendMetadata(Frame& frame, ImageDiffBitArray& diffs) {
+  bool receiveKeysAndSendMetadata(Frame& frame, ImageDiffRLECompressor& diffs) {
   again:
     uint32_t metadata = diffs.startPixel |
                         (diffs.expectedPackets() << PACKS_BIT_OFFSET) |
@@ -190,7 +190,7 @@ class GBARemotePlay {
     processKeys(keys);
 
     uint32_t diffsStart = (diffs.startPixel / 8) / PACKET_SIZE;
-    return reliableStream->send(diffs.temporal,
+    return reliableStream->send(diffs.temporalDiffs,
                                 TEMPORAL_DIFF_SIZE / PACKET_SIZE,
                                 CMD_FRAME_START, diffsStart);
   }
@@ -200,7 +200,7 @@ class GBARemotePlay {
                                 CMD_AUDIO);
   }
 
-  bool compressAndSendPixels(Frame& frame, ImageDiffBitArray& diffs) {
+  bool compressAndSendPixels(Frame& frame, ImageDiffRLECompressor& diffs) {
     uint32_t packetsToSend[MAX_PIXELS_SIZE];
     uint32_t size = 0;
     compressPixels(frame, diffs, packetsToSend, &size);
@@ -225,23 +225,38 @@ class GBARemotePlay {
   }
 
   void compressPixels(Frame& frame,
-                      ImageDiffBitArray& diffs,
+                      ImageDiffRLECompressor& diffs,
                       uint32_t* packets,
                       uint32_t* totalPackets) {
     uint32_t currentPacket = 0;
     uint8_t byte = 0;
 
-    for (int i = 0; i < frame.totalPixels; i++) {
-      if (diffs.hasPixelChanged(i)) {
-        uint8_t pixel = frame.raw8BitPixels[i];
-        currentPacket |= pixel << (byte * 8);
-        byte++;
-        if (byte == PACKET_SIZE) {
-          packets[*totalPackets] = currentPacket;
-          currentPacket = 0;
-          byte = 0;
-          (*totalPackets)++;
-        }
+#define ADD_BYTE(DATA)                      \
+  currentPacket |= DATA << (byte * 8);      \
+  byte++;                                   \
+  if (byte == PACKET_SIZE) {                \
+    packets[*totalPackets] = currentPacket; \
+    currentPacket = 0;                      \
+    byte = 0;                               \
+    (*totalPackets)++;                      \
+  }
+
+    if (diffs.shouldUseRLE()) {
+      uint32_t rleIndex = 0;
+
+      for (int i = 0; i < diffs.totalCompressedPixels; i++) {
+        uint8_t times = diffs.runLengthEncoding[rleIndex];
+        rleIndex++;
+        uint8_t pixel = diffs.compressedPixels[rleIndex];
+        rleIndex++;
+
+        ADD_BYTE(times)
+        ADD_BYTE(pixel)
+      }
+    } else {
+      for (int i = 0; i < diffs.totalCompressedPixels; i++) {
+        uint8_t pixel = diffs.compressedPixels[i];
+        ADD_BYTE(pixel)
       }
     }
 

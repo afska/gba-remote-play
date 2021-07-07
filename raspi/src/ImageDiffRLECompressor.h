@@ -1,20 +1,21 @@
-#ifndef IMAGE_DIFF_BIT_ARRAY_H
-#define IMAGE_DIFF_BIT_ARRAY_H
+#ifndef IMAGE_DIFF_RLE_COMPRESSOR_H
+#define IMAGE_DIFF_RLE_COMPRESSOR_H
 
 #include <stdint.h>
 #include "Frame.h"
 #include "Protocol.h"
 
 typedef struct {
-  uint8_t temporal[TEMPORAL_DIFF_SIZE];
-  uint8_t runLengthEncoding[TOTAL_PIXELS];
-  uint32_t compressedPixels;
+  uint8_t temporalDiffs[TEMPORAL_DIFF_SIZE];
+  uint8_t compressedPixels[TOTAL_PIXELS];
+  uint8_t runLengthEncoding[TOTAL_PIXELS];  // TODO: MAX 255
+  uint32_t totalCompressedPixels;
   uint32_t rleIndex;
   uint32_t startPixel;
   int lastChangedPixelId = -1;
 
   void initialize(Frame currentFrame, Frame previousFrame) {
-    compressedPixels = rleIndex = 0;
+    totalCompressedPixels = rleIndex = 0;
     startPixel = TOTAL_PIXELS;
     bool hasStartPixel = false;
 
@@ -31,7 +32,7 @@ typedef struct {
           hasStartPixel = true;
         }
 
-        if (compressedPixels > 0) {
+        if (totalCompressedPixels > 0) {
           if (currentFrame.raw8BitPixels[lastChangedPixelId] !=
               currentFrame.raw8BitPixels[i]) {
             // (the pixel has a new color)
@@ -49,18 +50,19 @@ typedef struct {
         } else
           runLengthEncoding[0] = 1;
 
-        setBit(temporal, i, true);
-        compressedPixels++;
+        setBit(temporalDiffs, i, true);
+        compressedPixels[totalCompressedPixels] = currentFrame.raw8BitPixels[i];
+        totalCompressedPixels++;
         lastChangedPixelId = i;
       } else {
         // (a pixel remained with the same color as in the previous frame)
 
-        setBit(temporal, i, false);
+        setBit(temporalDiffs, i, false);
       }
     }
 
 #ifdef DEBUG
-    if (rleIndex + 1 != compressedPixels - repeatedPixels) {
+    if (rleIndex + 1 != totalCompressedPixels - repeatedPixels) {
       LOG("[!!!] RLE counters don't match");
     }
 #endif
@@ -70,7 +72,9 @@ typedef struct {
     return size() / PIXELS_PER_PACKET + ((size() % PIXELS_PER_PACKET) != 0);
   }
 
-  bool hasPixelChanged(uint32_t pixelId) { return getBit(temporal, pixelId); }
+  bool hasPixelChanged(uint32_t pixelId) {
+    return getBit(temporalDiffs, pixelId);
+  }
 
   bool shouldUseRLE() { return omittedRLEPixels() > 0; }
   int omittedRLEPixels() { return sizeWithoutRLE() - sizeWithRLE(); }
@@ -78,7 +82,7 @@ typedef struct {
 
  private:
   uint32_t sizeWithRLE() { return (rleIndex + 1) * 2; }
-  uint32_t sizeWithoutRLE() { return compressedPixels; }
+  uint32_t sizeWithoutRLE() { return totalCompressedPixels; }
 
   void setBit(uint8_t* bitarray, uint32_t n, bool value) {
     uint32_t byte = n / 8;
@@ -94,6 +98,6 @@ typedef struct {
 
     return (bitarray[byte] >> bit) & 1;
   }
-} ImageDiffBitArray;
+} ImageDiffRLECompressor;
 
-#endif  // IMAGE_DIFF_BIT_ARRAY_H
+#endif  // IMAGE_DIFF_RLE_COMPRESSOR_H
