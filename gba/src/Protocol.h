@@ -14,10 +14,10 @@
 
 // RENDER
 #define RENDER_WIDTH 120
-#define RENDER_HEIGHT 80
+#define RENDER_HEIGHT 160
 #define TOTAL_PIXELS (RENDER_WIDTH * RENDER_HEIGHT)
 #define DRAW_SCALE_X 2
-#define DRAW_SCALE_Y 2
+#define DRAW_SCALE_Y 1
 #define DRAW_SCANLINES true
 #define DRAW_WIDTH (RENDER_WIDTH * DRAW_SCALE_X)
 #define DRAW_HEIGHT (RENDER_HEIGHT * DRAW_SCALE_Y)
@@ -28,9 +28,9 @@
 #define PACKET_SIZE 4
 #define COLOR_SIZE 2
 #define PIXEL_SIZE 1
-#define AUDIO_CHUNK_SIZE 264   // (sizeof(gsm_frame) * 8)
-#define AUDIO_CHUNK_PADDING 0  // (so every chunk it's exactly 66 packets)
-#define AUDIO_SIZE_PACKETS 66  // -----------------------------^^
+#define AUDIO_CHUNK_SIZE 1980   // (sizeof(gsm_frame) * 60)
+#define AUDIO_CHUNK_PADDING 0   // (so every chunk it's exactly 495 packets)
+#define AUDIO_SIZE_PACKETS 495  // -----------------------------^^^
 #define SPI_MODE 3
 #define TRANSFER_SYNC_PERIOD 32
 #define COLORS_PER_PACKET (PACKET_SIZE / COLOR_SIZE)
