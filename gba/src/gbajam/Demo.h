@@ -10,8 +10,10 @@ extern "C" {
 #include "gbfs/gbfs.h"
 }
 
+// 16000us/frame and 61,02us per timer tick at TM_FREQ_1024
+// in a 10fps video => 100000us per frame => 1638ticks per video frame
 #define DEMO_SYNC_TIMER 3
-#define DEMO_TIMER_TICKS 1000
+#define DEMO_TIMER_TICKS 1638
 #define DEMO_TIMER_FREQUENCY TM_FREQ_1024
 const u16 DEMO_TIMER_IRQ_IDS[] = {IRQ_TIMER0, IRQ_TIMER1, IRQ_TIMER2,
                                   IRQ_TIMER3};
@@ -128,11 +130,11 @@ inline void sendMetadata(u32* data, u32* cursor, u32 metadata) {
 
   u32 confirmation;
   if ((confirmation = spiMaster->transfer(keys)) != metadata) {
-    print(
-        std::string("") +
-        "Transfer failed!\n\nIs NO$GBA in Normal Mode?\n\n\n\n\n\n\n\n\n\nIf "
-        "you are using hardware:\n\n- Use a GB Link Cable, not a\n  GBA "
-        "cable\n\n- Try again, this only works\n  reliably with short cables");
+    print(std::string("") +
+          "Transfer failed!\n\nIs NO$GBA in Normal Mode?\n\n\n\n\n\n\n\n\n\nIf "
+          "you are using hardware:\n\n- Use a GB Link Cable, not a\n  GBA "
+          "cable\n\n- Try again, this only works\n  reliably with short "
+          "cables");
     while (true)
       ;
   }
