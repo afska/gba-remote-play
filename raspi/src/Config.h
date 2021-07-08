@@ -12,6 +12,7 @@ class Config {
   uint32_t spiFastFrequency = 0;
   uint32_t spiDelayMicroseconds = 0;
   uint32_t diffThreshold = 0;
+  uint32_t recordSleepMilliseconds = 0;
   std::string virtualGamepadName = "";
 
   Config(std::string fileName) {
@@ -21,7 +22,8 @@ class Config {
     parse(data);
 
     if (!spiSlowFrequency || !spiFastFrequency || !spiDelayMicroseconds ||
-        !diffThreshold || virtualGamepadName == "") {
+        !diffThreshold || !recordSleepMilliseconds ||
+        virtualGamepadName == "") {
       std::cout << "Error (Config): invalid configuration, check " + fileName +
                        "\n";
       exit(1);
@@ -48,6 +50,8 @@ class Config {
         spiDelayMicroseconds = std::stoi(value);
       else if (key == "DIFF_THRESHOLD")
         diffThreshold = std::stoi(value);
+      else if (key == "RECORD_SLEEP_MILLISECONDS")
+        recordSleepMilliseconds = std::stoi(value);
       else if (key == "VIRTUAL_GAMEPAD_NAME")
         virtualGamepadName = value;
     }

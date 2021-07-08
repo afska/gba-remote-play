@@ -77,15 +77,25 @@ class GBARemotePlay {
       auto frameTransferStartTime = PROFILE_START();
 #endif
 
-      if (!send(frame, diffs)) {
-        frame.clean();
-        lastFrame.clean();
-        goto reset;
-      }
+      // Don't send anything, just record the packets to a file
+      // if (!send(frame, diffs)) {
+      //   frame.clean();
+      //   lastFrame.clean();
+      //   goto reset;
+      // }
+      metadata = diffs.startPixel |
+                 (diffs.expectedPackets() << PACKS_BIT_OFFSET) |
+                 (diffs.shouldUseRLE() ? COMPR_BIT_MASK : 0) |
+                 (frame.hasAudio() ? AUDIO_BIT_MASK : 0);
+      diffsStart = (diffs.startPixel / 8) / PACKET_SIZE;
+      size = 0;
+      compressPixels(frame, diffs, packetsToSend, &size);
 
+      // Clean previous frame
       lastFrame.clean();
       lastFrame = frame;
 
+      // Record packets
       recordFile.write((char*)&metadata, PACKET_SIZE);
       recordFile.write(
           (char*)(((uint32_t*)(diffs.temporalDiffs)) + diffsStart),
@@ -294,7 +304,8 @@ class GBARemotePlay {
     frame.raw8BitPixels = (uint8_t*)malloc(TOTAL_PIXELS);
     frame.palette = MAIN_PALETTE_24BPP;
 
-    usleep(50 * 1000);
+    // Sleep to limit frames per second
+    usleep(config->recordSleepMilliseconds * 1000);
 
     frameBuffer->forEachPixel(
         [&frame, this](int x, int y, uint8_t r, uint8_t g, uint8_t b) {
