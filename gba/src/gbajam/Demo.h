@@ -10,6 +10,12 @@ extern "C" {
 #include "gbfs/gbfs.h"
 }
 
+#define DEMO_SYNC_TIMER 3
+#define DEMO_TIMER_TICKS 1000
+#define DEMO_TIMER_FREQUENCY TM_FREQ_1024
+const u16 DEMO_TIMER_IRQ_IDS[] = {IRQ_TIMER0, IRQ_TIMER1, IRQ_TIMER2,
+                                  IRQ_TIMER3};
+
 namespace Demo {
 
 void send();
@@ -48,8 +54,18 @@ CODE_IWRAM void run() {
   }
 }
 
+bool didTimerCompleted = false;
+
+CODE_IWRAM void ON_TIMER() {
+  didTimerCompleted = true;
+  REG_TM[DEMO_SYNC_TIMER].cnt = 0;
+}
+
 inline void send() {
   print("Waiting for slave...");
+
+  irq_init(NULL);
+  irq_add(II_TIMER3, (fnptr)ON_TIMER);
 
   u32 len;
   u32* data = (u32*)gbfs_get_obj(fs, "record.bin", &len);
@@ -64,6 +80,10 @@ reset:
     u32 startPixel = metadata & START_BIT_MASK;
     bool hasAudio = (metadata & AUDIO_BIT_MASK) != 0;
     u32 diffsStart = (startPixel / 8) / PACKET_SIZE;
+
+    didTimerCompleted = false;
+    REG_TM[DEMO_SYNC_TIMER].start = -DEMO_TIMER_TICKS;
+    REG_TM[DEMO_SYNC_TIMER].cnt = TM_ENABLE | TM_IRQ | DEMO_TIMER_FREQUENCY;
 
     // frame start
     if (!sync(CMD_FRAME_START))
@@ -96,6 +116,9 @@ reset:
     // loop!
     if (cursor * PACKET_SIZE > len)
       cursor = 0;
+
+    if (!didTimerCompleted)
+      IntrWait(1, DEMO_TIMER_IRQ_IDS[DEMO_SYNC_TIMER]);
   }
 }
 
