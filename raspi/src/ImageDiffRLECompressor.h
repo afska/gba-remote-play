@@ -66,7 +66,10 @@ typedef struct {
     return totalCompressedPixels - repeatedPixels;
   }
 
-  bool shouldUseRLE() { return omittedRLEPixels() > 0; }
+  bool shouldUseRLE() {
+    // We are sorry, RLE is out of service.
+    return false; /*omittedRLEPixels() > 0;*/
+  }
   int omittedRLEPixels() { return sizeWithoutRLE() - sizeWithRLE(); }
   uint32_t size() { return shouldUseRLE() ? sizeWithRLE() : sizeWithoutRLE(); }
 
