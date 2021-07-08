@@ -32,5 +32,5 @@ inline void player_onVBlank() {
 }
 
 inline void player_run() {
-  PLAYER_RUN({}, {});
+  PLAYER_RUN({}, { player_stop(); });
 }
