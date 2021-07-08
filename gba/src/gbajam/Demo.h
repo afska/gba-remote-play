@@ -11,9 +11,9 @@ extern "C" {
 }
 
 // 16000us/frame and 61,02us per timer tick at TM_FREQ_1024
-// in a 20fps video => 50000us per frame => 819ticks per video frame
+// in a 10fps video => 100000us per frame => 1638ticks per video frame
 #define DEMO_SYNC_TIMER 3
-#define DEMO_TIMER_TICKS 819
+#define DEMO_TIMER_TICKS 1638
 #define DEMO_TIMER_FREQUENCY TM_FREQ_1024
 const u16 DEMO_TIMER_IRQ_IDS[] = {IRQ_TIMER0, IRQ_TIMER1, IRQ_TIMER2,
                                   IRQ_TIMER3};
@@ -119,8 +119,8 @@ reset:
       cursor = 0;
 
     frame++;
-    // print(std::to_string(frame) + (!didTimerCompleted ? " w" : "") +
-    //       (hasAudio ? "a" : ""));
+    print(std::to_string(frame) + (!didTimerCompleted ? " w" : "") +
+          (hasAudio ? "a" : ""));
 
     // if (!didTimerCompleted)
     //   IntrWait(1, DEMO_TIMER_IRQ_IDS[DEMO_SYNC_TIMER]);

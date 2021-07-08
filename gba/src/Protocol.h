@@ -3,15 +3,6 @@
 
 #include <stdint.h>
 
-// Render modes:
-// - Low quality (fast):
-//   120x80, with DRAW_SCALE=2
-// - High quality (slow):
-//   240x160, with DRAW_SCALE=1
-//   [!]                                                         [!]
-//     When using this mode, move `compressedPixels` outside State
-//     (from IWRAM to EWRAM). Otherwise, it'll crash.
-
 // RENDER
 #define RENDER_WIDTH 120
 #define RENDER_HEIGHT 160
@@ -23,14 +14,16 @@
 #define DRAW_HEIGHT (RENDER_HEIGHT * DRAW_SCALE_Y)
 #define TOTAL_SCREEN_PIXELS (DRAW_WIDTH * DRAW_HEIGHT)
 #define PALETTE_COLORS 256
+#define AUDIO_CHUNKS_PER_BUFFER 50
+#define MIN_PROCESSABLE_AUDIO_CHUNKS 30
 
 // TRANSFER
 #define PACKET_SIZE 4
 #define COLOR_SIZE 2
 #define PIXEL_SIZE 1
-#define AUDIO_CHUNK_SIZE 264   // (sizeof(gsm_frame) * 8)
-#define AUDIO_CHUNK_PADDING 0  // (so every chunk it's exactly 66 packets)
-#define AUDIO_SIZE_PACKETS 66  // -----------------------------^^
+#define AUDIO_CHUNK_SIZE 1980   // (sizeof(gsm_frame) * 60)
+#define AUDIO_CHUNK_PADDING 0   // (so every chunk it's exactly 495 packets)
+#define AUDIO_SIZE_PACKETS 495  // -----------------------------^^^
 #define SPI_MODE 3
 #define TRANSFER_SYNC_PERIOD 32
 #define COLORS_PER_PACKET (PACKET_SIZE / COLOR_SIZE)
@@ -60,6 +53,5 @@
 #define CMD_AUDIO 0x12345620
 #define CMD_PIXELS 0x12345630
 #define CMD_FRAME_END 0x12345640
-#define CMD_RECOVERY 0x98765490
 
 #endif  // PROTOCOL_H

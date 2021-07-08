@@ -48,7 +48,7 @@ bool receivePixels();
 void render(bool withRLE);
 bool isNewVBlank();
 void driveAudio();
-u32 transfer(u32 packetToSend, bool withRecovery = true);
+u32 transfer(u32 packetToSend);
 bool sync(u32 command);
 u32 x(u32 cursor);
 u32 y(u32 cursor);
@@ -84,20 +84,21 @@ inline void init() {
   dma3_cpy(pal_bg_mem, MAIN_PALETTE, sizeof(COLOR) * PALETTE_COLORS);
   player_init();
 
-  REG_ISR_MAIN = ON_VBLANK;  // Tell the GBA where my isr is
+  REG_ISR_MAIN = ON_VBLANK;  // Tell the GBA where my ISR is
   REG_DISPSTAT |= 0b1000;    // Tell the display to fire VBlank interrupts
   REG_IE |= IRQ_VBLANK;      // Tell the GBA to catch VBlank interrupts
   REG_IME = 1;               // Tell the GBA to enable interrupts;
 }
 
 CODE_IWRAM void mainLoop() {
+  state.audioBufferHead = 0;
+  state.audioBufferTail = 0;
+  state.readyAudioChunks = 0;
   state.hasAudio = false;
   state.isVBlank = false;
-  state.isAudioReady = false;
+  state.isRunningAudio = false;
 
 reset:
-  // transfer(CMD_RESET, false);
-
   while (true) {
     TRY(sync(CMD_FRAME_START))
     TRY(sendKeysAndReceiveMetadata())
@@ -137,9 +138,10 @@ inline bool sendKeysAndReceiveMetadata() {
 
 inline bool receiveAudio() {
   for (u32 i = 0; i < AUDIO_SIZE_PACKETS; i++)
-    ((u32*)state.audioChunks)[i] = transfer(i);
+    ((u32*)(audioBuffer[state.audioBufferTail]))[i] = transfer(i);
 
-  state.isAudioReady = true;
+  state.audioBufferTail = (state.audioBufferTail + 1) % AUDIO_CHUNKS_PER_BUFFER;
+  state.readyAudioChunks++;
 
   return true;
 }
@@ -242,28 +244,26 @@ inline bool isNewVBlank() {
 }
 
 CODE_IWRAM void driveAudio() {
-  if (player_needsData() && state.isAudioReady) {
-    player_play((const unsigned char*)state.audioChunks, AUDIO_CHUNK_SIZE);
-    state.isAudioReady = false;
+  if (state.readyAudioChunks > MIN_PROCESSABLE_AUDIO_CHUNKS)
+    state.isRunningAudio = true;
+
+  if (player_needsData() && state.isRunningAudio &&
+      state.readyAudioChunks > 0) {
+    player_play((const unsigned char*)(audioBuffer[state.audioBufferHead]),
+                AUDIO_CHUNK_SIZE);
+    state.audioBufferHead =
+        (state.audioBufferHead + 1) % AUDIO_CHUNKS_PER_BUFFER;
+    state.isRunningAudio = --state.readyAudioChunks > 0;
   }
 
-  // spiSlave->stop();
   player_run();
-  // spiSlave->start();
 }
 
-inline u32 transfer(u32 packetToSend, bool withRecovery) {
+inline u32 transfer(u32 packetToSend) {
   u32 receivedPacket = spiSlave->transfer(packetToSend);
 
-  if (isNewVBlank()) {
+  if (isNewVBlank())
     driveAudio();
-
-    // if (withRecovery) {
-    //   sync(CMD_RECOVERY);
-    //   spiSlave->transfer(packetToSend);
-    //   receivedPacket = spiSlave->transfer(packetToSend);
-    // }
-  }
 
   return receivedPacket;
 }
