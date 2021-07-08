@@ -14,16 +14,16 @@
 #define DRAW_HEIGHT (RENDER_HEIGHT * DRAW_SCALE_Y)
 #define TOTAL_SCREEN_PIXELS (DRAW_WIDTH * DRAW_HEIGHT)
 #define PALETTE_COLORS 256
-#define AUDIO_CHUNKS_PER_BUFFER 50
-#define MIN_PROCESSABLE_AUDIO_CHUNKS 30
+#define AUDIO_CHUNKS_PER_BUFFER 10
+#define MIN_PROCESSABLE_AUDIO_CHUNKS 1
 
 // TRANSFER
 #define PACKET_SIZE 4
 #define COLOR_SIZE 2
 #define PIXEL_SIZE 1
-#define AUDIO_CHUNK_SIZE 1980   // (sizeof(gsm_frame) * 60)
-#define AUDIO_CHUNK_PADDING 0   // (so every chunk it's exactly 495 packets)
-#define AUDIO_SIZE_PACKETS 495  // -----------------------------^^^
+#define AUDIO_CHUNK_SIZE 528    // (sizeof(gsm_frame) * 16)
+#define AUDIO_CHUNK_PADDING 0   // (so every chunk it's exactly 132 packets)
+#define AUDIO_SIZE_PACKETS 132  // -----------------------------^^^
 #define SPI_MODE 3
 #define TRANSFER_SYNC_PERIOD 32
 #define COLORS_PER_PACKET (PACKET_SIZE / COLOR_SIZE)

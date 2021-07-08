@@ -11,9 +11,9 @@ extern "C" {
 }
 
 // 16000us/frame and 61,02us per timer tick at TM_FREQ_1024
-// in a 10fps video => 100000us per frame => 1638ticks per video frame
+// in a 13fps video => 76923us per frame => 1260ticks per video frame
 #define DEMO_SYNC_TIMER 3
-#define DEMO_TIMER_TICKS 1638
+#define DEMO_TIMER_TICKS 1260
 #define DEMO_TIMER_FREQUENCY TM_FREQ_1024
 const u16 DEMO_TIMER_IRQ_IDS[] = {IRQ_TIMER0, IRQ_TIMER1, IRQ_TIMER2,
                                   IRQ_TIMER3};
@@ -69,11 +69,12 @@ inline void send() {
   irq_init(NULL);
   irq_add(II_TIMER3, (fnptr)ON_TIMER);
 
-  u32 len;
-  u32* data = (u32*)gbfs_get_obj(fs, "record.bin", &len);
+  u32 len, audioLen;
+  u32* data = (u32*)gbfs_get_obj(fs, "video.bin", &len);
+  u32* audioData = (u32*)gbfs_get_obj(fs, "audio.bin", &audioLen);
 
 reset:
-  u32 cursor = 0;
+  u32 cursor = 0, audioCursor = 0;
   u32 frame = 0;
 
   while (true) {
@@ -82,6 +83,9 @@ reset:
     u32 startPixel = metadata & START_BIT_MASK;
     bool hasAudio = (metadata & AUDIO_BIT_MASK) != 0;
     u32 diffsStart = (startPixel / 8) / PACKET_SIZE;
+
+    if (audioCursor >= audioLen)
+      hasAudio = false;
 
     didTimerCompleted = false;
     REG_TM[DEMO_SYNC_TIMER].start = -DEMO_TIMER_TICKS;
@@ -102,7 +106,10 @@ reset:
     if (hasAudio) {
       if (!sync(CMD_AUDIO))
         goto reset;
-      sendChunk(data, &cursor, AUDIO_SIZE_PACKETS);
+      sendChunk(audioData, &audioCursor, AUDIO_SIZE_PACKETS);
+      spiMaster->transfer(audioCursor < audioLen);
+      if (audioCursor < audioLen)
+        sendChunk(audioData, &audioCursor, AUDIO_SIZE_PACKETS);
     }
 
     // send pixels
@@ -115,7 +122,7 @@ reset:
       goto reset;
 
     // loop!
-    if (cursor * PACKET_SIZE > len)
+    if (cursor * PACKET_SIZE >= len)
       cursor = 0;
 
     frame++;

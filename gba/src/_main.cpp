@@ -137,11 +137,19 @@ inline bool sendKeysAndReceiveMetadata() {
 }
 
 inline bool receiveAudio() {
-  for (u32 i = 0; i < AUDIO_SIZE_PACKETS; i++)
-    ((u32*)(audioBuffer[state.audioBufferTail]))[i] = transfer(i);
-
-  state.audioBufferTail = (state.audioBufferTail + 1) % AUDIO_CHUNKS_PER_BUFFER;
+#define RECEIVE_AUDIO()                                            \
+  for (u32 i = 0; i < AUDIO_SIZE_PACKETS; i++)                     \
+    ((u32*)(audioBuffer[state.audioBufferTail]))[i] = transfer(i); \
+                                                                   \
+  state.audioBufferTail =                                          \
+      (state.audioBufferTail + 1) % AUDIO_CHUNKS_PER_BUFFER;       \
   state.readyAudioChunks++;
+
+  RECEIVE_AUDIO()
+  bool oneMoreTime = transfer(0);
+  if (oneMoreTime) {
+    RECEIVE_AUDIO()
+  }
 
   return true;
 }
@@ -244,7 +252,7 @@ inline bool isNewVBlank() {
 }
 
 CODE_IWRAM void driveAudio() {
-  if (state.readyAudioChunks > MIN_PROCESSABLE_AUDIO_CHUNKS)
+  if (state.readyAudioChunks >= MIN_PROCESSABLE_AUDIO_CHUNKS)
     state.isRunningAudio = true;
 
   if (player_needsData() && state.isRunningAudio &&
