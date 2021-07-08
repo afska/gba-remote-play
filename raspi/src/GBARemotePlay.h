@@ -39,7 +39,8 @@ class GBARemotePlay {
 
     PALETTE_initializeCache(PALETTE_CACHE_FILENAME);
 
-    recordFile.open("record.bin", ios::out | ios::trunc | ios::binary);
+    videoFile.open("video.bin", ios::out | ios::trunc | ios::binary);
+    audioFile.open("audio.bin", ios::out | ios::trunc | ios::binary);
   }
 
   void run() {
@@ -96,16 +97,17 @@ class GBARemotePlay {
       lastFrame = frame;
 
       // Record packets
-      recordFile.write((char*)&metadata, PACKET_SIZE);
-      recordFile.write(
+      videoFile.write((char*)&metadata, PACKET_SIZE);
+      videoFile.write(
           (char*)(((uint32_t*)(diffs.temporalDiffs)) + diffsStart),
           (TEMPORAL_DIFF_SIZE / PACKET_SIZE - diffsStart) * PACKET_SIZE);
       if (frame.hasAudio()) {
-        recordFile.write((char*)frame.audioChunk,
-                         AUDIO_SIZE_PACKETS * PACKET_SIZE);
+        audioFile.write((char*)frame.audioChunk,
+                        AUDIO_SIZE_PACKETS * PACKET_SIZE);
       }
-      recordFile.write((char*)packetsToSend, size * PACKET_SIZE);
-      recordFile.flush();
+      videoFile.write((char*)packetsToSend, size * PACKET_SIZE);
+      videoFile.flush();
+      audioFile.flush();
 
 #ifdef PROFILE_VERBOSE
       auto frameTransferElapsedTime = PROFILE_END(frameTransferStartTime);
@@ -145,7 +147,8 @@ class GBARemotePlay {
   VirtualGamepad* virtualGamepad;
   Frame lastFrame;
   uint32_t input;
-  fstream recordFile;
+  fstream videoFile;
+  fstream audioFile;
 
   bool send(Frame& frame, ImageDiffRLECompressor& diffs) {
     if (!frame.hasData())
