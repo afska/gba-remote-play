@@ -122,8 +122,8 @@ reset:
     // print(std::to_string(frame) + (!didTimerCompleted ? " w" : "") +
     //       (hasAudio ? "a" : ""));
 
-    if (!didTimerCompleted)
-      IntrWait(1, DEMO_TIMER_IRQ_IDS[DEMO_SYNC_TIMER]);
+    // if (!didTimerCompleted)
+    //   IntrWait(1, DEMO_TIMER_IRQ_IDS[DEMO_SYNC_TIMER]);
   }
 }
 
