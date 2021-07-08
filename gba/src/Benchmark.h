@@ -1,7 +1,5 @@
 #include "BuildConfig.h"
 
-#ifdef BENCHMARK
-
 #include "SPISlave.h"
 #include "Utils.h"
 
@@ -64,5 +62,3 @@ inline void init() {
 }
 
 }  // namespace Benchmark
-
-#endif  // BENCHMARK_H

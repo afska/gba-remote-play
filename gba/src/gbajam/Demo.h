@@ -63,8 +63,30 @@ CODE_IWRAM void ON_TIMER() {
   REG_TM[DEMO_SYNC_TIMER].cnt = 0;
 }
 
+uint32_t goodPackets = 0;
+uint32_t badPackets = 0;
+uint32_t vblanks = 0;
+
 inline void send() {
   print("Waiting for slave...");
+
+  while (true) {
+    uint32_t receivedPacket = spiMaster->transfer(0x98765432);
+    if (receivedPacket == 0x123456bb) {
+      goodPackets++;
+      vblanks++;
+    } else if (receivedPacket == 0x12345678)
+      goodPackets++;
+    else if (receivedPacket != 0xffffffff)
+      badPackets++;
+
+    if (vblanks >= 60) {
+      print(std::to_string(goodPackets) + " vs " + std::to_string(badPackets));
+      goodPackets = 0;
+      badPackets = 0;
+      vblanks = 0;
+    }
+  }
 
   irq_init(NULL);
   irq_add(II_TIMER3, (fnptr)ON_TIMER);

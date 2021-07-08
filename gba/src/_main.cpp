@@ -61,6 +61,9 @@ u32 y(u32 cursor);
 int main() {
   Demo::run();
 
+  Benchmark::init();
+  Benchmark::mainLoop();
+
   init();
 
   for (u32 i = 0; i < TOTAL_SCREEN_PIXELS; i++)
