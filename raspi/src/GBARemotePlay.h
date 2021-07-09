@@ -186,11 +186,13 @@ class GBARemotePlay {
       goto again;
     if (spiMaster->exchange(keys) != metadata)
       return false;
+
     processKeys(keys);
 
-    uint32_t diffsStart = (diffs.startPixel / 8) / PACKET_SIZE;
+    uint32_t diffStart = (diffs.startPixel / 8) / PACKET_SIZE;
+    spiMaster->exchange(diffs.temporalDiffPackets);
     return reliableStream->send(diffs.temporalDiffs, diffs.temporalDiffPackets,
-                                CMD_FRAME_START, diffsStart);
+                                CMD_FRAME_START, diffStart);
   }
 
   bool sendAudio(Frame& frame) {
