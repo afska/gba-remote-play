@@ -5,7 +5,7 @@
 #include "Config.h"
 #include "Frame.h"
 #include "FrameBuffer.h"
-#include "ImageDiffBitArray.h"
+#include "ImageDiffRLECompressor.h"
 #include "LoopbackAudio.h"
 #include "PNGWriter.h"
 #include "Palette.h"
@@ -60,8 +60,8 @@ class GBARemotePlay {
       auto frameDiffsStartTime = PROFILE_START();
 #endif
 
-      ImageDiffBitArray diffs;
-      diffs.initialize(frame, lastFrame);
+      ImageDiffRLECompressor diffs;
+      diffs.initialize(frame, lastFrame, config->diffThreshold);
 
 #ifdef PROFILE_VERBOSE
       auto frameDiffsElapsedTime = PROFILE_END(frameDiffsStartTime);
@@ -79,17 +79,16 @@ class GBARemotePlay {
 
 #ifdef PROFILE_VERBOSE
       auto frameTransferElapsedTime = PROFILE_END(frameTransferStartTime);
-      std::cout << "(build: " + std::to_string(frameGenerationElapsedTime) +
-                       "ms, diffs: " + std::to_string(frameDiffsElapsedTime) +
-                       "ms, transfer: " +
-                       std::to_string(frameTransferElapsedTime) + "ms)\n";
+      LOG("(build: " + std::to_string(frameGenerationElapsedTime) +
+          "ms, diffs: " + std::to_string(frameDiffsElapsedTime) +
+          "ms, transfer: " + std::to_string(frameTransferElapsedTime) + "ms)");
 #endif
 
 #ifdef PROFILE
       frames++;
       uint32_t elapsedTime = PROFILE_END(startTime);
       if (elapsedTime >= ONE_SECOND) {
-        std::cout << "--- " + std::to_string(frames) + " frames ---\n";
+        LOG("--- " + std::to_string(frames) + " frames ---");
         startTime = PROFILE_START();
         frames = 0;
       }
@@ -117,7 +116,7 @@ class GBARemotePlay {
   Frame lastFrame;
   uint32_t input;
 
-  bool send(Frame& frame, ImageDiffBitArray& diffs) {
+  bool send(Frame& frame, ImageDiffRLECompressor& diffs) {
     if (!frame.hasData())
       return false;
 
@@ -131,7 +130,7 @@ class GBARemotePlay {
 
 #ifdef PROFILE_VERBOSE
     auto idleElapsedTime = PROFILE_END(idleStartTime);
-    std::cout << "  <" + std::to_string(idleElapsedTime) + "ms idle>\n";
+    LOG("  <" + std::to_string(idleElapsedTime) + "ms idle>");
     auto metadataStartTime = PROFILE_START();
 #endif
 
@@ -141,7 +140,7 @@ class GBARemotePlay {
 
 #ifdef PROFILE_VERBOSE
     auto metadataElapsedTime = PROFILE_END(metadataStartTime);
-    std::cout << "  <" + std::to_string(metadataElapsedTime) + "ms metadata>\n";
+    LOG("  <" + std::to_string(metadataElapsedTime) + "ms metadata>");
 #endif
 
     if (frame.hasAudio()) {
@@ -176,10 +175,11 @@ class GBARemotePlay {
     return true;
   }
 
-  bool receiveKeysAndSendMetadata(Frame& frame, ImageDiffBitArray& diffs) {
+  bool receiveKeysAndSendMetadata(Frame& frame, ImageDiffRLECompressor& diffs) {
   again:
     uint32_t metadata = diffs.startPixel |
                         (diffs.expectedPackets() << PACKS_BIT_OFFSET) |
+                        (diffs.shouldUseRLE() ? COMPR_BIT_MASK : 0) |
                         (frame.hasAudio() ? AUDIO_BIT_MASK : 0);
     uint32_t keys = spiMaster->exchange(metadata);
     if (reliableStream->finishSyncIfNeeded(keys, CMD_FRAME_START))
@@ -189,7 +189,7 @@ class GBARemotePlay {
     processKeys(keys);
 
     uint32_t diffsStart = (diffs.startPixel / 8) / PACKET_SIZE;
-    return reliableStream->send(diffs.temporal,
+    return reliableStream->send(diffs.temporalDiffs,
                                 TEMPORAL_DIFF_SIZE / PACKET_SIZE,
                                 CMD_FRAME_START, diffsStart);
   }
@@ -199,43 +199,64 @@ class GBARemotePlay {
                                 CMD_AUDIO);
   }
 
-  bool compressAndSendPixels(Frame& frame, ImageDiffBitArray& diffs) {
+  bool compressAndSendPixels(Frame& frame, ImageDiffRLECompressor& diffs) {
     uint32_t packetsToSend[MAX_PIXELS_SIZE];
     uint32_t size = 0;
     compressPixels(frame, diffs, packetsToSend, &size);
 
 #ifdef DEBUG
     if (size != diffs.expectedPackets()) {
-      LOG("[!!!] Sizes don't match");
+      LOG("[!!!] Sizes don't match (" + std::to_string(size) + " vs " +
+          std::to_string(diffs.expectedPackets()) + ")");
     }
 #endif
 
 #ifdef PROFILE_VERBOSE
-    std::cout << "  <" + std::to_string(size * PACKET_SIZE) + "bytes" +
-                     (frame.hasAudio() ? ">" : ", no audio>") + "\n";
+    LOG("  <" + std::to_string(size * PACKET_SIZE) + "bytes" +
+        (diffs.shouldUseRLE()
+             ? ", rle (" + std::to_string(diffs.omittedRLEPixels()) +
+                   " omitted)"
+             : "") +
+        (frame.hasAudio() ? ", audio>" : ">"));
 #endif
 
     return reliableStream->send(packetsToSend, size, CMD_PIXELS);
   }
 
   void compressPixels(Frame& frame,
-                      ImageDiffBitArray& diffs,
+                      ImageDiffRLECompressor& diffs,
                       uint32_t* packets,
                       uint32_t* totalPackets) {
     uint32_t currentPacket = 0;
     uint8_t byte = 0;
 
-    for (int i = 0; i < frame.totalPixels; i++) {
-      if (diffs.hasPixelChanged(i)) {
-        uint8_t pixel = frame.raw8BitPixels[i];
-        currentPacket |= pixel << (byte * 8);
-        byte++;
-        if (byte == PACKET_SIZE) {
-          packets[*totalPackets] = currentPacket;
-          currentPacket = 0;
-          byte = 0;
-          (*totalPackets)++;
-        }
+#define ADD_BYTE(DATA)                      \
+  currentPacket |= DATA << (byte * 8);      \
+  byte++;                                   \
+  if (byte == PACKET_SIZE) {                \
+    packets[*totalPackets] = currentPacket; \
+    currentPacket = 0;                      \
+    byte = 0;                               \
+    (*totalPackets)++;                      \
+  }
+
+    if (diffs.shouldUseRLE()) {
+      uint32_t rleIndex = 0, pixelIndex = 0;
+
+      while (rleIndex < diffs.totalEncodedPixels()) {
+        uint8_t times = diffs.runLengthEncoding[rleIndex];
+        uint8_t pixel = diffs.compressedPixels[pixelIndex];
+
+        ADD_BYTE(times)
+        ADD_BYTE(pixel)
+
+        pixelIndex += times;
+        rleIndex++;
+      }
+    } else {
+      for (int i = 0; i < diffs.totalCompressedPixels; i++) {
+        uint8_t pixel = diffs.compressedPixels[i];
+        ADD_BYTE(pixel)
       }
     }
 

@@ -16,11 +16,14 @@ typedef struct Frame {
     return palette[raw8BitPixels[pixelId]];
   }
 
-  bool hasPixelChanged(uint32_t pixelId, Frame previousFrame) {
+  bool hasPixelChanged(uint32_t pixelId,
+                       Frame previousFrame,
+                       uint32_t threshold = 0) {
     if (!previousFrame.hasData())
       return true;
 
-    return arePixelsDifferent(&previousFrame, this, pixelId, pixelId);
+    return arePixelsDifferent(&previousFrame, this, pixelId, pixelId,
+                              threshold);
   }
 
   bool hasData() { return totalPixels > 0; }
@@ -38,7 +41,8 @@ typedef struct Frame {
   bool arePixelsDifferent(Frame* oldPixelFrame,
                           Frame* newPixelFrame,
                           uint32_t oldPixelId,
-                          uint32_t newPixelId) {
+                          uint32_t newPixelId,
+                          uint32_t threshold) {
     uint32_t color1 = oldPixelFrame->getColorOf(oldPixelId);
     uint32_t color2 = newPixelFrame->getColorOf(newPixelId);
 
@@ -46,7 +50,7 @@ typedef struct Frame {
     int g1 = (color1 >> 8) & 0xff;
     int b1 = (color1 >> 16) & 0xff;
     int distanceSquared = getDistanceSquared(r1, g1, b1, color2);
-    bool areDifferent = distanceSquared > TEMPORAL_DIFF_THRESHOLD;
+    bool areDifferent = distanceSquared > threshold;
 
     if (!areDifferent)
       newPixelFrame->raw8BitPixels[newPixelId] =
