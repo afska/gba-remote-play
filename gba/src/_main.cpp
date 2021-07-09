@@ -91,18 +91,14 @@ inline void init() {
 }
 
 CODE_IWRAM void mainLoop() {
+  state.audioBufferHead = 0;
+  state.audioBufferTail = 0;
+  state.readyAudioChunks = 0;
   state.hasAudio = false;
   state.isVBlank = false;
   state.isRunningAudio = false;
 
 reset:
-  state.audioCursor = 0;
-  state.audioSize = 0;
-
-  for (u32 i = 0; i < AUDIO_INITIAL_CHUNKS; i++)
-    TRY(receiveAudio())
-  player_play((const unsigned char*)audioBuffer, state.audioSize * PACKET_SIZE);
-
   while (true) {
     TRY(sync(CMD_FRAME_START))
     TRY(sendKeysAndReceiveMetadata())
@@ -141,14 +137,19 @@ inline bool sendKeysAndReceiveMetadata() {
 }
 
 inline bool receiveAudio() {
-  for (u32 i = 0; i < AUDIO_SIZE_PACKETS; i++)
-    audioBuffer[state.audioCursor + i] = transfer(i);
+#define RECEIVE_AUDIO()                                            \
+  for (u32 i = 0; i < AUDIO_SIZE_PACKETS; i++)                     \
+    ((u32*)(audioBuffer[state.audioBufferTail]))[i] = transfer(i); \
+                                                                   \
+  state.audioBufferTail =                                          \
+      (state.audioBufferTail + 1) % AUDIO_CHUNKS_PER_BUFFER;       \
+  state.readyAudioChunks++;
 
-  state.audioCursor += AUDIO_SIZE_PACKETS;
-  state.audioSize += AUDIO_SIZE_PACKETS;
-  player_updateMediaSize(state.audioSize * PACKET_SIZE);
-
-  // TODO: CHECK BOUNDS
+  RECEIVE_AUDIO()
+  bool oneMoreTime = transfer(0);
+  if (oneMoreTime) {
+    RECEIVE_AUDIO()
+  }
 
   return true;
 }
@@ -251,6 +252,18 @@ inline bool isNewVBlank() {
 }
 
 CODE_IWRAM void driveAudio() {
+  if (state.readyAudioChunks >= MIN_PROCESSABLE_AUDIO_CHUNKS)
+    state.isRunningAudio = true;
+
+  if (player_needsData() && state.isRunningAudio &&
+      state.readyAudioChunks > 0) {
+    player_play((const unsigned char*)(audioBuffer[state.audioBufferHead]),
+                AUDIO_CHUNK_SIZE);
+    state.audioBufferHead =
+        (state.audioBufferHead + 1) % AUDIO_CHUNKS_PER_BUFFER;
+    state.isRunningAudio = --state.readyAudioChunks > 0;
+  }
+
   player_run();
 }
 

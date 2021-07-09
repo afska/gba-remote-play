@@ -5,15 +5,13 @@
 
 #include "Protocol.h"
 
-#define AUDIO_BUFFER_SIZE 50000  // in 32-bit words
-#define AUDIO_INITIAL_CHUNKS 3
-
 typedef struct {
   u8 temporalDiffs[TEMPORAL_DIFF_PADDED_SIZE];
   u32 expectedPackets;
   u32 startPixel;
-  u32 audioCursor;
-  u32 audioSize;
+  u32 audioBufferHead;
+  u32 audioBufferTail;
+  u32 readyAudioChunks;
   bool isRLE;
   bool hasAudio;
   bool isVBlank;
@@ -21,6 +19,6 @@ typedef struct {
 } State;
 
 extern State state;
-extern u32 audioBuffer[AUDIO_BUFFER_SIZE];
+extern u8 audioBuffer[AUDIO_CHUNKS_PER_BUFFER][AUDIO_PADDED_SIZE];
 
 #endif  // STATE_H

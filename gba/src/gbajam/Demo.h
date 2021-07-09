@@ -77,17 +77,15 @@ reset:
   u32 cursor = 0, audioCursor = 0;
   u32 frame = 0;
 
-  for (u32 i = 0; i < AUDIO_INITIAL_CHUNKS; i++)
-    sendChunk(audioData, &audioCursor, AUDIO_SIZE_PACKETS);
-
   while (true) {
     u32 metadata = data[cursor];
-    bool hasAudio = audioCursor < audioLen;
-    metadata =
-        hasAudio ? (metadata | AUDIO_BIT_MASK) : (metadata & ~AUDIO_BIT_MASK);
     u32 expectedPackets = (metadata >> PACKS_BIT_OFFSET) & PACKS_BIT_MASK;
     u32 startPixel = metadata & START_BIT_MASK;
+    bool hasAudio = (metadata & AUDIO_BIT_MASK) != 0;
     u32 diffsStart = (startPixel / 8) / PACKET_SIZE;
+
+    if (audioCursor >= audioLen)
+      hasAudio = false;
 
     didTimerCompleted = false;
     REG_TM[DEMO_SYNC_TIMER].start = -DEMO_TIMER_TICKS;
@@ -105,9 +103,14 @@ reset:
       print("Sending...");
 
     // send audio
-    if (!sync(CMD_AUDIO))
-      goto reset;
-    sendChunk(audioData, &audioCursor, AUDIO_SIZE_PACKETS);
+    if (hasAudio) {
+      if (!sync(CMD_AUDIO))
+        goto reset;
+      sendChunk(audioData, &audioCursor, AUDIO_SIZE_PACKETS);
+      spiMaster->transfer(audioCursor < audioLen);
+      if (audioCursor < audioLen)
+        sendChunk(audioData, &audioCursor, AUDIO_SIZE_PACKETS);
+    }
 
     // send pixels
     if (!sync(CMD_PIXELS))
@@ -123,7 +126,7 @@ reset:
       cursor = 0;
 
     frame++;
-    print(std::to_string(frame) + (!didTimerCompleted ? "w" : "") +
+    print(std::to_string(frame) + (!didTimerCompleted ? " w" : "") +
           (hasAudio ? "a" : ""));
 
     // if (!didTimerCompleted)
