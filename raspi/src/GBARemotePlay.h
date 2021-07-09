@@ -190,9 +190,10 @@ class GBARemotePlay {
     processKeys(keys);
 
     uint32_t diffStart = (diffs.startPixel / 8) / PACKET_SIZE;
-    spiMaster->exchange(diffs.temporalDiffPackets);
-    return reliableStream->send(diffs.temporalDiffs, diffs.temporalDiffPackets,
-                                CMD_FRAME_START, diffStart);
+    spiMaster->exchange(diffs.temporalDiffMaxPackets);
+    return reliableStream->send(diffs.temporalDiffs,
+                                diffs.temporalDiffMaxPackets, CMD_FRAME_START,
+                                diffStart);
   }
 
   bool sendAudio(Frame& frame) {

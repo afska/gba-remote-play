@@ -9,7 +9,7 @@ typedef struct {
   uint8_t temporalDiffs[TEMPORAL_DIFF_MAX_SIZE];
   uint8_t compressedPixels[TOTAL_PIXELS];
   uint8_t runLengthEncoding[TOTAL_PIXELS];
-  uint32_t temporalDiffPackets;
+  uint32_t temporalDiffMaxPackets;
   uint32_t totalCompressedPixels;
   uint32_t repeatedPixels;
   uint32_t startPixel;
@@ -18,7 +18,7 @@ typedef struct {
   void initialize(Frame currentFrame,
                   Frame previousFrame,
                   uint32_t diffThreshold) {
-    temporalDiffPackets = totalCompressedPixels = repeatedPixels = 0;
+    temporalDiffMaxPackets = totalCompressedPixels = repeatedPixels = 0;
     startPixel = TOTAL_PIXELS;
 
     uint32_t rleIndex = 0;
@@ -55,11 +55,9 @@ typedef struct {
     }
 
     if (lastChangedPixelId > -1) {
-      // (detect edges to avoid sending useless bytes)
-      uint32_t maxPackets = TEMPORAL_DIFF_MAX_SIZE / PACKET_SIZE;
-      uint32_t startPacket = (startPixel / 8) / PACKET_SIZE;
+      // (detect buffer end to avoid sending useless bytes)
       uint32_t endPacket = (lastChangedPixelId / 8) / PACKET_SIZE;
-      temporalDiffPackets = maxPackets - endPacket + 1;
+      temporalDiffMaxPackets = endPacket + 1;
     }
   }
 
