@@ -5,6 +5,7 @@
 #include <string>
 #include "../Utils.h"
 #include "SPIMaster.h"
+#include "_state.h"
 
 extern "C" {
 #include "gbfs/gbfs.h"
@@ -18,11 +19,16 @@ void sendChunk(u32* data, u32* cursor, u32 chunkSize);
 u32 read(u32* data, u32* cursor);
 void sync(u32 command);
 void printOptions();
+void printSendOptions();
+void printReceiveOptions();
 void fail();
 void print(std::string text);
 
 static const GBFS_FILE* fs = find_first_gbfs_file(0);
 SPIMaster* spiMaster = new SPIMaster();
+u32 len, audioLen;
+u32* data;
+u32* audioData;
 
 CODE_IWRAM void run() {
   u16 keys = 0, previousKeys = 0;
@@ -32,31 +38,78 @@ CODE_IWRAM void run() {
   tte_init_se(0, BG_CBB(0) | BG_SBB(31), 0xF000, CLR_WHITE, 0, &fwf_default,
               NULL);
 
+  printOptions();
+
   while (true) {
     keys = pressedKeys();
     softResetIfNeeded(keys);
 
     if (IS_PRESSED(KEY_START)) {
       // send
-      send();
+
+      printSendOptions();
+      while (true) {
+        keys = pressedKeys();
+
+        if (IS_PRESSED(KEY_L)) {
+          data = (u32*)gbfs_get_obj(fs, "cam2-video.bin", &len);
+          audioData = (u32*)gbfs_get_obj(fs, "cam2-audio.bin", &audioLen);
+          send();
+        } else if (IS_PRESSED(KEY_R)) {
+          data = (u32*)gbfs_get_obj(fs, "cam3-video.bin", &len);
+          audioData = (u32*)gbfs_get_obj(fs, "cam3-audio.bin", &audioLen);
+          send();
+        }
+
+        previousKeys = keys;
+        vid_vsync();
+      }
     } else if (IS_PRESSED(KEY_SELECT)) {
       // receive
-      return;  // (goes back to _main.cpp)
+
+      printReceiveOptions();
+      while (true) {
+        keys = pressedKeys();
+
+        if (IS_PRESSED(KEY_L)) {
+          // none
+          state.baseColumn = DRAW_WIDTH / 4;
+          state.baseLine = DRAW_HEIGHT / 4;
+          state.scaleX = 1;
+          state.scaleY = 1;
+          state.scanlines = false;
+          return;  // (goes back to _main.cpp)
+        } else if (IS_PRESSED(KEY_R)) {
+          // 2x width
+          state.baseColumn = 0;
+          state.baseLine = DRAW_HEIGHT / 4;
+          state.scaleX = 2;
+          state.scaleY = 1;
+          state.scanlines = false;
+          return;  // (goes back to _main.cpp)
+        } else if (IS_PRESSED(KEY_UP)) {
+          // scanlines
+          state.baseColumn = 0;
+          state.baseLine = 0;
+          state.scaleX = 2;
+          state.scaleY = 2;
+          state.scanlines = true;
+          return;  // (goes back to _main.cpp)
+        }
+
+        previousKeys = keys;
+        vid_vsync();
+      }
     }
 
     previousKeys = keys;
 
-    printOptions();
     vid_vsync();
   }
 }
 
 inline void send() {
   print("Waiting for slave...");
-
-  u32 len, audioLen;
-  u32* data = (u32*)gbfs_get_obj(fs, "video.bin", &len);
-  u32* audioData = (u32*)gbfs_get_obj(fs, "audio.bin", &audioLen);
 
   u32 cursor = 0, audioCursor = 0;
   u32 frame = 0;
@@ -148,6 +201,19 @@ inline void printOptions() {
         "only be tested on NO$GBA or \nby using real "
         "hardware.\n\nTo test on hardware:\n\n   >>Use a GBC Link Cable<<"
         "\n\n\n\n\nPress START to send.\n\nPress SELECT to receive.");
+}
+
+inline void printSendOptions() {
+  print(std::string("") +
+        "Nice!\n\nWhat movie do you want?\n\n\n\n\n\n\nL - Caminandes 2: "
+        "Gran "
+        "Dillama\n\nR - Caminandes 3: Llamigos");
+}
+
+inline void printReceiveOptions() {
+  print(std::string("") +
+        "Perfect!\n\nWhat scale method do you want?\n\n\n\n\n\nL - None "
+        "(black borders)\n\nR - 2x width\n\nUP - Scanlines");
 }
 
 inline void fail() {

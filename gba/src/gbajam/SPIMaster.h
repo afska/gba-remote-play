@@ -14,6 +14,7 @@ class SPIMaster {
     set2MhzSpeed();
     setMasterMode();
 
+    // (NO$GBA outputs 0xffffffff when the other GBA is busy running the audio)
     setData(value == 0xffffffff ? ZERO_FLAG : value);
     enableTransfer();
 

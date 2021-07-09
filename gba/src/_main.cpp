@@ -80,7 +80,8 @@ CODE_IWRAM void ON_VBLANK() {
 inline void init() {
   enableMode4AndBackground2();
   overclockEWRAM();
-  enableMosaic(DRAW_SCALE_X, DRAW_SCANLINES ? 1 : DRAW_SCALE_Y);
+  // enableMosaic(state.scaleX, state.scanlines ? 1 : state.scaleY);
+  // (disabled because mosaic works bad on NO$GBA)
   dma3_cpy(pal_bg_mem, MAIN_PALETTE, sizeof(COLOR) * PALETTE_COLORS);
   player_init();
 
@@ -171,7 +172,8 @@ inline void render(bool withRLE) {
     if (!(cursor % 8) && needsToRunAudio()) \
       runAudio();                           \
   }
-#define DRAW_PIXEL(PIXEL) m4Draw(y(cursor) * DRAW_WIDTH + x(cursor), PIXEL);
+#define DRAW_PIXEL(PIXEL) \
+  m4Draw(y(cursor) * DRAW_WIDTH + x(cursor), PIXEL, state.scaleX == 2);
 #define DRAW_NEXT()                                         \
   if (withRLE) {                                            \
     u8 pixel = compressedPixels[decompressedBytes];         \
@@ -295,9 +297,9 @@ inline bool sync(u32 command) {
 }
 
 inline u32 x(u32 cursor) {
-  return (cursor % RENDER_WIDTH) * DRAW_SCALE_X;
+  return state.baseColumn + (cursor % RENDER_WIDTH) * state.scaleX;
 }
 
 inline u32 y(u32 cursor) {
-  return (cursor / RENDER_WIDTH) * DRAW_SCALE_Y;
+  return state.baseLine + (cursor / RENDER_WIDTH) * state.scaleY;
 }

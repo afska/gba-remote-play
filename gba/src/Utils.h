@@ -26,10 +26,16 @@ inline void enableMosaic(u16 scaleX, u16 scaleY) {
   REG_BG2CNT = 1 << 6;
 }
 
-inline void m4Draw(u32 cursor, u8 colorIndex) {
+inline void m4Draw(u32 cursor, u8 colorIndex, bool scale2x = false) {
   u16* dst = &vid_mem_front[cursor >> 1];
-  *dst = cursor & 1 ? (*dst & 0xFF) | (colorIndex << 8)
-                    : (*dst & ~0xFF) | colorIndex;
+
+  // (emulating 2x mosaic to work around a NO$GBA bug)
+  if (scale2x) {
+    *dst = (colorIndex << 8) | colorIndex;
+  } else {
+    *dst = cursor & 1 ? (*dst & 0xFF) | (colorIndex << 8)
+                      : (*dst & ~0xFF) | colorIndex;
+  }
 }
 
 inline u16 pressedKeys() {

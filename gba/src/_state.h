@@ -14,6 +14,12 @@ typedef struct {
   bool hasAudio;
   bool isVBlank;
   bool isAudioReady;
+
+  u32 baseColumn;
+  u32 baseLine;
+  u32 scaleX;
+  u32 scaleY;
+  bool scanlines;
 } State;
 
 extern State state;
