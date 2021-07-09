@@ -141,7 +141,7 @@ inline void render(bool withRLE) {
 
 #define RUN_AUDIO_IF_NEEDED()               \
   if (withRLE) {                            \
-    if (isNewVBlank())                      \
+    if (needsToRunAudio())                  \
       runAudio();                           \
   } else {                                  \
     if (!(cursor % 8) && needsToRunAudio()) \
