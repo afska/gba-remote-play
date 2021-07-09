@@ -31,5 +31,5 @@ inline void player_onVBlank() {
 }
 
 inline void player_run() {
-  PLAYER_RUN({}, { player_stop(); });
+  PLAYER_RUN({}, { src_pos = src_start; });
 }
