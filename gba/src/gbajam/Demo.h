@@ -143,8 +143,8 @@ inline void printOptions() {
         "gba-remote-play demo\n\nThis will stream video to the other GBA "
         "at 2Mbps using Link\nCable's Normal Mode.\n\nAs far as I know, it can "
         "only be tested on NO$GBA or \nby using real "
-        "hardware.\n\n\n\n\n\n\n\n\nPress START to send.\n\nPress SELECT to "
-        "receive.");
+        "hardware.\n\nTo test on hardware:\n\n   >>Use a GBC Link Cable<<"
+        "\n\n\n\n\nPress START to send.\n\nPress SELECT to receive.");
 }
 
 inline void fail() {
