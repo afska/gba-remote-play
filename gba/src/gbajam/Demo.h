@@ -156,7 +156,6 @@ inline void send() {
       frame = 0;
       cursor = 0;
       audioCursor = 0;
-      audioCursor = 0;
     }
 
     frame++;
@@ -208,8 +207,7 @@ inline void printOptions() {
 
 inline void printSendOptions() {
   print(std::string("") +
-        "Nice!\n\nWhat movie do you want?\n\n\n\n\n\n\nL - Caminandes 2: "
-        "Gran "
+        "Nice!\n\nWhat movie do you want?\n\n\n\n\n\n\nL - Caminandes 2: Gran "
         "Dillama\n\nR - Caminandes 3: Llamigos");
 }
 
