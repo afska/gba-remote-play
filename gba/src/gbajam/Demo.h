@@ -15,6 +15,7 @@ namespace Demo {
 void send();
 void sendMetadata(u32 metadata);
 void sendChunk(u32* data, u32* cursor, u32 chunkSize);
+u32 read(u32* data, u32* cursor);
 bool sync(u32 command);
 void printOptions();
 void print(std::string text);
