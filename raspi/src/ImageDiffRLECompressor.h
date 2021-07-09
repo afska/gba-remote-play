@@ -56,9 +56,10 @@ typedef struct {
 
     if (lastChangedPixelId > -1) {
       // (detect edges to avoid sending useless bytes)
+      uint32_t maxPackets = TEMPORAL_DIFF_MAX_SIZE / PACKET_SIZE;
       uint32_t startPacket = (startPixel / 8) / PACKET_SIZE;
       uint32_t endPacket = (lastChangedPixelId / 8) / PACKET_SIZE;
-      temporalDiffPackets = endPacket - startPacket + 1;
+      temporalDiffPackets = maxPackets - endPacket + 1;
     }
   }
 
