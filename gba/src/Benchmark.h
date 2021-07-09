@@ -26,7 +26,7 @@ inline void onVBlank(State& state) {
     m3_plot(90, 80, state.goodPackets >= 70000 ? CLR_GREEN : CLR_RED);
     m3_plot(100, 80, state.goodPackets >= 75000 ? CLR_GREEN : CLR_RED);
     m3_plot(110, 80, state.goodPackets >= 80000 ? CLR_GREEN : CLR_RED);
-    m3_plot(220, 80, state.badPackets > 5 ? CLR_RED : CLR_GREEN);
+    m3_plot(220, 80, state.badPackets > 0 ? CLR_RED : CLR_GREEN);
     state.frame = 0;
     state.goodPackets = 0;
     state.badPackets = 0;
