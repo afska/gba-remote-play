@@ -18,8 +18,9 @@ typedef struct {
   void initialize(Frame currentFrame,
                   Frame previousFrame,
                   uint32_t diffThreshold) {
-    temporalDiffEndPacket = totalCompressedPixels = repeatedPixels = 0;
+    totalCompressedPixels = repeatedPixels = 0;
     startPixel = TOTAL_PIXELS;
+    temporalDiffEndPacket = TEMPORAL_DIFF_MAX_PACKETS;
 
     uint32_t rleIndex = 0;
 
