@@ -73,6 +73,7 @@ inline void send() {
     // send metadata & diffs
     sendMetadata(metadata);
     u32 diffEndPacket = read(data, &cursor);
+    spiMaster->transfer(diffEndPacket);
     sendChunk(data, &cursor, diffEndPacket - diffStart);
 
     if (frame == 0)
