@@ -112,10 +112,11 @@ inline bool sendKeysAndReceiveMetadata() {
   state.hasAudio = (metadata & AUDIO_BIT_MASK) != 0;
 
   u32 diffStart = (state.startPixel / 8) / PACKET_SIZE;
-  u32 diffPackets =
-      min(spiSlave->transfer(0), TEMPORAL_DIFF_MAX_SIZE / PACKET_SIZE);
-  for (u32 i = diffStart; i < diffPackets; i++)
+  u32 diffMaxPackets = min(spiSlave->transfer(0), TEMPORAL_DIFF_MAX_PACKETS);
+  for (u32 i = diffStart; i < diffMaxPackets; i++)
     ((u32*)state.temporalDiffs)[i] = transfer(i);
+  for (u32 i = diffMaxPackets; i < TEMPORAL_DIFF_MAX_PACKETS; i++)
+    ((u32*)state.temporalDiffs)[i] = 0;
 
   return true;
 }
