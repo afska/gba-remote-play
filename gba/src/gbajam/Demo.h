@@ -23,7 +23,6 @@ namespace Demo {
 void send();
 void sendMetadata(u32* data, u32* cursor, u32 metadata);
 void sendChunk(u32* data, u32* cursor, u32 chunkSize);
-void sendZeroes(u32 chunkSize);
 bool sync(u32 command);
 void printOptions();
 void print(std::string text);
@@ -77,20 +76,15 @@ inline void send() {
 reset:
   u32 cursor = 0, audioCursor = 0;
   u32 frame = 0;
-  int audioCountdown = AUDIO_INITIAL_CHUNKS;
 
   for (u32 i = 0; i < AUDIO_INITIAL_CHUNKS; i++)
     sendChunk(audioData, &audioCursor, AUDIO_SIZE_PACKETS);
 
   while (true) {
     u32 metadata = data[cursor];
-    bool hasAudio = (metadata & AUDIO_BIT_MASK) != 0;
-    metadata &= ~AUDIO_BIT_MASK;
-    if (hasAudio) {
-      audioCountdown--;
-      if (audioCountdown == 0)
-        metadata |= AUDIO_BIT_MASK;
-    }
+    bool hasAudio = audioCursor < audioLen;
+    metadata =
+        hasAudio ? (metadata | AUDIO_BIT_MASK) : (metadata & ~AUDIO_BIT_MASK);
     u32 expectedPackets = (metadata >> PACKS_BIT_OFFSET) & PACKS_BIT_MASK;
     u32 startPixel = metadata & START_BIT_MASK;
     u32 diffsStart = (startPixel / 8) / PACKET_SIZE;
@@ -113,10 +107,7 @@ reset:
     // send audio
     if (!sync(CMD_AUDIO))
       goto reset;
-    if (audioCursor < audioLen)
-      sendChunk(audioData, &audioCursor, AUDIO_SIZE_PACKETS);
-    else
-      sendZeroes(AUDIO_SIZE_PACKETS);
+    sendChunk(audioData, &audioCursor, AUDIO_SIZE_PACKETS);
 
     // send pixels
     if (!sync(CMD_PIXELS))
@@ -132,8 +123,11 @@ reset:
       cursor = 0;
 
     frame++;
-    // print(std::to_string(frame) + (!didTimerCompleted ? "w" : "") +
-    //       (hasAudio ? "a" : ""));
+    print(std::to_string(frame) + (!didTimerCompleted ? "w" : "") +
+          (hasAudio ? "a" : ""));
+
+    // if (!didTimerCompleted)
+    //   IntrWait(1, DEMO_TIMER_IRQ_IDS[DEMO_SYNC_TIMER]);
   }
 }
 
@@ -158,11 +152,6 @@ inline void sendChunk(u32* data, u32* cursor, u32 chunkSize) {
     spiMaster->transfer(data[*cursor]);
     (*cursor)++;
   }
-}
-
-inline void sendZeroes(u32 chunkSize) {
-  for (u32 i = 0; i < chunkSize; i++)
-    spiMaster->transfer(0);
 }
 
 inline bool sync(u32 command) {
