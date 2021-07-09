@@ -11,5 +11,7 @@ build/
 
 debug.png
 palette.cache
+video.bin
+audio.bin
 
 src/data/_compiled_files

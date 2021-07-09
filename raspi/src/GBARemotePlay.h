@@ -1,6 +1,7 @@
 #ifndef GBA_REMOTE_PLAY_H
 #define GBA_REMOTE_PLAY_H
 
+#include <fstream>
 #include "BuildConfig.h"
 #include "Config.h"
 #include "Frame.h"
@@ -14,8 +15,14 @@
 #include "SPIMaster.h"
 #include "Utils.h"
 #include "VirtualGamepad.h"
+using namespace std;
 
 uint8_t LUT_24BPP_TO_8BIT_PALETTE[PALETTE_24BIT_MAX_COLORS];
+
+uint32_t metadata;
+uint32_t diffsStart;
+uint32_t packetsToSend[MAX_PIXELS_SIZE];
+uint32_t size;
 
 class GBARemotePlay {
  public:
@@ -31,6 +38,9 @@ class GBARemotePlay {
     lastFrame = Frame{0};
 
     PALETTE_initializeCache(PALETTE_CACHE_FILENAME);
+
+    videoFile.open("video.bin", ios::out | ios::trunc | ios::binary);
+    audioFile.open("audio.bin", ios::out | ios::trunc | ios::binary);
   }
 
   void run() {
@@ -68,14 +78,36 @@ class GBARemotePlay {
       auto frameTransferStartTime = PROFILE_START();
 #endif
 
-      if (!send(frame, diffs)) {
-        frame.clean();
-        lastFrame.clean();
-        goto reset;
-      }
+      // Don't send anything, just record the packets to a file
+      // if (!send(frame, diffs)) {
+      //   frame.clean();
+      //   lastFrame.clean();
+      //   goto reset;
+      // }
+      metadata = diffs.startPixel |
+                 (diffs.expectedPackets() << PACKS_BIT_OFFSET) |
+                 (diffs.shouldUseRLE() ? COMPR_BIT_MASK : 0) |
+                 (frame.hasAudio() ? AUDIO_BIT_MASK : 0);
+      diffsStart = (diffs.startPixel / 8) / PACKET_SIZE;
+      size = 0;
+      compressPixels(frame, diffs, packetsToSend, &size);
 
+      // Clean previous frame
       lastFrame.clean();
       lastFrame = frame;
+
+      // Record packets
+      videoFile.write((char*)&metadata, PACKET_SIZE);
+      videoFile.write(
+          (char*)(((uint32_t*)(diffs.temporalDiffs)) + diffsStart),
+          (TEMPORAL_DIFF_SIZE / PACKET_SIZE - diffsStart) * PACKET_SIZE);
+      if (frame.hasAudio()) {
+        audioFile.write((char*)frame.audioChunk,
+                        AUDIO_SIZE_PACKETS * PACKET_SIZE);
+      }
+      videoFile.write((char*)packetsToSend, size * PACKET_SIZE);
+      videoFile.flush();
+      audioFile.flush();
 
 #ifdef PROFILE_VERBOSE
       auto frameTransferElapsedTime = PROFILE_END(frameTransferStartTime);
@@ -115,6 +147,8 @@ class GBARemotePlay {
   VirtualGamepad* virtualGamepad;
   Frame lastFrame;
   uint32_t input;
+  fstream videoFile;
+  fstream audioFile;
 
   bool send(Frame& frame, ImageDiffRLECompressor& diffs) {
     if (!frame.hasData())
@@ -177,18 +211,20 @@ class GBARemotePlay {
 
   bool receiveKeysAndSendMetadata(Frame& frame, ImageDiffRLECompressor& diffs) {
   again:
-    uint32_t metadata = diffs.startPixel |
-                        (diffs.expectedPackets() << PACKS_BIT_OFFSET) |
-                        (diffs.shouldUseRLE() ? COMPR_BIT_MASK : 0) |
-                        (frame.hasAudio() ? AUDIO_BIT_MASK : 0);
+    metadata = diffs.startPixel |
+               (diffs.expectedPackets() << PACKS_BIT_OFFSET) |
+               (diffs.shouldUseRLE() ? COMPR_BIT_MASK : 0) |
+               (frame.hasAudio() ? AUDIO_BIT_MASK : 0);
     uint32_t keys = spiMaster->exchange(metadata);
+
     if (reliableStream->finishSyncIfNeeded(keys, CMD_FRAME_START))
       goto again;
     if (spiMaster->exchange(keys) != metadata)
       return false;
     processKeys(keys);
 
-    uint32_t diffsStart = (diffs.startPixel / 8) / PACKET_SIZE;
+    diffsStart = (diffs.startPixel / 8) / PACKET_SIZE;
+
     return reliableStream->send(diffs.temporalDiffs,
                                 TEMPORAL_DIFF_SIZE / PACKET_SIZE,
                                 CMD_FRAME_START, diffsStart);
@@ -200,8 +236,7 @@ class GBARemotePlay {
   }
 
   bool compressAndSendPixels(Frame& frame, ImageDiffRLECompressor& diffs) {
-    uint32_t packetsToSend[MAX_PIXELS_SIZE];
-    uint32_t size = 0;
+    size = 0;
     compressPixels(frame, diffs, packetsToSend, &size);
 
 #ifdef DEBUG
@@ -271,6 +306,9 @@ class GBARemotePlay {
     frame.totalPixels = TOTAL_PIXELS;
     frame.raw8BitPixels = (uint8_t*)malloc(TOTAL_PIXELS);
     frame.palette = MAIN_PALETTE_24BPP;
+
+    // Sleep to limit frames per second
+    usleep(config->recordSleepMilliseconds * 1000);
 
     frameBuffer->forEachPixel(
         [&frame, this](int x, int y, uint8_t r, uint8_t g, uint8_t b) {
