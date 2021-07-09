@@ -63,8 +63,10 @@ class SPIMaster {
 
     bcm2835_delayMicroseconds(delayMicroseconds);
 
+#ifndef WITH_AUDIO
     while (isSlaveBusy())
       ;
+#endif
 
     bcm2835_spi_transfern(x.uc, 4);
 
