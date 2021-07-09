@@ -36,4 +36,12 @@ inline u16 pressedKeys() {
   return ~REG_KEYS & KEY_ANY;
 }
 
+inline void softResetIfNeeded(u16 keys) {
+  if ((keys & KEY_A) && (keys & KEY_B) && (keys & KEY_START) &&
+      (keys & KEY_SELECT)) {
+    RegisterRamReset(RESET_REG | RESET_VRAM);
+    SoftReset();
+  }
+}
+
 #endif  // UTILS_H

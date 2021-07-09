@@ -34,6 +34,7 @@ CODE_IWRAM void run() {
 
   while (true) {
     keys = pressedKeys();
+    softResetIfNeeded(keys);
 
     if (IS_PRESSED(KEY_START)) {
       // send
@@ -61,6 +62,8 @@ inline void send() {
   u32 frame = 0;
 
   while (true) {
+    softResetIfNeeded(pressedKeys());
+
     u32 metadata = read(data, &cursor);
     u32 expectedPackets = (metadata >> PACKS_BIT_OFFSET) & PACKS_BIT_MASK;
     u32 startPixel = metadata & START_BIT_MASK;

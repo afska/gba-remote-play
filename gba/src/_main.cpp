@@ -121,6 +121,8 @@ reset:
 
 inline bool sendKeysAndReceiveMetadata() {
   u16 keys = pressedKeys();
+  softResetIfNeeded(keys);
+
   u32 metadata = spiSlave->transfer(keys);
   if (spiSlave->transfer(metadata) != keys)
     return false;
