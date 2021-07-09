@@ -100,6 +100,10 @@ reset:
     TRY(sync(CMD_FRAME_START))
     TRY(sendKeysAndReceiveMetadata())
     if (state.hasAudio) {
+      while (state.isAudioReady) {
+        if (isNewVBlank())
+          driveAudio();
+      }
       TRY(sync(CMD_AUDIO))
       TRY(receiveAudio())
     }
