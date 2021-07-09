@@ -29,7 +29,6 @@
       __attribute__((aligned(4)));                                             \
   DATA_IWRAM unsigned int cur_buffer = 0;                                      \
   DATA_IWRAM const unsigned char* src_pos = NULL;                              \
-  DATA_IWRAM const unsigned char* src_start = NULL;                            \
   DATA_IWRAM const unsigned char* src_end = NULL;                              \
                                                                                \
   DATA_IWRAM struct gsm_state decoder;                                         \
@@ -73,12 +72,10 @@
 
 #define PLAYER_PLAY(SRC, SIZE) \
   src_pos = SRC;               \
-  src_start = SRC;             \
   src_end = SRC + SIZE;
 
 #define PLAYER_STOP() \
   src_pos = NULL;     \
-  src_start = NULL;   \
   src_end = NULL;     \
   mute();
 

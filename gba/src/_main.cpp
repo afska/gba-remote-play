@@ -137,19 +137,24 @@ inline bool sendKeysAndReceiveMetadata() {
 }
 
 inline bool receiveAudio() {
-  if (state.audioCursor + AUDIO_SIZE_PACKETS > AUDIO_BUFFER_SIZE)
-    state.audioCursor = 0;
-
   for (u32 i = 0; i < AUDIO_SIZE_PACKETS; i++)
     audioBuffer[state.audioCursor + i] = transfer(i);
 
   state.audioCursor += AUDIO_SIZE_PACKETS;
   state.audioSize += AUDIO_SIZE_PACKETS;
-  player_updateMediaSize(AUDIO_SIZE_PACKETS * PACKET_SIZE);
+  player_updateMediaSize(state.audioSize * PACKET_SIZE);
 
   if (state.isAudioStart) {
     player_play((const unsigned char*)audioBuffer,
                 state.audioSize * PACKET_SIZE);
+  }
+
+  if (state.audioCursor > AUDIO_BUFFER_SIZE) {
+    player_stop();
+    while (true) {
+      for (u32 i = 0; i < PALETTE_COLORS; i++)
+        pal_bg_mem[i] = qran();
+    }
   }
 
   return true;
