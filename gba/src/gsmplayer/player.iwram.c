@@ -22,9 +22,8 @@ inline void player_stop() {
   PLAYER_STOP();
 }
 
-inline bool player_needsData() {
-  return src_pos == NULL ||
-         ((int)src_pos) >= ((int)src_end) - (sizeof(gsm_frame));
+inline void player_updateMediaSize(unsigned int newAddedBytes) {
+  src_end += newAddedBytes;
 }
 
 inline void player_onVBlank() {
