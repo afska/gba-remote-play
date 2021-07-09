@@ -49,8 +49,6 @@ CODE_IWRAM void run() {
   }
 }
 
-bool didTimerCompleted = false;
-
 inline void send() {
   print("Waiting for slave...");
 
