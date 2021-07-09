@@ -39,14 +39,8 @@ class SPISlave {
     enableTransfer();
     startTransfer();
 
-    while (!isReady()) {
-      // if (needsBreak()) {
-      //   setData(0xffffffff);
-      //   disableTransfer();
-      //   *breakFlag = true;
-      //   return 0;
-      // }
-    }
+    while (!isReady())
+      ;
 
     disableTransfer();
     u32 data = getData();

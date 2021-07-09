@@ -15,6 +15,7 @@
 #include "SPIMaster.h"
 #include "Utils.h"
 #include "VirtualGamepad.h"
+
 using namespace std;
 
 uint8_t LUT_24BPP_TO_8BIT_PALETTE[PALETTE_24BIT_MAX_COLORS];

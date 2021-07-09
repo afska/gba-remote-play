@@ -34,10 +34,10 @@ CODE_IWRAM void run() {
     keys = pressedKeys();
 
     if (IS_PRESSED(KEY_START)) {
-      // SEND
+      // send
       send();
     } else if (IS_PRESSED(KEY_SELECT)) {
-      // RECEIVE
+      // receive
       return;  // (goes back to _main.cpp)
     }
 
