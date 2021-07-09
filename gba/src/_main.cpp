@@ -91,25 +91,21 @@ inline void init() {
 }
 
 CODE_IWRAM void mainLoop() {
-  state.hasAudio = false;
   state.isVBlank = false;
-  state.isRunningAudio = false;
 
 reset:
+  state.isAudioStart = false;
   state.audioCursor = 0;
   state.audioSize = 0;
 
   for (u32 i = 0; i < AUDIO_INITIAL_CHUNKS; i++)
     TRY(receiveAudio())
-  player_play((const unsigned char*)audioBuffer, state.audioSize * PACKET_SIZE);
 
   while (true) {
     TRY(sync(CMD_FRAME_START))
     TRY(sendKeysAndReceiveMetadata())
-    if (state.hasAudio) {
-      TRY(sync(CMD_AUDIO))
-      TRY(receiveAudio())
-    }
+    TRY(sync(CMD_AUDIO))
+    TRY(receiveAudio())
     TRY(sync(CMD_PIXELS))
     TRY(receivePixels())
     TRY(sync(CMD_FRAME_END))
@@ -131,7 +127,7 @@ inline bool sendKeysAndReceiveMetadata() {
   state.expectedPackets = (metadata >> PACKS_BIT_OFFSET) & PACKS_BIT_MASK;
   state.startPixel = metadata & START_BIT_MASK;
   state.isRLE = (metadata & COMPR_BIT_MASK) != 0;
-  state.hasAudio = (metadata & AUDIO_BIT_MASK) != 0;
+  state.isAudioStart = (metadata & AUDIO_BIT_MASK) != 0;
 
   u32 diffsStart = (state.startPixel / 8) / PACKET_SIZE;
   for (u32 i = diffsStart; i < TEMPORAL_DIFF_SIZE / PACKET_SIZE; i++)
@@ -148,7 +144,18 @@ inline bool receiveAudio() {
   state.audioSize += AUDIO_SIZE_PACKETS;
   player_updateMediaSize(state.audioSize * PACKET_SIZE);
 
-  // TODO: CHECK BOUNDS
+  if (state.isAudioStart) {
+    player_play((const unsigned char*)audioBuffer,
+                state.audioSize * PACKET_SIZE);
+  }
+
+  if (state.audioCursor > AUDIO_BUFFER_SIZE) {
+    player_stop();
+    while (true) {
+      for (u32 i = 0; i < PALETTE_COLORS; i++)
+        pal_bg_mem[i] = qran();
+    }
+  }
 
   return true;
 }

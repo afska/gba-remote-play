@@ -15,9 +15,8 @@ typedef struct {
   u32 audioCursor;
   u32 audioSize;
   bool isRLE;
-  bool hasAudio;
+  bool isAudioStart;
   bool isVBlank;
-  bool isRunningAudio;
 } State;
 
 extern State state;
