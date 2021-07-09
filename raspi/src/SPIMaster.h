@@ -7,6 +7,8 @@
 #include <byteswap.h>
 #include "bcm2835.h"
 
+#define SPI_MISO_PIN 9
+
 class SPIMaster {
  public:
   SPIMaster(uint8_t mode,
@@ -38,6 +40,8 @@ class SPIMaster {
   uint32_t fastFrequency;
   uint32_t delayMicroseconds;
 
+  bool isSlaveBusy() { return bcm2835_gpio_lev(SPI_MISO_PIN); }
+
   void initialize() {
     if (!bcm2835_init()) {
       std::cout << "Error (SPI): cannot initialize SPI\n";
@@ -56,7 +60,14 @@ class SPIMaster {
       char uc[4];
     } x;
     x.u32 = bswap_32(value);
+
     bcm2835_delayMicroseconds(delayMicroseconds);
+
+#ifndef WITH_AUDIO
+    while (isSlaveBusy())
+      ;
+#endif
+
     bcm2835_spi_transfern(x.uc, 4);
 
     return bswap_32(x.u32);

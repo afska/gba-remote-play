@@ -20,9 +20,17 @@
 
 class LoopbackAudio {
  public:
-  LoopbackAudio() { launchEncoder(); }
+  LoopbackAudio() {
+#ifdef WITH_AUDIO
+    launchEncoder();
+#endif
+  }
 
   uint8_t* loadChunk() {
+#ifndef WITH_AUDIO
+    return NULL;
+#endif
+
     uint8_t* chunk = (uint8_t*)malloc(AUDIO_PADDED_SIZE);
 
     uint32_t availableBytes = consumeExtraChunks();
@@ -36,10 +44,12 @@ class LoopbackAudio {
     return chunk;
   }
 
+#ifdef WITH_AUDIO
   ~LoopbackAudio() {
     pclose(pipe);
     close(nullFd);
   }
+#endif
 
  private:
   FILE* pipe;

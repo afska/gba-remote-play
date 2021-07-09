@@ -20,7 +20,7 @@ using namespace std;
 uint8_t LUT_24BPP_TO_8BIT_PALETTE[PALETTE_24BIT_MAX_COLORS];
 
 uint32_t metadata;
-uint32_t diffsStart;
+uint32_t diffStart;
 uint32_t packetsToSend[MAX_PIXELS_SIZE];
 uint32_t size;
 
@@ -88,7 +88,7 @@ class GBARemotePlay {
                  (diffs.expectedPackets() << PACKS_BIT_OFFSET) |
                  (diffs.shouldUseRLE() ? COMPR_BIT_MASK : 0) |
                  (frame.hasAudio() ? AUDIO_BIT_MASK : 0);
-      diffsStart = (diffs.startPixel / 8) / PACKET_SIZE;
+      diffStart = (diffs.startPixel / 8) / PACKET_SIZE;
       size = 0;
       compressPixels(frame, diffs, packetsToSend, &size);
 
@@ -98,9 +98,9 @@ class GBARemotePlay {
 
       // Record packets
       videoFile.write((char*)&metadata, PACKET_SIZE);
-      videoFile.write(
-          (char*)(((uint32_t*)(diffs.temporalDiffs)) + diffsStart),
-          (TEMPORAL_DIFF_SIZE / PACKET_SIZE - diffsStart) * PACKET_SIZE);
+      videoFile.write((char*)&diffs.temporalDiffEndPacket, PACKET_SIZE);
+      videoFile.write((char*)(((uint32_t*)(diffs.temporalDiffs)) + diffStart),
+                      (diffs.temporalDiffEndPacket - diffStart) * PACKET_SIZE);
       if (frame.hasAudio()) {
         audioFile.write((char*)frame.audioChunk,
                         AUDIO_SIZE_PACKETS * PACKET_SIZE);
@@ -221,13 +221,14 @@ class GBARemotePlay {
       goto again;
     if (spiMaster->exchange(keys) != metadata)
       return false;
+
     processKeys(keys);
 
-    diffsStart = (diffs.startPixel / 8) / PACKET_SIZE;
-
+    diffStart = (diffs.startPixel / 8) / PACKET_SIZE;
+    spiMaster->exchange(diffs.temporalDiffEndPacket);
     return reliableStream->send(diffs.temporalDiffs,
-                                TEMPORAL_DIFF_SIZE / PACKET_SIZE,
-                                CMD_FRAME_START, diffsStart);
+                                diffs.temporalDiffEndPacket, CMD_FRAME_START,
+                                diffStart);
   }
 
   bool sendAudio(Frame& frame) {

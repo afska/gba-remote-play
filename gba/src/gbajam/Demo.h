@@ -13,7 +13,7 @@ extern "C" {
 namespace Demo {
 
 void send();
-void sendMetadata(u32* data, u32* cursor, u32 metadata);
+void sendMetadata(u32 metadata);
 void sendChunk(u32* data, u32* cursor, u32 chunkSize);
 bool sync(u32 command);
 void printOptions();
@@ -62,19 +62,20 @@ reset:
   u32 frame = 0;
 
   while (true) {
-    u32 metadata = data[cursor];
+    u32 metadata = read(data, &cursor);
     u32 expectedPackets = (metadata >> PACKS_BIT_OFFSET) & PACKS_BIT_MASK;
     u32 startPixel = metadata & START_BIT_MASK;
     bool hasAudio = (metadata & AUDIO_BIT_MASK) != 0;
-    u32 diffsStart = (startPixel / 8) / PACKET_SIZE;
+    u32 diffStart = (startPixel / 8) / PACKET_SIZE;
 
     // frame start
     if (!sync(CMD_FRAME_START))
       goto reset;
 
     // send metadata & diffs
-    sendMetadata(data, &cursor, metadata);
-    sendChunk(data, &cursor, TEMPORAL_DIFF_SIZE / PACKET_SIZE - diffsStart);
+    sendMetadata(metadata);
+    u32 diffEndPacket = read(data, &cursor);
+    sendChunk(data, &cursor, diffEndPacket - diffStart);
 
     if (frame == 0)
       print("Sending...");
@@ -108,8 +109,7 @@ reset:
   }
 }
 
-inline void sendMetadata(u32* data, u32* cursor, u32 metadata) {
-  (*cursor)++;
+inline void sendMetadata(u32 metadata) {
   u32 keys = spiMaster->transfer(metadata);
 
   u32 confirmation;
@@ -117,7 +117,7 @@ inline void sendMetadata(u32* data, u32* cursor, u32 metadata) {
     print(std::string("") +
           "Transfer failed!\n\nIs NO$GBA in Normal Mode?\n\n\n\n\n\n\n\n\n\nIf "
           "you are using hardware:\n\n- Use a GB Link Cable, not a\n  GBA "
-          "cable\n\n- Try again, this only works\n  reliably with short "
+          "cable\n\n- Try again, use only works\n  reliably with short "
           "cables");
     while (true)
       ;
@@ -125,10 +125,14 @@ inline void sendMetadata(u32* data, u32* cursor, u32 metadata) {
 }
 
 inline void sendChunk(u32* data, u32* cursor, u32 chunkSize) {
-  for (u32 i = 0; i < chunkSize; i++) {
-    spiMaster->transfer(data[*cursor]);
-    (*cursor)++;
-  }
+  for (u32 i = 0; i < chunkSize; i++)
+    spiMaster->transfer(read(data, cursor));
+}
+
+inline u32 read(u32* data, u32* cursor) {
+  u32 value = data[*cursor];
+  (*cursor)++;
+  return value;
 }
 
 inline bool sync(u32 command) {

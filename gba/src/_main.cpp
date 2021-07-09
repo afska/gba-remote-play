@@ -130,9 +130,12 @@ inline bool sendKeysAndReceiveMetadata() {
   state.isRLE = (metadata & COMPR_BIT_MASK) != 0;
   state.hasAudio = (metadata & AUDIO_BIT_MASK) != 0;
 
-  u32 diffsStart = (state.startPixel / 8) / PACKET_SIZE;
-  for (u32 i = diffsStart; i < TEMPORAL_DIFF_SIZE / PACKET_SIZE; i++)
+  u32 diffStart = (state.startPixel / 8) / PACKET_SIZE;
+  u32 diffEndPacket = min(spiSlave->transfer(0), TEMPORAL_DIFF_MAX_PACKETS);
+  for (u32 i = diffStart; i < diffEndPacket; i++)
     ((u32*)state.temporalDiffs)[i] = transfer(i);
+  for (u32 i = diffEndPacket; i < TEMPORAL_DIFF_MAX_PACKETS; i++)
+    ((u32*)state.temporalDiffs)[i] = 0;
 
   return true;
 }
@@ -234,6 +237,10 @@ inline void render(bool withRLE) {
 }
 
 inline bool needsToRunAudio() {
+#ifndef WITH_AUDIO
+  return false;
+#endif
+
   if (!state.isVBlank && IS_VBLANK) {
     state.isVBlank = true;
     return true;
