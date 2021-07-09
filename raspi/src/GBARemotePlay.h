@@ -189,8 +189,7 @@ class GBARemotePlay {
     processKeys(keys);
 
     uint32_t diffsStart = (diffs.startPixel / 8) / PACKET_SIZE;
-    return reliableStream->send(diffs.temporalDiffs,
-                                TEMPORAL_DIFF_SIZE / PACKET_SIZE,
+    return reliableStream->send(diffs.temporalDiffs, diffs.temporalDiffPackets,
                                 CMD_FRAME_START, diffsStart);
   }
 
