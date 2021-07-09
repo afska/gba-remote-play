@@ -3,15 +3,6 @@
 
 #include <stdint.h>
 
-// Render modes:
-// - Low quality (fast):
-//   120x80, with DRAW_SCALE=2
-// - High quality (slow):
-//   240x160, with DRAW_SCALE=1
-//   [!]                                                         [!]
-//     When using this mode, move `compressedPixels` outside State
-//     (from IWRAM to EWRAM). Otherwise, it'll crash.
-
 // RENDER
 #define RENDER_WIDTH 120
 #define RENDER_HEIGHT 80
@@ -39,8 +30,9 @@
 #define AUDIO_PADDED_SIZE (AUDIO_CHUNK_SIZE + AUDIO_CHUNK_PADDING)
 
 // DIFFS
-#define TEMPORAL_DIFF_SIZE (TOTAL_PIXELS / 8)
-#define TEMPORAL_DIFF_PADDED_SIZE (TEMPORAL_DIFF_SIZE + 4)
+#define TEMPORAL_DIFF_MAX_SIZE (TOTAL_PIXELS / 8)
+#define TEMPORAL_DIFF_MAX_PADDED_SIZE (TEMPORAL_DIFF_MAX_SIZE + 4)
+#define TEMPORAL_DIFF_MAX_PACKETS (TEMPORAL_DIFF_MAX_SIZE / PACKET_SIZE)
 #define MAX_RLE 255
 
 // FILES

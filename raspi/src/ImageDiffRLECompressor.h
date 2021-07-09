@@ -6,9 +6,10 @@
 #include "Protocol.h"
 
 typedef struct {
-  uint8_t temporalDiffs[TEMPORAL_DIFF_SIZE];
+  uint8_t temporalDiffs[TEMPORAL_DIFF_MAX_SIZE];
   uint8_t compressedPixels[TOTAL_PIXELS];
   uint8_t runLengthEncoding[TOTAL_PIXELS];
+  uint32_t temporalDiffEndPacket;
   uint32_t totalCompressedPixels;
   uint32_t repeatedPixels;
   uint32_t startPixel;
@@ -17,7 +18,7 @@ typedef struct {
   void initialize(Frame currentFrame,
                   Frame previousFrame,
                   uint32_t diffThreshold) {
-    totalCompressedPixels = repeatedPixels = 0;
+    temporalDiffEndPacket = totalCompressedPixels = repeatedPixels = 0;
     startPixel = TOTAL_PIXELS;
 
     uint32_t rleIndex = 0;
@@ -51,6 +52,11 @@ typedef struct {
         // (a pixel remained with the same color as in the previous frame)
         setBit(temporalDiffs, i, false);
       }
+    }
+
+    if (lastChangedPixelId > -1) {
+      // (detect buffer end to avoid sending useless bytes)
+      temporalDiffEndPacket = (lastChangedPixelId / 8) / PACKET_SIZE + 1;
     }
   }
 
