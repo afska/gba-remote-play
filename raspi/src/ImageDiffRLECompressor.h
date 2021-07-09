@@ -18,7 +18,7 @@ typedef struct {
   void initialize(Frame currentFrame,
                   Frame previousFrame,
                   uint32_t diffThreshold) {
-    totalCompressedPixels = repeatedPixels = temporalDiffPackets = 0;
+    temporalDiffPackets = totalCompressedPixels = repeatedPixels = 0;
     startPixel = TOTAL_PIXELS;
 
     uint32_t rleIndex = 0;
@@ -54,10 +54,10 @@ typedef struct {
       }
     }
 
-    if (lastChangedPixelId > 0) {
+    if (lastChangedPixelId > -1) {
       // (detect edges to avoid sending useless bytes)
-      uint32_t startPacket = startPixel / 8 / PACKET_SIZE;
-      uint32_t endPacket = lastChangedPixelId / 8 / PACKET_SIZE;
+      uint32_t startPacket = (startPixel / 8) / PACKET_SIZE;
+      uint32_t endPacket = (lastChangedPixelId / 8) / PACKET_SIZE;
       temporalDiffPackets = endPacket - startPacket + 1;
     }
   }
