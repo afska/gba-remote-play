@@ -50,6 +50,7 @@ CODE_IWRAM void run() {
       printSendOptions();
       while (true) {
         keys = pressedKeys();
+        softResetIfNeeded(keys);
 
         if (IS_PRESSED(KEY_L)) {
           data = (u32*)gbfs_get_obj(fs, "cam2-video.bin", &len);
@@ -70,6 +71,7 @@ CODE_IWRAM void run() {
       printReceiveOptions();
       while (true) {
         keys = pressedKeys();
+        softResetIfNeeded(keys);
 
         if (IS_PRESSED(KEY_L)) {
           // none
@@ -115,7 +117,8 @@ inline void send() {
   u32 frame = 0;
 
   while (true) {
-    softResetIfNeeded(pressedKeys());
+    u16 keys = pressedKeys();
+    softResetIfNeeded(keys);
 
     u32 metadata = read(data, &cursor);
     u32 expectedPackets = (metadata >> PACKS_BIT_OFFSET) & PACKS_BIT_MASK;
