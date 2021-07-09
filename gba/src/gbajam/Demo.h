@@ -16,8 +16,9 @@ void send();
 void sendMetadata(u32 metadata);
 void sendChunk(u32* data, u32* cursor, u32 chunkSize);
 u32 read(u32* data, u32* cursor);
-bool sync(u32 command);
+void sync(u32 command);
 void printOptions();
+void fail();
 void print(std::string text);
 
 static const GBFS_FILE* fs = find_first_gbfs_file(0);
@@ -56,7 +57,6 @@ inline void send() {
   u32* data = (u32*)gbfs_get_obj(fs, "video.bin", &len);
   u32* audioData = (u32*)gbfs_get_obj(fs, "audio.bin", &audioLen);
 
-reset:
   u32 cursor = 0, audioCursor = 0;
   u32 frame = 0;
 
@@ -68,8 +68,7 @@ reset:
     u32 diffStart = (startPixel / 8) / PACKET_SIZE;
 
     // frame start
-    if (!sync(CMD_FRAME_START))
-      goto reset;
+    sync(CMD_FRAME_START);
 
     // send metadata & diffs
     sendMetadata(metadata);
@@ -81,19 +80,16 @@ reset:
 
     // send audio
     if (hasAudio) {
-      if (!sync(CMD_AUDIO))
-        goto reset;
+      sync(CMD_AUDIO);
       sendChunk(audioData, &audioCursor, AUDIO_SIZE_PACKETS);
     }
 
     // send pixels
-    if (!sync(CMD_PIXELS))
-      goto reset;
+    sync(CMD_PIXELS);
     sendChunk(data, &cursor, expectedPackets);
 
     // frame end
-    if (!sync(CMD_FRAME_END))
-      goto reset;
+    sync(CMD_FRAME_END);
 
     // loop!
     if (cursor * PACKET_SIZE >= len) {
@@ -112,15 +108,8 @@ inline void sendMetadata(u32 metadata) {
   u32 keys = spiMaster->transfer(metadata);
 
   u32 confirmation;
-  if ((confirmation = spiMaster->transfer(keys)) != metadata) {
-    print(std::string("") +
-          "Transfer failed!\n\nIs NO$GBA in Normal Mode?\n\n\n\n\n\n\n\n\n\nIf "
-          "you are using hardware:\n\n- Use a GB Link Cable, not a\n  GBA "
-          "cable\n\n- Try again, use only works\n  reliably with short "
-          "cables");
-    while (true)
-      ;
-  }
+  if ((confirmation = spiMaster->transfer(keys)) != metadata)
+    fail();
 }
 
 inline void sendChunk(u32* data, u32* cursor, u32 chunkSize) {
@@ -134,7 +123,7 @@ inline u32 read(u32* data, u32* cursor) {
   return value;
 }
 
-inline bool sync(u32 command) {
+inline void sync(u32 command) {
   u32 local = command + CMD_RPI_OFFSET;
   u32 remote = command + CMD_GBA_OFFSET;
   bool isOnSync = false;
@@ -143,15 +132,9 @@ inline bool sync(u32 command) {
     u32 confirmation = spiMaster->transfer(local);
     isOnSync = confirmation == remote;
 
-    if (confirmation == CMD_RESET) {
-      print("RESET");
-      while (true)
-        ;
-      return false;
-    }
+    if (confirmation == CMD_RESET)
+      fail();
   }
-
-  return true;
 }
 
 inline void printOptions() {
@@ -161,6 +144,15 @@ inline void printOptions() {
         "only be tested on NO$GBA or \nby using real "
         "hardware.\n\n\n\n\n\n\n\n\nPress START to send.\n\nPress SELECT to "
         "receive.");
+}
+
+inline void fail() {
+  print(std::string("") +
+        "Transfer failed!\n\nIs NO$GBA in Normal Mode?\n\n\n\n\n\n\n\n\n\nIf "
+        "you are using hardware:\n\n- Use a GBC Link Cable, not a\n  GBA "
+        "cable\n\n- Try again, this works better\n  when using short cables");
+  while (true)
+    ;
 }
 
 inline void print(std::string text) {
