@@ -91,12 +91,9 @@ inline void init() {
 }
 
 CODE_IWRAM void mainLoop() {
-  state.audioBufferHead = 0;
-  state.audioBufferTail = 0;
-  state.readyAudioChunks = 0;
   state.hasAudio = false;
   state.isVBlank = false;
-  state.isRunningAudio = false;
+  state.isAudioReady = false;
 
 reset:
   while (true) {
@@ -137,19 +134,10 @@ inline bool sendKeysAndReceiveMetadata() {
 }
 
 inline bool receiveAudio() {
-#define RECEIVE_AUDIO()                                            \
-  for (u32 i = 0; i < AUDIO_SIZE_PACKETS; i++)                     \
-    ((u32*)(audioBuffer[state.audioBufferTail]))[i] = transfer(i); \
-                                                                   \
-  state.audioBufferTail =                                          \
-      (state.audioBufferTail + 1) % AUDIO_CHUNKS_PER_BUFFER;       \
-  state.readyAudioChunks++;
+  for (u32 i = 0; i < AUDIO_SIZE_PACKETS; i++)
+    ((u32*)state.audioChunks)[i] = transfer(i);
 
-  RECEIVE_AUDIO()
-  bool oneMoreTime = transfer(0);
-  if (oneMoreTime) {
-    RECEIVE_AUDIO()
-  }
+  state.isAudioReady = true;
 
   return true;
 }
@@ -252,16 +240,9 @@ inline bool isNewVBlank() {
 }
 
 CODE_IWRAM void driveAudio() {
-  if (state.readyAudioChunks >= MIN_PROCESSABLE_AUDIO_CHUNKS)
-    state.isRunningAudio = true;
-
-  if (player_needsData() && state.isRunningAudio &&
-      state.readyAudioChunks > 0) {
-    player_play((const unsigned char*)(audioBuffer[state.audioBufferHead]),
-                AUDIO_CHUNK_SIZE);
-    state.audioBufferHead =
-        (state.audioBufferHead + 1) % AUDIO_CHUNKS_PER_BUFFER;
-    state.isRunningAudio = --state.readyAudioChunks > 0;
+  if (player_needsData() && state.isAudioReady) {
+    player_play((const unsigned char*)state.audioChunks, AUDIO_CHUNK_SIZE);
+    state.isAudioReady = false;
   }
 
   player_run();

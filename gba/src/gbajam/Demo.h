@@ -13,7 +13,7 @@ extern "C" {
 // 16000us/frame and 61,02us per timer tick at TM_FREQ_1024
 // in a 13fps video => 76923us per frame => 1260ticks per video frame
 #define DEMO_SYNC_TIMER 3
-#define DEMO_TIMER_TICKS 1260
+#define DEMO_TIMER_TICKS 500
 #define DEMO_TIMER_FREQUENCY TM_FREQ_1024
 const u16 DEMO_TIMER_IRQ_IDS[] = {IRQ_TIMER0, IRQ_TIMER1, IRQ_TIMER2,
                                   IRQ_TIMER3};
@@ -84,9 +84,6 @@ reset:
     bool hasAudio = (metadata & AUDIO_BIT_MASK) != 0;
     u32 diffsStart = (startPixel / 8) / PACKET_SIZE;
 
-    if (audioCursor >= audioLen)
-      hasAudio = false;
-
     didTimerCompleted = false;
     REG_TM[DEMO_SYNC_TIMER].start = -DEMO_TIMER_TICKS;
     REG_TM[DEMO_SYNC_TIMER].cnt = TM_ENABLE | TM_IRQ | DEMO_TIMER_FREQUENCY;
@@ -107,9 +104,6 @@ reset:
       if (!sync(CMD_AUDIO))
         goto reset;
       sendChunk(audioData, &audioCursor, AUDIO_SIZE_PACKETS);
-      spiMaster->transfer(audioCursor < audioLen);
-      if (audioCursor < audioLen)
-        sendChunk(audioData, &audioCursor, AUDIO_SIZE_PACKETS);
     }
 
     // send pixels
@@ -122,12 +116,18 @@ reset:
       goto reset;
 
     // loop!
-    if (cursor * PACKET_SIZE >= len)
+    if (cursor * PACKET_SIZE >= len) {
+      frame = 0;
       cursor = 0;
+      audioCursor = 0;
+      audioCursor = 0;
+    }
 
     frame++;
-    print(std::to_string(frame) + (!didTimerCompleted ? " w" : "") +
-          (hasAudio ? "a" : ""));
+    if (frame % 60 == 0) {
+      print("Sending #" + std::to_string(frame) +
+            (!didTimerCompleted ? "w" : "") + (hasAudio ? "a" : ""));
+    }
 
     // if (!didTimerCompleted)
     //   IntrWait(1, DEMO_TIMER_IRQ_IDS[DEMO_SYNC_TIMER]);
