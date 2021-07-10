@@ -448,7 +448,7 @@ I had to make it so every transfer is cancellable: if it's time to run the audio
 
 ## EWRAM Overclock
 
-The GBA code overclocks the external RAM at the beginning, to use only one waitstate instead of two. This process crashes on a GB Micro, but who would use this ~~on a Micro~~ anyway?
+The GBA code overclocks the external RAM at the beginning, to use only one [wait state](https://en.wikipedia.org/wiki/Wait_state) instead of two. This process crashes on a GB Micro, but who would use this ~~on a Micro~~ anyway?
 
 <p align="center">
   <i>A guy using a GB Micro with a Raspberry Pi attached to it</i>
