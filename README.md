@@ -389,7 +389,7 @@ How it works is that if some application plays sound on -for example- `hw:0,0,0`
 
 ### Encoding GSM frames
 
-GSM encoding is done with [ffmpeg](http://ffmpeg.org/). The GBA ports requires a non-standard rate of 18157Hz, so we have to tell it to ignore its checks, like "yeah, this is not officially supported, I don't care", as well as the new rate.
+GSM encoding is done with [ffmpeg](http://ffmpeg.org/). The GBA port requires a non-standard rate of 18157Hz, so we have to tell it to ignore its checks, like "yeah, this is not officially supported, I don't care", as well as the new rate.
 
 This is what the recording command looks like:
 
