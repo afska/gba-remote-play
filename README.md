@@ -520,6 +520,10 @@ This project relies on the following open-source libraries:
 - GBA multiboot writer by [gba_03_multiboot](https://github.com/akkera102/gba_03_multiboot)
 - Raspberry PI SPI transfers by the [C library for Broadcom BCM 2835](https://www.airspayce.com/mikem/bcm2835/)
 
+The GBA Jam demo, uses these two open Blender clips with Creative Commons licenses:
+- [Caminandes 2: Gran Dillama](https://www.youtube.com/watch?v=Z4C82eyhwgU)
+- [Caminandes 3: Llamigos](https://www.youtube.com/watch?v=SkVqJ1SGeL0)
+
 Also, here are some documentation links that I made use of:
 - [TONC](https://www.coranac.com/tonc/text/toc.htm): The greatest GBA tutorial ever made.
 - [GBATEK](https://problemkaputt.de/gbatek.htm): Documentation of NO$GBA with GBA internals.
