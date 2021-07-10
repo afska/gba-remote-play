@@ -20,13 +20,13 @@ This software streams games from a Raspberry Pi to a Game Boy Advance, through i
 
 # GBA Jam 2021
 
-All this code was made during the [GBA Jam 2021](https://itch.io/jam/gbajam21). Since this project doesn't fit well into the jam (as it requires external hardware), there's a Demo available in the **Releases** section where one GBA sends a video with audio to another GBA via Link Cable.
+All this code was made during the [GBA Jam 2021](https://itch.io/jam/gbajam21). Since this project doesn't fit well into the jam (as it requires external hardware), there's a Demo available in the [Releases](https://github.com/rodri042/gba-remote-play/releases) section where one GBA sends a video with audio to another GBA via Link Cable.
 
 Here's a video of it:
 
 https://user-images.githubusercontent.com/1631752/125164337-129c1780-e168-11eb-9bc8-9e2719a7180f.mp4
 
-The code of that demo is in the `#gba-jam` branch.
+The code of that demo is in the [#gba-jam](https://github.com/rodri042/gba-remote-play/compare/gba-jam?expand=1) branch.
 
 # Demo with audio
 
@@ -34,7 +34,7 @@ https://user-images.githubusercontent.com/1631752/125162670-a0273980-e15f-11eb-8
 
 # How it works
 
-> :warning: This section will talk about implementation details. For setup instructions, scroll down! :warning:
+> :warning: This section will talk about implementation details. For setup instructions, scroll down to [Setup](#setup)! :warning:
 
 Basically, there are two programs:
 
@@ -410,7 +410,7 @@ ffmpeg -f alsa -i hw:0,1 -y -ac 1 -af 'aresample=18157' -strict unofficial -c:a 
 
 The `-` at the end of the _ffmpeg_ command means "send the result to `stdout`". The code launches this process with [popen](https://man7.org/linux/man-pages/man3/popen.3.html) and reads through the created pipe.
 
-Since transferring a frame takes time, it can sometimes happen that more audio frames are generated than what we can actually use. If we don't do anything about it, when reading the pipe we'd be actually reading audio _of the past_, producing a snowball of audio lag!
+Since transferring a frame takes time, it can sometimes happen that more audio frames are generated than what we can actually use. If we don't do anything about it, when reading the pipe we'd be actually reading audio _from the past_, producing a snowball of audio lag!
 
 <p align="center">
   <i>Our GBA vibing to outdated audio frames</i>
@@ -483,7 +483,7 @@ gpu_mem_1024=256
 ```
 - In `raspi-config`, enable **SPI**.
 - Set RetroArch to a 4:3 aspect ratio: Settings -> Video -> Aspect ratio -> **4:3**.
-- Pick the required files from the **Releases** section of this GitHub repo.
+- Pick the required files from the [Releases](https://github.com/rodri042/gba-remote-play/releases) section of this GitHub repo.
 - Load the GBA ROM with `./multiboot.tool gba.mb.gba`.
 - Run the RPI backend with `sudo ./raspi.run`
 
