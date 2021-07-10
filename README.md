@@ -104,7 +104,7 @@ In my tests with a Raspberry Pi 3, the maximum transfer rates I was able to achi
 
 One-way transfers are fine in this case, because we only care about input and some sync packets from the GBA. That means that the code is constantly switching between two frequencies depending of if it needs a response or not.
 	
-In all cases the Raspberry Pi has to wait a small amount of microseconds to let the poor GBA's CPU rest.
+In all cases the Raspberry Pi has to wait a small number of microseconds to let the poor GBA's CPU rest.
 
 <p align="center">
   <i>Speed benchmark</i>
