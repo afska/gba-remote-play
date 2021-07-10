@@ -156,7 +156,7 @@ Linux can provide all the pixel data shown on the screen (frame buffers) in devf
 
 Instead of _RGBA32_, the GBA understands _RGB555_ (or _15bpp color_), which means 5 bits for red, 5 for green, and 5 for blue with no alpha channel. As it's a little-endian system, first one is red.
 
-To draw those colors on the screen, it supports 3 [several bitmap modes](https://www.coranac.com/tonc/text/bitmaps.htm). For this project, I used _mode 4_, where each pixel is an 8-bit reference to a palette of 256 different 15bpp colors. The only consideration to have when using mode 4 is that VRAM doesn't support 8-bit writes, so you have to read first what's on the address to rewrite the complete halfword/word.
+To draw those colors on the screen, it supports 3 [different bitmap modes](https://www.coranac.com/tonc/text/bitmaps.htm). For this project, I used _mode 4_, where each pixel is an **8-bit** reference to a palette of **256** 15bpp colors. The only consideration to have when using mode 4 is that VRAM doesn't support 8-bit writes, so you have to read first what's on the address to rewrite the complete halfword/word.
 
 <p align="center">
   <i>15bpp color representation</i>
@@ -165,12 +165,11 @@ To draw those colors on the screen, it supports 3 [several bitmap modes](https:/
 </p>
 
 **Related code:**
-- [GBA deciding the draw cursor](https://github.com/rodri042/gba-remote-play/blob/v0.9/gba/src/_main.cpp#L153)
 - [GBA writing a pixel in mode 4](https://github.com/rodri042/gba-remote-play/blob/v0.9/gba/src/Utils.h#L30)
 
 ### Color quantization
   
-So, the Raspberry Pi has to [quantize](https://en.wikipedia.org/wiki/Color_quantization) every frame to a 256 colors palette. In an initial iteration, I was using a quantization library that generated the most optimal palette for each frame. Though that's the best regarding image quality, it was too slow. The implemented solution ended up using a fixed palette ([this one](https://en.wikipedia.org/wiki/List_of_software_palettes#6-8-5_levels_RGB) in particular), and approximate every color to an 8-bit referencing palette's colors.
+So, the Raspberry Pi has to [quantize](https://en.wikipedia.org/wiki/Color_quantization) every frame to a 256 colors palette. In an initial iteration, I was using a quantization library that generated the most optimal palette for each frame. Though that's the best regarding image quality, it was too slow. The implemented solution ended up using a fixed palette ([this one](https://en.wikipedia.org/wiki/List_of_software_palettes#6-8-5_levels_RGB) in particular), and approximate every color to a byte referencing palette's colors.
 
 <table border="0">
   <tr>
@@ -202,9 +201,9 @@ To approximate colors faster, when running the code for the first time, it creat
 
 ### Scaling
 
-The frame buffer is _240x160_ but what's sent to the GBA is configurable, so if you prefer a killer frame rate over detail you can send _120x80_ and use the [mosaic effect](https://www.coranac.com/tonc/text/gfx.htm#sec-mos) to scale the image to fill the entire screen. Or, if you like old [CRT](https://en.wikipedia.org/wiki/Cathode-ray_tube)s, you could send _240x80_ and draw artificial scanlines between each actual line.
+The frame buffer is _240x160_ but what's sent to the GBA is configurable, so if you prefer a killer frame rate over detail you can send _120x80_ and use the [mosaic effect](https://www.coranac.com/tonc/text/gfx.htm#sec-mos) to scale the image so it fills the entire screen. Or, if you like old [CRT](https://en.wikipedia.org/wiki/Cathode-ray_tube)s, you could send _240x80_ and draw artificial scanlines between each actual line.
 
-The Raspberry Pi discards each pixel that is not multiple of the drawing scale. For example, if you use a 2x width scale factor, it will discard odd pixels and the resulting width will be _120_ instead of _240_.
+The Raspberry Pi discards each pixel that is not a multiple of the drawing scale. For example, if you use a 2x width scale factor, it will discard odd pixels and the resulting width will be _120_ instead of _240_.
 
 At the time of rendering, you have to take this into account because GBA's _mode 4_ expects a _240x160_ pixel matrix. If you give it less, you'd only fill a part of the screen.
 
@@ -239,7 +238,7 @@ At the time of rendering, you have to take this into account because GBA's _mode
 **Related code:**
 - [RPI ignoring pixels](https://github.com/rodri042/gba-remote-play/blob/v0.9/raspi/src/GBARemotePlay.h#L279)
 - [GBA setting up mosaic](https://github.com/rodri042/gba-remote-play/blob/v0.9/gba/src/_main.cpp#L71)
-- [GBA deciding the draw cursor](https://github.com/rodri042/gba-remote-play/blob/v0.9/gba/src/_main.cpp#L153)
+- [GBA selecting the draw cursor](https://github.com/rodri042/gba-remote-play/blob/v0.9/gba/src/_main.cpp#L153)
 
 ### Image compression
 
@@ -282,7 +281,7 @@ However, RLE doesn't always make things better: it can sometimes produce a longe
 
 #### Trimming the diffs
 
-For a render resolution of _120x80_, the bit array would be _120x80/8 = 1200bytes_. That's a lot to transfer every frame, so it only sends the part from the first '1' to the last '1', but of course in 32-bit packets.
+For a render resolution of _120x80_, the bit array would be _120x80/8 = 1200bytes_. That's a lot to transfer every frame, so it only sends the chunk from the first '1' to the last '1', but of course in 32-bit packets.
 
 ```
                                                                 v startPacket                   v endPacket
@@ -334,6 +333,7 @@ For every frame, the steps to run are:
 **Related code:**
 - [GBA Main loop](https://github.com/rodri042/gba-remote-play/blob/v0.9/gba/src/_main.cpp#L81)
 - [RPI Main loop](https://github.com/rodri042/gba-remote-play/blob/v0.9/raspi/src/GBARemotePlay.h#L42)
+- [Protocol](https://github.com/rodri042/gba-remote-play/blob/v0.9/gba/src/Protocol.h#L4)
 
 ### Metadata exchange
 
@@ -349,7 +349,7 @@ In this step, the GBA sends its input and receives a _frame metadata_ packet:
  > audio flag: if 1, the frame includes an audio chunk
 ```
 
-As a sanity check, this transfer is done twice. The second time, each device sends the received packet on the first transfer. If it doesn't match => **Reset!**
+As a sanity check, this transfer is done twice. The second time, each device sends the received packet during the first transfer. If it doesn't match => **Reset!**
 
 **Related code:**
 - [Metadata exchange on the GBA](https://github.com/rodri042/gba-remote-play/blob/v0.9/gba/src/_main.cpp#L104)
@@ -358,6 +358,9 @@ As a sanity check, this transfer is done twice. The second time, each device sen
 ## Audio
 
 For the audio, the GBA runs [a port](https://github.com/pinobatch/gsmplayer-gba) of the [GSM Full Rate](https://en.wikipedia.org/wiki/Full_Rate) audio codec. It expects 33-byte audio frames, but in order to survive frame drops, GSM frames are grouped into chunks, with its length defined by a build time constant called `AUDIO_CHUNK_SIZE`.
+
+**Related code:**
+- [Audio chunk size constant](https://github.com/rodri042/gba-remote-play/blob/v0.9/gba/src/Protocol.h#L22)
 
 ### Reading system audio
 
@@ -382,7 +385,7 @@ On the Raspberry Pi side, we use [a virtual sound card](https://www.alsa-project
   </tr>
 </table>
 
-How it works is that if some application plays sound on -for example- `hw:0,0,0` (card 0, device 0, substream 0), other application can record on `hw:0,1,0` and obtain that sound. The loopback cards have to be set as the default output on the system, so we can record whatever sound is running on the OS.
+How it works is that if some application plays sound on -for example- `hw:0,0,0` (card 0, device 0, substream 0), another application can record on `hw:0,1,0` and obtain that sound. The loopback cards have to be set as the default output on the system, so we can record whatever sound is running on the OS.
 
 ### Encoding GSM frames
 
@@ -415,7 +418,7 @@ Since transferring a frame takes time, it can sometimes happen that more audio f
   <img src="https://user-images.githubusercontent.com/1631752/125158350-03f13880-e147-11eb-914d-cced48d84969.gif">
 </p>
 
-To fix that, there's a [ioctl](https://man7.org/linux/man-pages/man2/ioctl.2.html) we can use (called [FIONREAD](https://docs.oracle.com/cd/E19683-01/806-6546/kermes8-28/index.html)) to retrieve the amount of queued bytes. To skip over those, we call the [splice](https://en.wikipedia.org/wiki/Splice_(system_call)) system call to redirect them to `/dev/null`.
+To fix that, there's an [ioctl](https://man7.org/linux/man-pages/man2/ioctl.2.html) we can use (called [FIONREAD](https://docs.oracle.com/cd/E19683-01/806-6546/kermes8-28/index.html)) to retrieve the amount of queued bytes. To skip over those, we call the [splice](https://en.wikipedia.org/wiki/Splice_(system_call)) system call to redirect them to `/dev/null`.
 
 **Related code:**
 - [Skipping outdated bytes](https://github.com/rodri042/gba-remote-play/blob/v0.9/raspi/src/LoopbackAudio.h#L82)
@@ -509,7 +512,7 @@ Then, when you run `cat /proc/asound/modules` you should see:
 
 Now run `sudo modprobe snd-aloop` and set **Loopback (Stereo Full Duplex)** as the default output audio device from the UI.
 
-As a last step, edit the config file of GBA Remote Play (`config.cfg`) and increase `SPI_DELAY_MICROSECONDS` to `4`. **It won't work with the default delay!**
+As a last step, open the config file of GBA Remote Play (`config.cfg`) and make sure that `SPI_DELAY_MICROSECONDS` is `4`. **It won't work with smaller values!**
 
 # Credits
 
