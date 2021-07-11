@@ -41,7 +41,7 @@ Basically, there are two programs:
 - On the GBA, a ROM that receives data.
 - On the RPI, a program that collects and sends data.
 
-The ROM is sent to the GBA by using the multiboot protocol, which allows small programs to be sent via [Link Cable](https://en.wikipedia.org/wiki/Game_Link_Cable).
+The ROM is sent to the GBA by using the multiboot protocol, which allows small programs to be sent via [Link Cable](https://en.wikipedia.org/wiki/Game_Link_Cable). No cartridge is required.
 
 ## Serial communication
 
