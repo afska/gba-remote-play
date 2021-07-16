@@ -6,7 +6,7 @@
 #include "Utils.h"
 #include "_state.h"
 
-#define CONFIG_ITEMS 5
+#define CONFIG_ITEMS 6
 #define CONFIG_PERCENTAGE_ITEMS 3
 #define CONFIG_BOOLEAN_ITEMS 2
 #define CONFIG_NUMERIC_ITEMS 9
@@ -24,7 +24,14 @@ extern Config config;
 
 namespace RuntimeConfig {
 
-enum Option { FRAME_WIDTH, FRAME_HEIGHT, SCANLINES, CONTROLS, RESTART };
+enum Option {
+  FRAME_WIDTH,
+  FRAME_HEIGHT,
+  SCANLINES,
+  CONTROLS,
+  BENCHMARK,
+  RESTART
+};
 
 const u32 CONFIG_FRAME_WIDTH_OPTIONS[CONFIG_PERCENTAGE_ITEMS] = {60, 120, 240};
 const u32 CONFIG_FRAME_HEIGHT_OPTIONS[CONFIG_PERCENTAGE_ITEMS] = {40, 80, 160};
@@ -54,7 +61,7 @@ inline void print(std::string text) {
 inline void drawMenu(u32 option) {
 #define SELECTION(ID) (option == ID ? ">" : " ")
 
-  print(std::string("gba-remote-play          (^_^)\n\n") +
+  print(std::string(" gba-remote-play        (^_^)\n\n") +
         SELECTION(Option::FRAME_WIDTH) + "Frame width            " +
         CONFIG_PERCENTAGE_OPTIONS[config.frameWidthIndex] + "\n" +
         SELECTION(Option::FRAME_HEIGHT) + "Frame height           " +
@@ -63,7 +70,8 @@ inline void drawMenu(u32 option) {
         CONFIG_BOOLEAN_OPTIONS[config.scanlines] + "\n" +
         SELECTION(Option::CONTROLS) + "Controls               " +
         CONFIG_NUMERIC_OPTIONS[config.controls] + "\n" + "\n" +
-        SELECTION(Option::RESTART) + "[RESTART]");
+        SELECTION(Option::BENCHMARK) + "[BENCHMARK]" + "\n" +
+        SELECTION(Option::RESTART) + "[START]");
 }
 
 inline void show() {
