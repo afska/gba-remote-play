@@ -6,7 +6,7 @@
 #include "Utils.h"
 #include "_state.h"
 
-#define CONFIG_ITEMS 6
+#define CONFIG_ITEMS 7
 #define CONFIG_PERCENTAGE_ITEMS 3
 #define CONFIG_BOOLEAN_ITEMS 2
 #define CONFIG_NUMERIC_ITEMS 9
@@ -30,7 +30,8 @@ enum Option {
   SCANLINES,
   CONTROLS,
   BENCHMARK,
-  RESTART
+  DEFAULTS,
+  START
 };
 
 const u32 CONFIG_FRAME_WIDTH_OPTIONS[CONFIG_PERCENTAGE_ITEMS] = {60, 120, 240};
@@ -61,7 +62,8 @@ inline void drawMenu(u32 option) {
         SELECTION(Option::CONTROLS) + "Controls               " +
         CONFIG_NUMERIC_OPTIONS[config.controls] + "\n" + "\n" +
         SELECTION(Option::BENCHMARK) + "[BENCHMARK]" + "\n" +
-        SELECTION(Option::RESTART) + "[START]");
+        SELECTION(Option::DEFAULTS) + "[RESET OPTIONS]" + "\n" +
+        SELECTION(Option::START) + "[START STREAMING]");
 }
 
 inline void initialize() {
@@ -75,10 +77,8 @@ inline void initialize() {
 }
 
 inline void show() {
-  initialize();
-
   u32 option = 0;
-  u32 keys = 0, previousKeys = 0;
+  u32 keys = 0, previousKeys = pressedKeys();
 
 #define IS_PRESSED(KEY) (keys & KEY && !(previousKeys & KEY))
 #define CYCLE_OPTIONS(N, LIMIT) ((N) < 0 ? ((LIMIT)-1) : ((N) % LIMIT))
@@ -126,7 +126,12 @@ inline void show() {
               CYCLE_OPTIONS(config.controls + direction, CONFIG_NUMERIC_ITEMS);
           break;
         }
-        case Option::RESTART: {
+        case Option::DEFAULTS: {
+          if (IS_PRESSED(KEY_A))
+            initialize();
+          break;
+        }
+        case Option::START: {
           if (IS_PRESSED(KEY_A))
             return;
           break;

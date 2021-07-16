@@ -60,11 +60,15 @@ u32 y(u32 cursor);
 
 #ifndef BENCHMARK
 int main() {
-  RuntimeConfig::show();
-  clean();
+  RuntimeConfig::initialize();
 
-  init();
-  mainLoop();
+  while (true) {
+    RuntimeConfig::show();
+    clean();
+
+    init();
+    mainLoop();
+  }
 
   return 0;
 }
@@ -89,11 +93,12 @@ CODE_IWRAM void mainLoop() {
   state.isAudioReady = false;
 
 reset:
-  softResetIfNeeded();
   transfer(CMD_RESET, false);
 
   while (true) {
-    softResetIfNeeded();
+    if (needsRestart())
+      return;
+
     TRY(sync(CMD_FRAME_START))
     TRY(sendKeysAndReceiveMetadata())
     if (state.hasAudio) {
