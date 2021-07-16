@@ -45,9 +45,9 @@ void mainLoop();
 bool sendKeysAndReceiveMetadata();
 bool receiveAudio();
 bool receivePixels();
-void render();
-bool isNewVBlank();
-void driveAudio();
+void render(bool withRLE);
+bool needsToRunAudio();
+void runAudio();
 u32 transfer(u32 packetToSend, bool withRecovery = true);
 bool sync(u32 command);
 u32 x(u32 cursor);
@@ -95,7 +95,11 @@ reset:
     TRY(receivePixels())
     TRY(sync(CMD_FRAME_END))
 
-    render();
+    // (gcc optimizes this better than `render(state.isRLE)`)
+    if (state.isRLE)
+      render(true);
+    else
+      render(false);
   }
 }
 
@@ -107,11 +111,15 @@ inline bool sendKeysAndReceiveMetadata() {
 
   state.expectedPackets = (metadata >> PACKS_BIT_OFFSET) & PACKS_BIT_MASK;
   state.startPixel = metadata & START_BIT_MASK;
+  state.isRLE = (metadata & COMPR_BIT_MASK) != 0;
   state.hasAudio = (metadata & AUDIO_BIT_MASK) != 0;
 
-  u32 diffsStart = (state.startPixel / 8) / PACKET_SIZE;
-  for (u32 i = diffsStart; i < TEMPORAL_DIFF_SIZE / PACKET_SIZE; i++)
+  u32 diffStart = (state.startPixel / 8) / PACKET_SIZE;
+  u32 diffEndPacket = min(spiSlave->transfer(0), TEMPORAL_DIFF_MAX_PACKETS);
+  for (u32 i = diffStart; i < diffEndPacket; i++)
     ((u32*)state.temporalDiffs)[i] = transfer(i);
+  for (u32 i = diffEndPacket; i < TEMPORAL_DIFF_MAX_PACKETS; i++)
+    ((u32*)state.temporalDiffs)[i] = 0;
 
   return true;
 }
@@ -132,28 +140,44 @@ inline bool receivePixels() {
   return true;
 }
 
-inline void render() {
-  u32 decompressedPixels = 0;
+inline void render(bool withRLE) {
   u32 cursor = state.startPixel;
+  u32 rleRepeats = compressedPixels[0];
+  u32 decompressedBytes = withRLE;
 
-#define DRIVE_AUDIO_IF_NEEDED()       \
-  if (!(cursor % 8) && isNewVBlank()) \
-    driveAudio();
+#define RUN_AUDIO_IF_NEEDED()               \
+  if (withRLE) {                            \
+    if (needsToRunAudio())                  \
+      runAudio();                           \
+  } else {                                  \
+    if (!(cursor % 8) && needsToRunAudio()) \
+      runAudio();                           \
+  }
 #define DRAW_PIXEL(PIXEL) m4Draw(y(cursor) * DRAW_WIDTH + x(cursor), PIXEL);
-#define DRAW_NEXT()                                \
-  u8 pixel = compressedPixels[decompressedPixels]; \
-  DRAW_PIXEL(pixel);                               \
-  decompressedPixels++;                            \
-  cursor++;
+#define DRAW_NEXT()                                         \
+  if (withRLE) {                                            \
+    u8 pixel = compressedPixels[decompressedBytes];         \
+    if (--rleRepeats == 0) {                                \
+      rleRepeats = compressedPixels[decompressedBytes + 1]; \
+      decompressedBytes += 2;                               \
+    }                                                       \
+    DRAW_PIXEL(pixel)                                       \
+    cursor++;                                               \
+  } else {                                                  \
+    u8 pixel = compressedPixels[decompressedBytes];         \
+    DRAW_PIXEL(pixel);                                      \
+    decompressedBytes++;                                    \
+    cursor++;                                               \
+  }
 #define DRAW_BATCH(TIMES)                         \
   u32 target = min(cursor + TIMES, TOTAL_PIXELS); \
   while (cursor < target) {                       \
-    DRIVE_AUDIO_IF_NEEDED()                       \
+    RUN_AUDIO_IF_NEEDED()                         \
     DRAW_NEXT()                                   \
   }
 
   while (cursor < TOTAL_PIXELS) {
-    DRIVE_AUDIO_IF_NEEDED()
+    RUN_AUDIO_IF_NEEDED()
     u32 diffCursor = cursor / 8;
     u32 diffCursorBit = cursor % 8;
     if (diffCursorBit == 0) {
@@ -196,7 +220,11 @@ inline void render() {
   }
 }
 
-inline bool isNewVBlank() {
+inline bool needsToRunAudio() {
+#ifndef WITH_AUDIO
+  return false;
+#endif
+
   if (!state.isVBlank && IS_VBLANK) {
     state.isVBlank = true;
     return true;
@@ -206,7 +234,7 @@ inline bool isNewVBlank() {
   return false;
 }
 
-CODE_IWRAM void driveAudio() {
+CODE_IWRAM void runAudio() {
   if (player_needsData() && state.isAudioReady) {
     player_play((const unsigned char*)state.audioChunks, AUDIO_CHUNK_SIZE);
     state.isAudioReady = false;
@@ -220,10 +248,10 @@ CODE_IWRAM void driveAudio() {
 inline u32 transfer(u32 packetToSend, bool withRecovery) {
   bool breakFlag = false;
   u32 receivedPacket =
-      spiSlave->transfer(packetToSend, isNewVBlank, &breakFlag);
+      spiSlave->transfer(packetToSend, needsToRunAudio, &breakFlag);
 
   if (breakFlag) {
-    driveAudio();
+    runAudio();
 
     if (withRecovery) {
       sync(CMD_RECOVERY);
@@ -243,10 +271,10 @@ inline bool sync(u32 command) {
   while (true) {
     bool breakFlag = false;
     bool isOnSync =
-        spiSlave->transfer(local, isNewVBlank, &breakFlag) == remote;
+        spiSlave->transfer(local, needsToRunAudio, &breakFlag) == remote;
 
     if (breakFlag) {
-      driveAudio();
+      runAudio();
       continue;
     }
 

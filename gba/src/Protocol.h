@@ -3,15 +3,6 @@
 
 #include <stdint.h>
 
-// Render modes:
-// - Low quality (fast):
-//   120x80, with DRAW_SCALE=2
-// - High quality (slow):
-//   240x160, with DRAW_SCALE=1
-//   [!]                                                         [!]
-//     When using this mode, move `compressedPixels` outside State
-//     (from IWRAM to EWRAM). Otherwise, it'll crash.
-
 // RENDER
 #define RENDER_WIDTH 120
 #define RENDER_HEIGHT 80
@@ -28,9 +19,9 @@
 #define PACKET_SIZE 4
 #define COLOR_SIZE 2
 #define PIXEL_SIZE 1
-#define AUDIO_CHUNK_SIZE 132   // (sizeof(gsm_frame) * 4)
-#define AUDIO_CHUNK_PADDING 0  // (so every chunk it's exactly 33 packets)
-#define AUDIO_SIZE_PACKETS 33  // -----------------------------^^
+#define AUDIO_CHUNK_SIZE 264   // (sizeof(gsm_frame) * 8)
+#define AUDIO_CHUNK_PADDING 0  // (so every chunk it's exactly 66 packets)
+#define AUDIO_SIZE_PACKETS 66  // -----------------------------^^
 #define SPI_MODE 3
 #define TRANSFER_SYNC_PERIOD 32
 #define COLORS_PER_PACKET (PACKET_SIZE / COLOR_SIZE)
@@ -39,9 +30,10 @@
 #define AUDIO_PADDED_SIZE (AUDIO_CHUNK_SIZE + AUDIO_CHUNK_PADDING)
 
 // DIFFS
-#define TEMPORAL_DIFF_THRESHOLD 1500
-#define TEMPORAL_DIFF_SIZE (TOTAL_PIXELS / 8)
-#define TEMPORAL_DIFF_PADDED_SIZE (TEMPORAL_DIFF_SIZE + 4)
+#define TEMPORAL_DIFF_MAX_SIZE (TOTAL_PIXELS / 8)
+#define TEMPORAL_DIFF_MAX_PADDED_SIZE (TEMPORAL_DIFF_MAX_SIZE + 4)
+#define TEMPORAL_DIFF_MAX_PACKETS (TEMPORAL_DIFF_MAX_SIZE / PACKET_SIZE)
+#define MAX_RLE 255
 
 // FILES
 #define CONFIG_FILENAME "config.cfg"
@@ -49,7 +41,8 @@
 
 // COMMANDS
 #define AUDIO_BIT_MASK 0b10000000000000000000000000000000
-#define PACKS_BIT_MASK 0b00000000000000000001111111111111
+#define COMPR_BIT_MASK 0b01000000000000000000000000000000
+#define PACKS_BIT_MASK 0b00000000000000000011111111111111
 #define START_BIT_MASK 0b00000000000000001111111111111111
 #define PACKS_BIT_OFFSET 16
 #define CMD_RESET 0x99887766

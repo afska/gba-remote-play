@@ -31,6 +31,15 @@ export PATH="$PATH:$GBA_DIR/tools/devkitPro/tools/bin"
 - Recommended plugins: `C/C++ Extensions`, `EditorConfig`
 - Recommended settings: [here](scripts/vscode_settings.json)
 
+## Build options
+
+Before compiling, you can comment/uncomment these build parameters in `src/BuildConfig.h`:
+
+Name | Description
+--- | ---
+`WITH_AUDIO` | Enables GSM audio decoding.
+`BENCHMARK` | Replaces all the code with an SPI speed benchmark.
+
 ## Commands
 
 - `make clean`: Cleans build artifacts
