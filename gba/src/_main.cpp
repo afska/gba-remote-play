@@ -40,6 +40,7 @@ int main() {
 // DECLARATIONS
 // ------------
 
+void clean();
 void init();
 void mainLoop();
 bool sendKeysAndReceiveMetadata();
@@ -59,12 +60,20 @@ u32 y(u32 cursor);
 
 #ifndef BENCHMARK
 int main() {
+  RuntimeConfig::show();
+  clean();
+
   init();
   mainLoop();
 
   return 0;
 }
 #endif
+
+inline void clean() {
+  for (u32 i = 0; i < TOTAL_SCREEN_PIXELS; i++)
+    m4Draw(i, 0);
+}
 
 inline void init() {
   enableMode4AndBackground2();
@@ -79,13 +88,12 @@ CODE_IWRAM void mainLoop() {
   state.isVBlank = false;
   state.isAudioReady = false;
 
-  RuntimeConfig::initialize();
-  RuntimeConfig::show();
-
 reset:
+  softResetIfNeeded();
   transfer(CMD_RESET, false);
 
   while (true) {
+    softResetIfNeeded();
     TRY(sync(CMD_FRAME_START))
     TRY(sendKeysAndReceiveMetadata())
     if (state.hasAudio) {

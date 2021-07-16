@@ -197,6 +197,5 @@ rebuild: check-env clean $(BUILD)
 
 restart: check-env rebuild
 	cp "$(TARGET).gba" "$(GBARP_OUT_DIR)"
-	start "$(TARGET).gba"
 
 # EOF

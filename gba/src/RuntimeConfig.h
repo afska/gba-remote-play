@@ -42,16 +42,6 @@ const std::string CONFIG_BOOLEAN_OPTIONS[CONFIG_BOOLEAN_ITEMS] = {"<OFF>",
 const std::string CONFIG_NUMERIC_OPTIONS[CONFIG_NUMERIC_ITEMS] = {
     "<01>", "<02>", "<03>", "<04>", "<05>", "<06>", "<07>", "<08>", "<09>"};
 
-inline void initialize() {
-  config.frameWidthIndex = 1;
-  config.frameHeightIndex = 1;
-  config.scanlines = true;
-  config.controls = 0;
-
-  config.frameWidth = CONFIG_FRAME_WIDTH_OPTIONS[config.frameWidthIndex];
-  config.frameHeight = CONFIG_FRAME_HEIGHT_OPTIONS[config.frameHeightIndex];
-}
-
 inline void print(std::string text) {
   tte_erase_screen();
   tte_write("#{P:0,0}");
@@ -74,7 +64,19 @@ inline void drawMenu(u32 option) {
         SELECTION(Option::RESTART) + "[START]");
 }
 
+inline void initialize() {
+  config.frameWidthIndex = 1;
+  config.frameHeightIndex = 1;
+  config.scanlines = true;
+  config.controls = 0;
+
+  config.frameWidth = CONFIG_FRAME_WIDTH_OPTIONS[config.frameWidthIndex];
+  config.frameHeight = CONFIG_FRAME_HEIGHT_OPTIONS[config.frameHeightIndex];
+}
+
 inline void show() {
+  initialize();
+
   u32 option = 0;
   u32 keys = 0, previousKeys = 0;
 
@@ -125,13 +127,14 @@ inline void show() {
           break;
         }
         case Option::RESTART: {
-          if (IS_PRESSED(KEY_A)) {
+          if (IS_PRESSED(KEY_A))
             return;
-          }
           break;
         }
       }
       drawMenu(option);
+    } else if (IS_PRESSED(KEY_START)) {
+      return;
     }
 
     previousKeys = keys;
