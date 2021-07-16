@@ -2,9 +2,9 @@
 
 #include "Benchmark.h"
 #include "BuildConfig.h"
-#include "Config.h"
 #include "Palette.h"
 #include "Protocol.h"
+#include "RuntimeConfig.h"
 #include "SPISlave.h"
 #include "Utils.h"
 #include "_state.h"
@@ -79,7 +79,8 @@ CODE_IWRAM void mainLoop() {
   state.isVBlank = false;
   state.isAudioReady = false;
 
-  ConfigMenu();
+  RuntimeConfig::initialize();
+  RuntimeConfig::show();
 
 reset:
   transfer(CMD_RESET, false);
