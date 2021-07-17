@@ -59,6 +59,7 @@
 
 // RENDER MODES
 #define RENDER_MODES 9
+#define DEFAULT_RENDER_MODE 4
 const uint32_t RENDER_MODE_WIDTH[RENDER_MODES] = {60,  60,  60,  120, 120,
                                                   120, 240, 240, 240};
 const uint32_t RENDER_MODE_HEIGHT[RENDER_MODES] = {40,  80, 160, 40, 80,

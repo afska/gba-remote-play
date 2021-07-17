@@ -7,8 +7,8 @@
 
 typedef struct {
   uint8_t temporalDiffs[TEMPORAL_DIFF_MAX_SIZE];
-  uint8_t compressedPixels[TOTAL_PIXELS];
-  uint8_t runLengthEncoding[TOTAL_PIXELS];
+  uint8_t compressedPixels[TOTAL_SCREEN_PIXELS];
+  uint8_t runLengthEncoding[TOTAL_SCREEN_PIXELS];
   uint32_t temporalDiffEndPacket;
   uint32_t totalCompressedPixels;
   uint32_t repeatedPixels;
@@ -17,14 +17,16 @@ typedef struct {
 
   void initialize(Frame currentFrame,
                   Frame previousFrame,
-                  uint32_t diffThreshold) {
-    totalCompressedPixels = repeatedPixels = 0;
-    startPixel = TOTAL_PIXELS;
-    temporalDiffEndPacket = TEMPORAL_DIFF_MAX_PACKETS;
-
+                  uint32_t diffThreshold,
+                  uint32_t renderMode) {
+    uint32_t totalPixels = RENDER_MODE_PIXELS[renderMode];
     uint32_t rleIndex = 0;
 
-    for (int i = 0; i < TOTAL_PIXELS; i++) {
+    totalCompressedPixels = repeatedPixels = 0;
+    startPixel = totalPixels;
+    temporalDiffEndPacket = TEMPORAL_DIFF_MAX_PACKETS;
+
+    for (int i = 0; i < totalPixels; i++) {
       if (currentFrame.hasPixelChanged(i, previousFrame, diffThreshold)) {
         // (a pixel changed)
         if (totalCompressedPixels > 0) {

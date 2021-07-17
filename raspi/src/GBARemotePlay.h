@@ -29,6 +29,7 @@ class GBARemotePlay {
     loopbackAudio = new LoopbackAudio();
     virtualGamepad = new VirtualGamepad(config->virtualGamepadName);
     lastFrame = Frame{0};
+    renderMode = DEFAULT_RENDER_MODE;
 
     PALETTE_initializeCache(PALETTE_CACHE_FILENAME);
   }
@@ -59,7 +60,7 @@ class GBARemotePlay {
 #endif
 
       ImageDiffRLECompressor diffs;
-      diffs.initialize(frame, lastFrame, config->diffThreshold);
+      diffs.initialize(frame, lastFrame, config->diffThreshold, renderMode);
 
 #ifdef PROFILE_VERBOSE
       auto frameDiffsElapsedTime = PROFILE_END(frameDiffsStartTime);
@@ -112,6 +113,7 @@ class GBARemotePlay {
   LoopbackAudio* loopbackAudio;
   VirtualGamepad* virtualGamepad;
   Frame lastFrame;
+  uint32_t renderMode;
   uint32_t input;
 
   bool send(Frame& frame, ImageDiffRLECompressor& diffs) {
@@ -165,8 +167,8 @@ class GBARemotePlay {
 
 #ifdef DEBUG_PNG
     LOG("Writing debug PNG file...");
-    WritePNG("debug.png", frame.raw8BitPixels, MAIN_PALETTE_24BPP, RENDER_WIDTH,
-             RENDER_HEIGHT);
+    WritePNG("debug.png", frame.raw8BitPixels, MAIN_PALETTE_24BPP,
+             RENDER_MODE_WIDTH[renderMode], RENDER_MODE_HEIGHT[renderMode]);
     LOG("Frame end!");
 #endif
 
@@ -268,18 +270,23 @@ class GBARemotePlay {
 
   Frame loadFrame() {
     Frame frame;
-    frame.totalPixels = TOTAL_PIXELS;
-    frame.raw8BitPixels = (uint8_t*)malloc(TOTAL_PIXELS);
+    frame.totalPixels = RENDER_MODE_PIXELS[renderMode];
+    frame.raw8BitPixels = (uint8_t*)malloc(RENDER_MODE_PIXELS[renderMode]);
     frame.palette = MAIN_PALETTE_24BPP;
 
-    frameBuffer->forEachPixel(
-        [&frame, this](int x, int y, uint8_t r, uint8_t g, uint8_t b) {
-          if (x % DRAW_SCALE_X != 0 || y % DRAW_SCALE_Y != 0)
-            return;
-          x = x / DRAW_SCALE_X;
-          y = y / DRAW_SCALE_Y;
+    uint32_t width = RENDER_MODE_WIDTH[renderMode];
+    uint32_t scaleX = RENDER_MODE_SCALEX[renderMode];
+    uint32_t scaleY = RENDER_MODE_SCALEY[renderMode];
 
-          frame.raw8BitPixels[y * RENDER_WIDTH + x] =
+    frameBuffer->forEachPixel(
+        [&frame, &width, &scaleX, &scaleY, this](int x, int y, uint8_t r,
+                                                 uint8_t g, uint8_t b) {
+          if (x % scaleX != 0 || y % scaleY != 0)
+            return;
+          x = x / scaleX;
+          y = y / scaleY;
+
+          frame.raw8BitPixels[y * width + x] =
               LUT_24BPP_TO_8BIT_PALETTE[(r << 0) | (g << 8) | (b << 16)];
         });
 
