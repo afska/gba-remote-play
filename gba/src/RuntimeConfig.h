@@ -26,7 +26,7 @@ typedef struct Config {
   bool scanlines;
   u8 controls;
 
-  bool isBenchmark() { return renderMode == RENDER_MODE_BENCHMARK; }
+  bool isBenchmark() { return RENDER_MODE_IS_BENCHMARK(renderMode); }
   void update() {
     renderMode = frameWidthIndex * CONFIG_PERCENTAGE_ITEMS + frameHeightIndex;
   }
@@ -134,8 +134,20 @@ inline void show() {
         }
         case Option::BENCHMARK: {
           if (IS_PRESSED(KEY_A)) {
-            config.renderMode = RENDER_MODE_BENCHMARK;
-            return;
+            tte_erase_screen();
+            tte_write("#{P:0,0}");
+            tte_write("\n L - Benchmark 1\n R - Benchmark 2");
+
+            while (true) {
+              if (pressedKeys() & KEY_L) {
+                config.renderMode = RENDER_MODE_BENCHMARK_1;
+                return;
+              }
+              if (pressedKeys() & KEY_R) {
+                config.renderMode = RENDER_MODE_BENCHMARK_2;
+                return;
+              }
+            }
           }
           break;
         }
