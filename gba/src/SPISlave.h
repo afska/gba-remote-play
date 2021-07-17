@@ -12,8 +12,6 @@
 #define SPI_BIT_LENGTH 12
 #define SPI_BIT_IRQ 14
 
-// A Link Port connection for Normal mode (slave, 32bit packets)
-
 class SPISlave {
  public:
   SPISlave() { start(); }

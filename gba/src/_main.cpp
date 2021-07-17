@@ -22,7 +22,7 @@ extern "C" {
 // -----
 
 SPISlave* spiSlave = new SPISlave();
-DATA_EWRAM u8 compressedPixels[TOTAL_PIXELS];
+DATA_EWRAM u8 compressedPixels[MAX_PIXELS_SIZE];
 
 // ---------
 // BENCHMARK
@@ -46,13 +46,19 @@ void mainLoop();
 bool sendKeysAndReceiveMetadata();
 bool receiveAudio();
 bool receivePixels();
-void render(bool withRLE);
+void render(bool withRLE,
+            u32 width,
+            u32 height,
+            u32 scaleX,
+            u32 scaleY,
+            u32 totalPixels);
 bool needsToRunAudio();
 void runAudio();
 u32 transfer(u32 packetToSend, bool withRecovery = true);
 bool sync(u32 command);
-u32 x(u32 cursor);
-u32 y(u32 cursor);
+u32 x(u32 cursor, u32 width, u32 scaleX);
+u32 y(u32 cursor, u32 width, u32 scaleY);
+void optimizedRender();
 
 // -----------
 // DEFINITIONS
@@ -82,7 +88,9 @@ inline void clean() {
 inline void init() {
   enableMode4AndBackground2();
   overclockEWRAM();
-  enableMosaic(DRAW_SCALE_X, DRAW_SCANLINES ? 1 : DRAW_SCALE_Y);
+  enableMosaic(
+      CONFIG_RENDER_MODE_SCALEX[config.renderMode],
+      config.scanlines ? 1 : CONFIG_RENDER_MODE_SCALEY[config.renderMode]);
   dma3_cpy(pal_bg_mem, MAIN_PALETTE, sizeof(COLOR) * PALETTE_COLORS);
   player_init();
 }
@@ -109,11 +117,7 @@ reset:
     TRY(receivePixels())
     TRY(sync(CMD_FRAME_END))
 
-    // (gcc optimizes this better than `render(state.isRLE)`)
-    if (state.isRLE)
-      render(true);
-    else
-      render(false);
+    optimizedRender();
   }
 }
 
@@ -154,7 +158,12 @@ inline bool receivePixels() {
   return true;
 }
 
-inline void render(bool withRLE) {
+inline void render(bool withRLE,
+                   u32 width,
+                   u32 height,
+                   u32 scaleX,
+                   u32 scaleY,
+                   u32 totalPixels) {
   u32 cursor = state.startPixel;
   u32 rleRepeats = compressedPixels[0];
   u32 decompressedBytes = withRLE;
@@ -167,7 +176,9 @@ inline void render(bool withRLE) {
     if (!(cursor % 8) && needsToRunAudio()) \
       runAudio();                           \
   }
-#define DRAW_PIXEL(PIXEL) m4Draw(y(cursor) * DRAW_WIDTH + x(cursor), PIXEL);
+#define DRAW_PIXEL(PIXEL)                                                  \
+  m4Draw(y(cursor, width, scaleY) * DRAW_WIDTH + x(cursor, width, scaleX), \
+         PIXEL);
 #define DRAW_NEXT()                                         \
   if (withRLE) {                                            \
     u8 pixel = compressedPixels[decompressedBytes];         \
@@ -183,14 +194,14 @@ inline void render(bool withRLE) {
     decompressedBytes++;                                    \
     cursor++;                                               \
   }
-#define DRAW_BATCH(TIMES)                         \
-  u32 target = min(cursor + TIMES, TOTAL_PIXELS); \
-  while (cursor < target) {                       \
-    RUN_AUDIO_IF_NEEDED()                         \
-    DRAW_NEXT()                                   \
+#define DRAW_BATCH(TIMES)                        \
+  u32 target = min(cursor + TIMES, totalPixels); \
+  while (cursor < target) {                      \
+    RUN_AUDIO_IF_NEEDED()                        \
+    DRAW_NEXT()                                  \
   }
 
-  while (cursor < TOTAL_PIXELS) {
+  while (cursor < totalPixels) {
     RUN_AUDIO_IF_NEEDED()
     u32 diffCursor = cursor / 8;
     u32 diffCursorBit = cursor % 8;
@@ -305,10 +316,52 @@ inline bool sync(u32 command) {
   }
 }
 
-inline u32 x(u32 cursor) {
-  return (cursor % RENDER_WIDTH) * DRAW_SCALE_X;
+inline u32 x(u32 cursor, u32 width, u32 scaleX) {
+  return (cursor % width) * scaleX;
 }
 
-inline u32 y(u32 cursor) {
-  return (cursor / RENDER_WIDTH) * DRAW_SCALE_Y;
+inline u32 y(u32 cursor, u32 width, u32 scaleY) {
+  return (cursor / width) * scaleY;
+}
+
+inline void optimizedRender() {
+#define RENDER(N, WITH_RLE)                                                   \
+  render(WITH_RLE, CONFIG_RENDER_MODE_WIDTH[N], CONFIG_RENDER_MODE_HEIGHT[N], \
+         CONFIG_RENDER_MODE_SCALEX[N], CONFIG_RENDER_MODE_SCALEY[N],          \
+         CONFIG_RENDER_MODE_PIXELS[N]);
+#define HANDLE_RENDER_MODE(N) \
+  case N: {                   \
+    if (state.isRLE)          \
+      RENDER(N, true)         \
+    else                      \
+      RENDER(N, false)        \
+    break;                    \
+  }
+
+  // (this is the intention)
+  /*
+    render(
+      state.isRLE,
+      CONFIG_RENDER_MODE_WIDTH[config.renderMode],
+      CONFIG_RENDER_MODE_HEIGHT[config.renderMode],
+      CONFIG_RENDER_MODE_SCALEX[config.renderMode],
+      CONFIG_RENDER_MODE_SCALEY[config.renderMode],
+      CONFIG_RENDER_MODE_PIXELS[config.renderMode]
+    );
+  */
+
+  // (but gcc optimizes this better)
+  switch (config.renderMode) {
+    HANDLE_RENDER_MODE(0)
+    HANDLE_RENDER_MODE(1)
+    HANDLE_RENDER_MODE(2)
+    HANDLE_RENDER_MODE(3)
+    HANDLE_RENDER_MODE(4)
+    HANDLE_RENDER_MODE(5)
+    HANDLE_RENDER_MODE(6)
+    HANDLE_RENDER_MODE(7)
+    HANDLE_RENDER_MODE(8)
+    default:
+      break;
+  }
 }

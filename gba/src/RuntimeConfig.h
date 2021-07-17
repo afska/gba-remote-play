@@ -10,14 +10,37 @@
 #define CONFIG_PERCENTAGE_ITEMS 3
 #define CONFIG_BOOLEAN_ITEMS 2
 #define CONFIG_NUMERIC_ITEMS 9
+#define CONFIG_RENDER_MODES 9
+
+const u32 CONFIG_RENDER_MODE_WIDTH[CONFIG_RENDER_MODES] = {
+    60, 60, 60, 120, 120, 120, 240, 240, 240};
+const u32 CONFIG_RENDER_MODE_HEIGHT[CONFIG_RENDER_MODES] = {
+    40, 80, 160, 40, 80, 160, 40, 80, 160};
+const u32 CONFIG_RENDER_MODE_SCALEX[CONFIG_RENDER_MODES] = {4, 4, 4, 2, 2,
+                                                            2, 1, 1, 1};
+const u32 CONFIG_RENDER_MODE_SCALEY[CONFIG_RENDER_MODES] = {4, 2, 1, 4, 2,
+                                                            1, 4, 2, 1};
+const u32 CONFIG_RENDER_MODE_PIXELS[CONFIG_RENDER_MODES] = {
+    2400, 4800, 9600, 4800, 9600, 19200, 9600, 19200, 38400};
+
+const std::string CONFIG_PERCENTAGE_OPTIONS[CONFIG_PERCENTAGE_ITEMS] = {
+    "<25%>", "<50%>", "<100%>"};
+const std::string CONFIG_BOOLEAN_OPTIONS[CONFIG_BOOLEAN_ITEMS] = {"<OFF>",
+                                                                  "<ON>"};
+const std::string CONFIG_NUMERIC_OPTIONS[CONFIG_NUMERIC_ITEMS] = {
+    "<01>", "<02>", "<03>", "<04>", "<05>", "<06>", "<07>", "<08>", "<09>"};
 
 typedef struct Config {
-  u32 frameWidth;
-  u32 frameHeight;
+  u32 renderMode;
+
   u8 frameWidthIndex;
   u8 frameHeightIndex;
   bool scanlines;
   u8 controls;
+
+  void update() {
+    renderMode = frameWidthIndex * CONFIG_PERCENTAGE_ITEMS + frameHeightIndex;
+  }
 } Config;
 
 extern Config config;
@@ -33,15 +56,6 @@ enum Option {
   DEFAULTS,
   START
 };
-
-const u32 CONFIG_FRAME_WIDTH_OPTIONS[CONFIG_PERCENTAGE_ITEMS] = {60, 120, 240};
-const u32 CONFIG_FRAME_HEIGHT_OPTIONS[CONFIG_PERCENTAGE_ITEMS] = {40, 80, 160};
-const std::string CONFIG_PERCENTAGE_OPTIONS[CONFIG_PERCENTAGE_ITEMS] = {
-    "<25%>", "<50%>", "<100%>"};
-const std::string CONFIG_BOOLEAN_OPTIONS[CONFIG_BOOLEAN_ITEMS] = {"<OFF>",
-                                                                  "<ON>"};
-const std::string CONFIG_NUMERIC_OPTIONS[CONFIG_NUMERIC_ITEMS] = {
-    "<01>", "<02>", "<03>", "<04>", "<05>", "<06>", "<07>", "<08>", "<09>"};
 
 inline void print(std::string text) {
   tte_erase_screen();
@@ -71,9 +85,7 @@ inline void initialize() {
   config.frameHeightIndex = 1;
   config.scanlines = true;
   config.controls = 0;
-
-  config.frameWidth = CONFIG_FRAME_WIDTH_OPTIONS[config.frameWidthIndex];
-  config.frameHeight = CONFIG_FRAME_HEIGHT_OPTIONS[config.frameHeightIndex];
+  config.update();
 }
 
 inline void show() {
@@ -106,15 +118,13 @@ inline void show() {
         case Option::FRAME_WIDTH: {
           config.frameWidthIndex = CYCLE_OPTIONS(
               config.frameWidthIndex + direction, CONFIG_PERCENTAGE_ITEMS);
-          config.frameWidth =
-              CONFIG_FRAME_WIDTH_OPTIONS[config.frameWidthIndex];
+          config.update();
           break;
         }
         case Option::FRAME_HEIGHT: {
           config.frameHeightIndex = CYCLE_OPTIONS(
               config.frameHeightIndex + direction, CONFIG_PERCENTAGE_ITEMS);
-          config.frameHeight =
-              CONFIG_FRAME_HEIGHT_OPTIONS[config.frameHeightIndex];
+          config.update();
           break;
         }
         case Option::SCANLINES: {
