@@ -41,6 +41,8 @@ class GBARemotePlay {
 #endif
 
   reset:
+    syncReset();
+
     while (true) {
 #ifdef DEBUG
       LOG("Waiting...");
@@ -173,6 +175,15 @@ class GBARemotePlay {
 #endif
 
     return true;
+  }
+
+  void syncReset() {
+    uint32_t resetPacket;
+    while (!IS_RESET(resetPacket = spiMaster->exchange(0)))
+      ;
+    spiMaster->exchange(resetPacket);
+
+    renderMode = resetPacket & RENDER_MODE_BIT_MASK;
   }
 
   bool receiveKeysAndSendMetadata(Frame& frame, ImageDiffRLECompressor& diffs) {
