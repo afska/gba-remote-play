@@ -6,7 +6,7 @@
 #include "Protocol.h"
 
 typedef struct {
-  uint8_t temporalDiffs[TEMPORAL_DIFF_MAX_SIZE];
+  uint8_t temporalDiffs[TEMPORAL_DIFF_MAX_SIZE(TOTAL_SCREEN_PIXELS)];
   uint8_t compressedPixels[TOTAL_SCREEN_PIXELS];
   uint8_t runLengthEncoding[TOTAL_SCREEN_PIXELS];
   uint32_t temporalDiffEndPacket;
@@ -24,7 +24,7 @@ typedef struct {
 
     totalCompressedPixels = repeatedPixels = 0;
     startPixel = totalPixels;
-    temporalDiffEndPacket = TEMPORAL_DIFF_MAX_PACKETS;
+    temporalDiffEndPacket = TEMPORAL_DIFF_MAX_PACKETS(totalPixels);
 
     for (int i = 0; i < totalPixels; i++) {
       if (currentFrame.hasPixelChanged(i, previousFrame, diffThreshold)) {
