@@ -185,8 +185,8 @@ class GBARemotePlay {
     spiMaster->exchange(resetPacket);
 
     renderMode = resetPacket & RENDER_MODE_BIT_MASK;
-    if (renderMode == RENDER_MODE_BENCHMARK)
-      Benchmark::main();
+    if (RENDER_MODE_IS_BENCHMARK(renderMode))
+      Benchmark::main(renderMode);
   }
 
   bool receiveKeysAndSendMetadata(Frame& frame, ImageDiffRLECompressor& diffs) {
