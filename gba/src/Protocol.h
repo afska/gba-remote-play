@@ -59,13 +59,13 @@
 
 // RENDER MODES
 #define RENDER_MODES 9
-const u32 RENDER_MODE_WIDTH[RENDER_MODES] = {60,  60,  60,  120, 120,
-                                             120, 240, 240, 240};
-const u32 RENDER_MODE_HEIGHT[RENDER_MODES] = {40,  80, 160, 40, 80,
-                                              160, 40, 80,  160};
-const u32 RENDER_MODE_SCALEX[RENDER_MODES] = {4, 4, 4, 2, 2, 2, 1, 1, 1};
-const u32 RENDER_MODE_SCALEY[RENDER_MODES] = {4, 2, 1, 4, 2, 1, 4, 2, 1};
-const u32 RENDER_MODE_PIXELS[RENDER_MODES] = {2400,  4800, 9600,  4800, 9600,
-                                              19200, 9600, 19200, 38400};
+const uint32_t RENDER_MODE_WIDTH[RENDER_MODES] = {60,  60,  60,  120, 120,
+                                                  120, 240, 240, 240};
+const uint32_t RENDER_MODE_HEIGHT[RENDER_MODES] = {40,  80, 160, 40, 80,
+                                                   160, 40, 80,  160};
+const uint32_t RENDER_MODE_SCALEX[RENDER_MODES] = {4, 4, 4, 2, 2, 2, 1, 1, 1};
+const uint32_t RENDER_MODE_SCALEY[RENDER_MODES] = {4, 2, 1, 4, 2, 1, 4, 2, 1};
+const uint32_t RENDER_MODE_PIXELS[RENDER_MODES] = {
+    2400, 4800, 9600, 4800, 9600, 19200, 9600, 19200, 38400};
 
 #endif  // PROTOCOL_H
