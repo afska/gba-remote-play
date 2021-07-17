@@ -40,7 +40,7 @@ int main() {
 // DECLARATIONS
 // ------------
 
-void clean();
+void wipeScreen();
 void init();
 void mainLoop();
 bool sendKeysAndReceiveMetadata();
@@ -70,7 +70,7 @@ int main() {
 
   while (true) {
     RuntimeConfig::show();
-    clean();
+    wipeScreen();
 
     init();
     mainLoop();
@@ -80,7 +80,7 @@ int main() {
 }
 #endif
 
-inline void clean() {
+inline void wipeScreen() {
   for (u32 i = 0; i < TOTAL_SCREEN_PIXELS; i++)
     m4Draw(i, 0);
 }
@@ -131,11 +131,13 @@ inline bool sendKeysAndReceiveMetadata() {
   state.isRLE = (metadata & COMPR_BIT_MASK) != 0;
   state.hasAudio = (metadata & AUDIO_BIT_MASK) != 0;
 
+  u32 diffMaxPackets =
+      TEMPORAL_DIFF_MAX_PACKETS(RENDER_MODE_PIXELS[config.renderMode]);
   u32 diffStart = (state.startPixel / 8) / PACKET_SIZE;
-  u32 diffEndPacket = min(spiSlave->transfer(0), TEMPORAL_DIFF_MAX_PACKETS);
+  u32 diffEndPacket = min(spiSlave->transfer(0), diffMaxPackets);
   for (u32 i = diffStart; i < diffEndPacket; i++)
     ((u32*)state.temporalDiffs)[i] = transfer(i);
-  for (u32 i = diffEndPacket; i < TEMPORAL_DIFF_MAX_PACKETS; i++)
+  for (u32 i = diffEndPacket; i < diffMaxPackets; i++)
     ((u32*)state.temporalDiffs)[i] = 0;
 
   return true;
