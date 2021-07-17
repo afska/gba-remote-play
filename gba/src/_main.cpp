@@ -43,6 +43,7 @@ int main() {
 void wipeScreen();
 void init();
 void mainLoop();
+void syncReset();
 bool sendKeysAndReceiveMetadata();
 bool receiveAudio();
 bool receivePixels();
@@ -100,7 +101,7 @@ CODE_IWRAM void mainLoop() {
   state.isAudioReady = false;
 
 reset:
-  transfer(CMD_RESET, false);
+  syncReset();
 
   while (true) {
     if (needsRestart())
@@ -118,6 +119,13 @@ reset:
 
     optimizedRender();
   }
+}
+
+inline void syncReset() {
+  u32 resetPacket = CMD_RESET + (config.renderMode |
+                                 (config.controls << CONTROLS_BIT_OFFSET));
+  while (transfer(resetPacket, false) != resetPacket)
+    ;
 }
 
 inline bool sendKeysAndReceiveMetadata() {
