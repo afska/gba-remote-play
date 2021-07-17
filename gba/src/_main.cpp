@@ -74,17 +74,21 @@ int main() {
 }
 
 inline void wipeScreen() {
+  tte_erase_screen();
   for (u32 i = 0; i < TOTAL_SCREEN_PIXELS; i++)
     m4Draw(i, 0);
+  setMosaic(1, 1);
 }
 
 inline void init() {
   enableMode4AndBackground2();
   overclockEWRAM();
-  enableMosaic(RENDER_MODE_SCALEX[config.renderMode],
-               config.scanlines ? 1 : RENDER_MODE_SCALEY[config.renderMode]);
+  setMosaic(RENDER_MODE_SCALEX[config.renderMode],
+            config.scanlines ? 1 : RENDER_MODE_SCALEY[config.renderMode]);
   dma3_cpy(pal_bg_mem, MAIN_PALETTE, sizeof(COLOR) * PALETTE_COLORS);
+#ifdef WITH_AUDIO
   player_init();
+#endif
 }
 
 CODE_IWRAM void mainLoop() {
