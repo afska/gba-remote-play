@@ -1,11 +1,12 @@
+#ifndef BENCHMARK_H
+#define BENCHMARK_H
+
 #include <stdint.h>
 #include "BuildConfig.h"
 #include "Config.h"
 #include "Protocol.h"
 #include "SPIMaster.h"
 #include "Utils.h"
-
-#ifdef BENCHMARK
 
 namespace Benchmark {
 

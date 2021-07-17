@@ -14,6 +14,7 @@
 #include "SPIMaster.h"
 #include "Utils.h"
 #include "VirtualGamepad.h"
+#include "Benchmark.h"
 
 uint8_t LUT_24BPP_TO_8BIT_PALETTE[PALETTE_24BIT_MAX_COLORS];
 
@@ -184,6 +185,8 @@ class GBARemotePlay {
     spiMaster->exchange(resetPacket);
 
     renderMode = resetPacket & RENDER_MODE_BIT_MASK;
+    if (renderMode == RENDER_MODE_BENCHMARK)
+      Benchmark::main();
   }
 
   bool receiveKeysAndSendMetadata(Frame& frame, ImageDiffRLECompressor& diffs) {
