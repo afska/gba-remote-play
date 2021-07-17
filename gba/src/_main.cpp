@@ -88,9 +88,8 @@ inline void clean() {
 inline void init() {
   enableMode4AndBackground2();
   overclockEWRAM();
-  enableMosaic(
-      CONFIG_RENDER_MODE_SCALEX[config.renderMode],
-      config.scanlines ? 1 : CONFIG_RENDER_MODE_SCALEY[config.renderMode]);
+  enableMosaic(RENDER_MODE_SCALEX[config.renderMode],
+               config.scanlines ? 1 : RENDER_MODE_SCALEY[config.renderMode]);
   dma3_cpy(pal_bg_mem, MAIN_PALETTE, sizeof(COLOR) * PALETTE_COLORS);
   player_init();
 }
@@ -325,10 +324,9 @@ inline u32 y(u32 cursor, u32 width, u32 scaleY) {
 }
 
 inline void optimizedRender() {
-#define RENDER(N, WITH_RLE)                                                   \
-  render(WITH_RLE, CONFIG_RENDER_MODE_WIDTH[N], CONFIG_RENDER_MODE_HEIGHT[N], \
-         CONFIG_RENDER_MODE_SCALEX[N], CONFIG_RENDER_MODE_SCALEY[N],          \
-         CONFIG_RENDER_MODE_PIXELS[N]);
+#define RENDER(N, WITH_RLE)                                     \
+  render(WITH_RLE, RENDER_MODE_WIDTH[N], RENDER_MODE_HEIGHT[N], \
+         RENDER_MODE_SCALEX[N], RENDER_MODE_SCALEY[N], RENDER_MODE_PIXELS[N]);
 #define HANDLE_RENDER_MODE(N) \
   case N: {                   \
     if (state.isRLE)          \
@@ -342,11 +340,11 @@ inline void optimizedRender() {
   /*
     render(
       state.isRLE,
-      CONFIG_RENDER_MODE_WIDTH[config.renderMode],
-      CONFIG_RENDER_MODE_HEIGHT[config.renderMode],
-      CONFIG_RENDER_MODE_SCALEX[config.renderMode],
-      CONFIG_RENDER_MODE_SCALEY[config.renderMode],
-      CONFIG_RENDER_MODE_PIXELS[config.renderMode]
+      RENDER_MODE_WIDTH[config.renderMode],
+      RENDER_MODE_HEIGHT[config.renderMode],
+      RENDER_MODE_SCALEX[config.renderMode],
+      RENDER_MODE_SCALEY[config.renderMode],
+      RENDER_MODE_PIXELS[config.renderMode]
     );
   */
 

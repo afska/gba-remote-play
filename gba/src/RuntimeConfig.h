@@ -3,6 +3,7 @@
 
 #include <tonc.h>
 #include <string>
+#include "Protocol.h"
 #include "Utils.h"
 #include "_state.h"
 
@@ -10,18 +11,6 @@
 #define CONFIG_PERCENTAGE_ITEMS 3
 #define CONFIG_BOOLEAN_ITEMS 2
 #define CONFIG_NUMERIC_ITEMS 9
-#define CONFIG_RENDER_MODES 9
-
-const u32 CONFIG_RENDER_MODE_WIDTH[CONFIG_RENDER_MODES] = {
-    60, 60, 60, 120, 120, 120, 240, 240, 240};
-const u32 CONFIG_RENDER_MODE_HEIGHT[CONFIG_RENDER_MODES] = {
-    40, 80, 160, 40, 80, 160, 40, 80, 160};
-const u32 CONFIG_RENDER_MODE_SCALEX[CONFIG_RENDER_MODES] = {4, 4, 4, 2, 2,
-                                                            2, 1, 1, 1};
-const u32 CONFIG_RENDER_MODE_SCALEY[CONFIG_RENDER_MODES] = {4, 2, 1, 4, 2,
-                                                            1, 4, 2, 1};
-const u32 CONFIG_RENDER_MODE_PIXELS[CONFIG_RENDER_MODES] = {
-    2400, 4800, 9600, 4800, 9600, 19200, 9600, 19200, 38400};
 
 const std::string CONFIG_PERCENTAGE_OPTIONS[CONFIG_PERCENTAGE_ITEMS] = {
     "<25%>", "<50%>", "<100%>"};
