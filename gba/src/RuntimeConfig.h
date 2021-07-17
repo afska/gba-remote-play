@@ -2,7 +2,6 @@
 #define RUNTIME_CONFIG_H
 
 #include <tonc.h>
-#include <string>
 #include "Protocol.h"
 #include "Utils.h"
 #include "_state.h"
@@ -12,11 +11,11 @@
 #define CONFIG_BOOLEAN_ITEMS 2
 #define CONFIG_NUMERIC_ITEMS 9
 
-const std::string CONFIG_PERCENTAGE_OPTIONS[CONFIG_PERCENTAGE_ITEMS] = {
+const char* const CONFIG_PERCENTAGE_OPTIONS[CONFIG_PERCENTAGE_ITEMS] = {
     "<25%>", "<50%>", "<100%>"};
-const std::string CONFIG_BOOLEAN_OPTIONS[CONFIG_BOOLEAN_ITEMS] = {"<OFF>",
+const char* const CONFIG_BOOLEAN_OPTIONS[CONFIG_BOOLEAN_ITEMS] = {"<OFF>",
                                                                   "<ON>"};
-const std::string CONFIG_NUMERIC_OPTIONS[CONFIG_NUMERIC_ITEMS] = {
+const char* const CONFIG_NUMERIC_OPTIONS[CONFIG_NUMERIC_ITEMS] = {
     "<01>", "<02>", "<03>", "<04>", "<05>", "<06>", "<07>", "<08>", "<09>"};
 
 typedef struct Config {
@@ -46,27 +45,34 @@ enum Option {
   START
 };
 
-inline void print(std::string text) {
-  tte_erase_screen();
-  tte_write("#{P:0,0}");
-  tte_write(text.c_str());
-}
-
 inline void drawMenu(u32 option) {
 #define SELECTION(ID) (option == ID ? ">" : " ")
 
-  print(std::string(" gba-remote-play        (^_^)\n\n") +
-        SELECTION(Option::FRAME_WIDTH) + "Frame width            " +
-        CONFIG_PERCENTAGE_OPTIONS[config.frameWidthIndex] + "\n" +
-        SELECTION(Option::FRAME_HEIGHT) + "Frame height           " +
-        CONFIG_PERCENTAGE_OPTIONS[config.frameHeightIndex] + "\n" +
-        SELECTION(Option::SCANLINES) + "Scanlines              " +
-        CONFIG_BOOLEAN_OPTIONS[config.scanlines] + "\n" +
-        SELECTION(Option::CONTROLS) + "Controls               " +
-        CONFIG_NUMERIC_OPTIONS[config.controls] + "\n" + "\n" +
-        SELECTION(Option::BENCHMARK) + "[BENCHMARK]" + "\n" +
-        SELECTION(Option::DEFAULTS) + "[RESET OPTIONS]" + "\n" +
-        SELECTION(Option::START) + "[START STREAMING]");
+  tte_erase_screen();
+  tte_write("#{P:0,0}");
+  tte_write(" gba-remote-play        (^_^)\n\n");
+  tte_write(SELECTION(Option::FRAME_WIDTH));
+  tte_write("Frame width            ");
+  tte_write(CONFIG_PERCENTAGE_OPTIONS[config.frameWidthIndex]);
+  tte_write("\n");
+  tte_write(SELECTION(Option::FRAME_HEIGHT));
+  tte_write("Frame height           ");
+  tte_write(CONFIG_PERCENTAGE_OPTIONS[config.frameHeightIndex]);
+  tte_write("\n");
+  tte_write(SELECTION(Option::SCANLINES));
+  tte_write("Scanlines              ");
+  tte_write(CONFIG_BOOLEAN_OPTIONS[config.scanlines]);
+  tte_write("\n");
+  tte_write(SELECTION(Option::CONTROLS));
+  tte_write("Controls               ");
+  tte_write(CONFIG_NUMERIC_OPTIONS[config.controls]);
+  tte_write("\n\n");
+  tte_write(SELECTION(Option::BENCHMARK));
+  tte_write("[BENCHMARK]\n");
+  tte_write(SELECTION(Option::DEFAULTS));
+  tte_write("[RESET OPTIONS]\n");
+  tte_write(SELECTION(Option::START));
+  tte_write("[START STREAMING]");
 }
 
 inline void initialize() {
