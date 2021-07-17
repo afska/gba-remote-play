@@ -40,8 +40,6 @@ class GBARemotePlay {
 #endif
 
   reset:
-    spiMaster->send(CMD_RESET);
-
     while (true) {
 #ifdef DEBUG
       LOG("Waiting...");
