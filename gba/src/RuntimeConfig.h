@@ -26,6 +26,7 @@ typedef struct Config {
   bool scanlines;
   u8 controls;
 
+  bool isBenchmark() { return renderMode == RENDER_MODE_BENCHMARK; }
   void update() {
     renderMode = frameWidthIndex * CONFIG_PERCENTAGE_ITEMS + frameHeightIndex;
   }
@@ -129,6 +130,13 @@ inline void show() {
         case Option::CONTROLS: {
           config.controls =
               CYCLE_OPTIONS(config.controls + direction, CONFIG_NUMERIC_ITEMS);
+          break;
+        }
+        case Option::BENCHMARK: {
+          if (IS_PRESSED(KEY_A)) {
+            config.renderMode = RENDER_MODE_BENCHMARK;
+            return;
+          }
           break;
         }
         case Option::DEFAULTS: {

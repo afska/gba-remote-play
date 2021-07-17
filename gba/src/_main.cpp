@@ -24,18 +24,6 @@ extern "C" {
 SPISlave* spiSlave = new SPISlave();
 DATA_EWRAM u8 compressedPixels[MAX_PIXELS_SIZE];
 
-// ---------
-// BENCHMARK
-// ---------
-
-#ifdef BENCHMARK
-int main() {
-  Benchmark::init();
-  Benchmark::mainLoop();
-  return 0;
-}
-#endif
-
 // ------------
 // DECLARATIONS
 // ------------
@@ -65,7 +53,6 @@ void optimizedRender();
 // DEFINITIONS
 // -----------
 
-#ifndef BENCHMARK
 int main() {
   RuntimeConfig::initialize();
 
@@ -73,13 +60,18 @@ int main() {
     RuntimeConfig::show();
     wipeScreen();
 
+    if (config.isBenchmark()) {
+      syncReset();
+      Benchmark::init();
+      Benchmark::mainLoop();
+    }
+
     init();
     mainLoop();
   }
 
   return 0;
 }
-#endif
 
 inline void wipeScreen() {
   for (u32 i = 0; i < TOTAL_SCREEN_PIXELS; i++)

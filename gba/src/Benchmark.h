@@ -1,6 +1,7 @@
-#include "BuildConfig.h"
+#ifndef BENCHMARK_H
+#define BENCHMARK_H
 
-#ifdef BENCHMARK
+#include "BuildConfig.h"
 
 #include "SPISlave.h"
 #include "Utils.h"

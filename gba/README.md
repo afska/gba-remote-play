@@ -38,7 +38,6 @@ Before compiling, you can comment/uncomment these build parameters in `src/Build
 Name | Description
 --- | ---
 `WITH_AUDIO` | Enables GSM audio decoding.
-`BENCHMARK` | Replaces all the code with an SPI speed benchmark.
 
 ## Commands
 
