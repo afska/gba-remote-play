@@ -358,11 +358,11 @@ inline void optimizedRender() {
   switch (config.renderMode) {
     HANDLE_RENDER_MODE(0)
     HANDLE_RENDER_MODE(1)
-    HANDLE_RENDER_MODE(2)
+    // HANDLE_RENDER_MODE(2)
     HANDLE_RENDER_MODE(3)
     HANDLE_RENDER_MODE(4)
     HANDLE_RENDER_MODE(5)
-    HANDLE_RENDER_MODE(6)
+    // HANDLE_RENDER_MODE(6)
     HANDLE_RENDER_MODE(7)
     HANDLE_RENDER_MODE(8)
     default:

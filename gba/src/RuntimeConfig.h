@@ -73,7 +73,9 @@ inline void drawMenu(u32 option) {
   tte_write(SELECTION(Option::DEFAULTS));
   tte_write("[RESET OPTIONS]\n");
   tte_write(SELECTION(Option::START));
-  tte_write("[START STREAMING]");
+  tte_write(RENDER_MODE_IS_INVALID(config.renderMode)
+                ? "<This mode is not supported>"
+                : "[START STREAMING]");
 }
 
 inline void initialize() {
@@ -157,13 +159,14 @@ inline void show() {
           break;
         }
         case Option::START: {
-          if (IS_PRESSED(KEY_A))
+          if (IS_PRESSED(KEY_A) && !RENDER_MODE_IS_INVALID(config.renderMode))
             return;
           break;
         }
       }
       drawMenu(option);
-    } else if (IS_PRESSED(KEY_START)) {
+    } else if (IS_PRESSED(KEY_START) &&
+               !RENDER_MODE_IS_INVALID(config.renderMode)) {
       return;
     }
 
