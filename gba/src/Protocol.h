@@ -65,8 +65,16 @@
 #define RENDER_MODE_BENCHMARK_2 10
 #define RENDER_MODE_IS_BENCHMARK(MODE) \
   (MODE == RENDER_MODE_BENCHMARK_1 || MODE == RENDER_MODE_BENCHMARK_2)
-#define RENDER_MODE_IS_INVALID(MODE) ((MODE) == 2 || ((MODE) == 6))
 #define DEFAULT_RENDER_MODE 4
+
+#ifdef WITH_AUDIO
+#define RENDER_MODE_IS_INVALID(MODE) \
+  ((MODE) == 1 || (MODE) == 2 || (MODE) == 3 || (MODE) == 5 || (MODE) == 6)
+#endif
+#ifndef WITH_AUDIO
+#define RENDER_MODE_IS_INVALID(MODE) ((MODE) == 2 || (MODE) == 6)
+#endif
+
 const uint32_t RENDER_MODE_WIDTH[RENDER_MODES] = {60,  60,  60,  120, 120,
                                                   120, 240, 240, 240};
 const uint32_t RENDER_MODE_HEIGHT[RENDER_MODES] = {40,  80, 160, 40, 80,

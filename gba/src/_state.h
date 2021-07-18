@@ -4,6 +4,7 @@
 #include <tonc.h>
 
 #include "Protocol.h"
+#include "SPISlave.h"
 
 typedef struct {
   u8 temporalDiffs[TEMPORAL_DIFF_MAX_PADDED_SIZE(TOTAL_SCREEN_PIXELS)];
@@ -17,5 +18,7 @@ typedef struct {
 } State;
 
 extern State state;
+extern SPISlave* spiSlave;
+extern u8 compressedPixels[MAX_PIXELS_SIZE];
 
 #endif  // STATE_H

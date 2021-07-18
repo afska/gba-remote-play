@@ -78,7 +78,7 @@ inline void drawMenu(u32 option) {
                 : "[START STREAMING]");
 }
 
-inline void initialize() {
+ALWAYS_INLINE void initialize() {
   config.frameWidthIndex = 1;
   config.frameHeightIndex = 1;
   config.scanlines = true;
@@ -86,7 +86,7 @@ inline void initialize() {
   config.update();
 }
 
-inline void show() {
+ALWAYS_INLINE void show() {
   u32 option = 0;
   u32 keys = 0, previousKeys = pressedKeys();
 
