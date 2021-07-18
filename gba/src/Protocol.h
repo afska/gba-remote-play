@@ -72,7 +72,7 @@
   ((MODE) == 1 || (MODE) == 2 || (MODE) == 3 || (MODE) == 5 || (MODE) == 6)
 #endif
 #ifndef WITH_AUDIO
-#define RENDER_MODE_IS_INVALID(MODE) ((MODE) == 2 || (MODE) == 6)
+#define RENDER_MODE_IS_INVALID(MODE) (false)
 #endif
 
 const uint32_t RENDER_MODE_WIDTH[RENDER_MODES] = {60,  60,  60,  120, 120,
