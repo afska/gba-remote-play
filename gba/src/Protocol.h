@@ -33,6 +33,7 @@
 
 // FILES
 #define CONFIG_FILENAME "config.cfg"
+#define CONTROLS_FILENAME "controls.cfg"
 #define PALETTE_CACHE_FILENAME "palette.cache"
 
 // COMMANDS

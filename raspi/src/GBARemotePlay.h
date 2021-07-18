@@ -1,6 +1,7 @@
 #ifndef GBA_REMOTE_PLAY_H
 #define GBA_REMOTE_PLAY_H
 
+#include "Benchmark.h"
 #include "BuildConfig.h"
 #include "Config.h"
 #include "Frame.h"
@@ -14,7 +15,6 @@
 #include "SPIMaster.h"
 #include "Utils.h"
 #include "VirtualGamepad.h"
-#include "Benchmark.h"
 
 uint8_t LUT_24BPP_TO_8BIT_PALETTE[PALETTE_24BIT_MAX_COLORS];
 
@@ -28,7 +28,8 @@ class GBARemotePlay {
     reliableStream = new ReliableStream(spiMaster);
     frameBuffer = new FrameBuffer(DRAW_WIDTH, DRAW_HEIGHT);
     loopbackAudio = new LoopbackAudio();
-    virtualGamepad = new VirtualGamepad(config->virtualGamepadName);
+    virtualGamepad =
+        new VirtualGamepad(config->virtualGamepadName, CONTROLS_FILENAME);
     lastFrame = Frame{0};
     renderMode = DEFAULT_RENDER_MODE;
 
@@ -185,6 +186,9 @@ class GBARemotePlay {
     spiMaster->exchange(resetPacket);
 
     renderMode = resetPacket & RENDER_MODE_BIT_MASK;
+    virtualGamepad->setCurrentConfiguration(
+        (resetPacket >> CONTROLS_BIT_OFFSET) & CONTROLS_BIT_MASK);
+
     if (RENDER_MODE_IS_BENCHMARK(renderMode))
       Benchmark::main(renderMode);
   }
@@ -309,7 +313,7 @@ class GBARemotePlay {
     return frame;
   }
 
-  void processKeys(uint16_t keys) { virtualGamepad->setKeys(keys); }
+  void processKeys(uint16_t keys) { virtualGamepad->setButtons(keys); }
 };
 
 #endif  // GBA_REMOTE_PLAY_H
