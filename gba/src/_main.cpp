@@ -5,6 +5,7 @@
 #include "Palette.h"
 #include "Protocol.h"
 #include "RuntimeConfig.h"
+#include "SPISlave.h"
 #include "Utils.h"
 #include "_state.h"
 
@@ -35,6 +36,8 @@ bool sync(u32 command);
 u32 x(u32 cursor, u32 width, u32 scaleX);
 u32 y(u32 cursor, u32 width, u32 scaleY);
 void optimizedRender();
+
+SPISlave* spiSlave = new SPISlave();
 
 // -----------
 // DEFINITIONS
