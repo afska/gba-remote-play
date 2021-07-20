@@ -59,8 +59,9 @@ typedef struct {
       if (!(pressedKeys & key) || ((*usedKeys & key) != 0))
         return false;
 
-    for (auto& key : keys)
-      *usedKeys |= key;
+    // (first index = hotkey)
+    for (int i = 1; i < keys.size(); i++)
+      *usedKeys |= keys[i];
 
     return true;
   }
