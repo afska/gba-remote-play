@@ -59,8 +59,8 @@ typedef struct {
       if (!(pressedKeys & key) || ((*usedKeys & key) != 0))
         return false;
 
-    for (int i = 1; i < keys.size(); i++)
-      *usedKeys |= keys[i];
+    for (auto& key : keys)
+      *usedKeys |= key;
 
     return true;
   }
@@ -98,8 +98,8 @@ class VirtualGamepad {
     auto configuration = configurations[currentConfiguration];
     uint16_t usedKeys = 0;
 
-    for (int i = 0; i < VG_TOTAL_BUTTONS; i++) {
-      auto button = BUTTONS[i];
+    for (auto& mapping : configuration.mappings) {
+      auto button = mapping.button;
       setButton(button,
                 isPressed(button, pressedKeys, &usedKeys, configuration));
     }
