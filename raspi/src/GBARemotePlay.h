@@ -16,6 +16,10 @@
 #include "Utils.h"
 #include "VirtualGamepad.h"
 
+#define TRY(ACTION) \
+  if (!(ACTION))    \
+    return false;
+
 uint8_t LUT_24BPP_TO_8BIT_PALETTE[PALETTE_24BIT_MAX_COLORS];
 
 class GBARemotePlay {
@@ -129,8 +133,7 @@ class GBARemotePlay {
 #endif
 
     DEBULOG("Syncing frame start...");
-    if (!reliableStream->sync(CMD_FRAME_START))
-      return false;
+    TRY(reliableStream->sync(CMD_FRAME_START))
 
 #ifdef PROFILE_VERBOSE
     auto idleElapsedTime = PROFILE_END(idleStartTime);
@@ -139,8 +142,7 @@ class GBARemotePlay {
 #endif
 
     DEBULOG("Receiving keys and send metadata...");
-    if (!receiveKeysAndSendMetadata(frame, diffs))
-      return false;
+    TRY(receiveKeysAndSendMetadata(frame, diffs))
 
 #ifdef PROFILE_VERBOSE
     auto metadataElapsedTime = PROFILE_END(metadataStartTime);
@@ -149,25 +151,20 @@ class GBARemotePlay {
 
     if (frame.hasAudio()) {
       DEBULOG("Syncing audio...");
-      if (!reliableStream->sync(CMD_AUDIO))
-        return false;
+      TRY(reliableStream->sync(CMD_AUDIO))
 
       DEBULOG("Sending audio...");
-      if (!sendAudio(frame))
-        return false;
+      TRY(sendAudio(frame))
     }
 
     DEBULOG("Syncing pixels...");
-    if (!reliableStream->sync(CMD_PIXELS))
-      return false;
+    TRY(reliableStream->sync(CMD_PIXELS))
 
     DEBULOG("Sending pixels...");
-    if (!compressAndSendPixels(frame, diffs))
-      return false;
+    TRY(compressAndSendPixels(frame, diffs))
 
     DEBULOG("Syncing frame end...");
-    if (!reliableStream->sync(CMD_FRAME_END))
-      return false;
+    TRY(reliableStream->sync(CMD_FRAME_END))
 
 #ifdef DEBUG_PNG
     LOG("Writing debug PNG file...");

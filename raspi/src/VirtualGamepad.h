@@ -54,10 +54,13 @@ typedef struct {
   uint16_t button;
 
   bool isValid() { return !keys.empty() && button != 0; }
-  bool matches(uint16_t pressedKeys) {
+  bool matches(uint16_t pressedKeys, uint16_t* usedKeys) {
     for (auto& key : keys)
-      if (!(pressedKeys & key))
+      if (!(pressedKeys & key) || ((*usedKeys & key) != 0))
         return false;
+
+    for (int i = 1; i < keys.size(); i++)
+      *usedKeys |= keys[i];
 
     return true;
   }
@@ -93,10 +96,12 @@ class VirtualGamepad {
 
   void setButtons(uint16_t pressedKeys) {
     auto configuration = configurations[currentConfiguration];
+    uint16_t usedKeys = 0;
 
     for (int i = 0; i < VG_TOTAL_BUTTONS; i++) {
       auto button = BUTTONS[i];
-      setButton(button, isPressed(button, pressedKeys, configuration));
+      setButton(button,
+                isPressed(button, pressedKeys, &usedKeys, configuration));
     }
 
     flush();
@@ -114,9 +119,10 @@ class VirtualGamepad {
 
   bool isPressed(uint16_t button,
                  uint16_t pressedKeys,
+                 uint16_t* usedKeys,
                  KeyConfiguration& configuration) {
     for (auto& mapping : configuration.mappings)
-      if (mapping.button == button && mapping.matches(pressedKeys))
+      if (mapping.button == button && mapping.matches(pressedKeys, usedKeys))
         return true;
 
     return false;
