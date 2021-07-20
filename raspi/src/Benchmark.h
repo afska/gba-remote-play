@@ -1,3 +1,6 @@
+#ifndef BENCHMARK_H
+#define BENCHMARK_H
+
 #include <stdint.h>
 #include "BuildConfig.h"
 #include "Config.h"
@@ -5,20 +8,19 @@
 #include "SPIMaster.h"
 #include "Utils.h"
 
-#ifdef BENCHMARK
-
 namespace Benchmark {
 
-auto config = new Config(CONFIG_FILENAME);
-auto spiMaster = new SPIMaster(SPI_MODE,
-                               config->spiSlowFrequency,
-                               config->spiFastFrequency,
-                               config->spiDelayMicroseconds);
-uint32_t goodPackets = 0;
-uint32_t badPackets = 0;
-uint32_t vblanks = 0;
+inline void main(uint32_t renderMode) {
+  auto config = new Config(CONFIG_FILENAME);
+  auto spiMaster = new SPIMaster(
+      SPI_MODE,
+      renderMode == RENDER_MODE_BENCHMARK_2 ? config->spiFastFrequency
+                                            : config->spiSlowFrequency,
+      config->spiFastFrequency, config->spiDelayMicroseconds);
+  uint32_t goodPackets = 0;
+  uint32_t badPackets = 0;
+  uint32_t vblanks = 0;
 
-inline void main() {
   while (true) {
     uint32_t receivedPacket = spiMaster->exchange(0x98765432);
 

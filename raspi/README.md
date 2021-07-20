@@ -23,7 +23,6 @@ Before compiling, you can comment/uncomment these build parameters in `src/Build
 Name | Description
 --- | ---
 `WITH_AUDIO` | Enables GSM audio encoding.
-`BENCHMARK` | Replaces all the code with an SPI speed benchmark.
 `PROFILE` | Outputs the amount of frames per second to _stdout_.
 `PROFILE_VERBOSE` | Outputs how much time in milliseconds every step takes.
 `DEBUG` | Enables Debug Mode, where frames are sent one by one, on every user input from _stdin_.

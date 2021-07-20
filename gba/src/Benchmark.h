@@ -1,6 +1,7 @@
-#include "BuildConfig.h"
+#ifndef BENCHMARK_H
+#define BENCHMARK_H
 
-#ifdef BENCHMARK
+#include "BuildConfig.h"
 
 #include "SPISlave.h"
 #include "Utils.h"
@@ -13,7 +14,7 @@ typedef struct {
   u32 badPackets;
 } State;
 
-inline void onVBlank(State& state) {
+ALWAYS_INLINE void onVBlank(State& state) {
   state.frame++;
   if (state.frame >= 60) {
     m3_plot(20, 80, state.goodPackets >= 40000 ? CLR_GREEN : CLR_RED);
@@ -59,7 +60,7 @@ CODE_IWRAM void mainLoop() {
   }
 }
 
-inline void init() {
+ALWAYS_INLINE void init() {
   REG_DISPCNT = DCNT_MODE3 | DCNT_BG2;
 }
 
