@@ -32,3 +32,4 @@ Name | Description
 
 - `./out/multiboot.tool out/gba.mb.gba`: Sends the ROM via Multiboot to the GBA
 - `./build.sh`: Compiles the code. The output file is `out/raspi.run`. Run with **sudo**!
+- `./out/gbarplay.sh`: Sends the ROM and runs the compiled code
