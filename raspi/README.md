@@ -4,8 +4,7 @@
 
 ### Raspberry Pi
 
-- Install Raspberry Pi OS
-- Enable SSH, SPI, and Serial Port
+- Enable SSH and SPI
 
 ### Development PC
 
