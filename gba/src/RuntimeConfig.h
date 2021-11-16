@@ -10,7 +10,7 @@
 #define CONFIG_PERCENTAGE_ITEMS 3
 #define CONFIG_BOOLEAN_ITEMS 2
 #define CONFIG_NUMERIC_ITEMS 9
-#define CONFIG_COMPRESSION_ITEMS 5
+#define CONFIG_COMPRESSION_ITEMS 6
 #define CONFIG_MENU_KEY_ITEMS 2
 
 const char* const CONFIG_PERCENTAGE_OPTIONS[CONFIG_PERCENTAGE_ITEMS] = {
@@ -18,7 +18,7 @@ const char* const CONFIG_PERCENTAGE_OPTIONS[CONFIG_PERCENTAGE_ITEMS] = {
 const char* const CONFIG_BOOLEAN_OPTIONS[CONFIG_BOOLEAN_ITEMS] = {"<OFF>",
                                                                   " <ON>"};
 const char* const CONFIG_COMPRESSION_OPTIONS[CONFIG_COMPRESSION_ITEMS] = {
-    "<NO>", "<LO>", "<MD>", "<HI>", "<EX>"};
+    "<-->", "<LO>", "<MD>", "<HI>", "<EX>", "<!!>"};
 const char* const CONFIG_MENU_KEY_OPTIONS[CONFIG_MENU_KEY_ITEMS] = {
     "<A+B+L+R>", "  <START>"};
 const char* const CONFIG_NUMERIC_OPTIONS[CONFIG_NUMERIC_ITEMS] = {
