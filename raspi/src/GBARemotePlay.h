@@ -26,9 +26,8 @@ class GBARemotePlay {
  public:
   GBARemotePlay() {
     config = new Config(CONFIG_FILENAME);
-    spiMaster =
-        new SPIMaster(SPI_MODE, config->spiSlowFrequency,
-                      config->spiFastFrequency, config->spiDelayMicroseconds);
+    spiMaster = new SPIMaster(SPI_MODE, config->spiNormalTiming,
+                              config->spiOverclockedTiming);
     reliableStream = new ReliableStream(spiMaster);
     frameBuffer = new FrameBuffer(DRAW_WIDTH, DRAW_HEIGHT);
     loopbackAudio = new LoopbackAudio();
@@ -68,7 +67,7 @@ class GBARemotePlay {
 #endif
 
       ImageDiffRLECompressor diffs;
-      diffs.initialize(frame, lastFrame, config->diffThreshold, renderMode);
+      diffs.initialize(frame, lastFrame, diffThreshold, renderMode);
 
 #ifdef PROFILE_VERBOSE
       auto frameDiffsElapsedTime = PROFILE_END(frameDiffsStartTime);
@@ -122,6 +121,7 @@ class GBARemotePlay {
   VirtualGamepad* virtualGamepad;
   Frame lastFrame;
   uint32_t renderMode;
+  uint32_t diffThreshold;
   uint32_t input;
 
   bool send(Frame& frame, ImageDiffRLECompressor& diffs) {
@@ -185,6 +185,10 @@ class GBARemotePlay {
     renderMode = resetPacket & RENDER_MODE_BIT_MASK;
     virtualGamepad->setCurrentConfiguration(
         (resetPacket >> CONTROLS_BIT_OFFSET) & CONTROLS_BIT_MASK);
+    diffThreshold = DIFF_THRESHOLDS[(resetPacket >> COMPRESSION_BIT_OFFSET) &
+                                    COMPRESSION_BIT_MASK];
+    spiMaster->setOverclocked((resetPacket >> CPU_OVERCLOCK_BIT_OFFSET) &
+                              CPU_OVERCLOCK_BIT_MASK);
 
     if (RENDER_MODE_IS_BENCHMARK(renderMode))
       Benchmark::main(renderMode);
