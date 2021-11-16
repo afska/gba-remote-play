@@ -76,7 +76,8 @@ ALWAYS_INLINE void wipeScreen() {
 
 ALWAYS_INLINE void init() {
   enableMode4AndBackground2();
-  overclockEWRAM();
+  if (config.ewramOverclock)
+    overclockEWRAM();
   setMosaic(RENDER_MODE_SCALEX[config.renderMode],
             config.scanlines ? 1 : RENDER_MODE_SCALEY[config.renderMode]);
   dma3_cpy(pal_bg_mem, MAIN_PALETTE, sizeof(COLOR) * PALETTE_COLORS);
@@ -94,7 +95,7 @@ reset:
   syncReset();
 
   while (true) {
-    if (needsRestart())
+    if ((config.exitWithStart && needsRestartSTART()) || needsRestartABLR())
       return;
 
     TRY(sync(CMD_FRAME_START))
@@ -112,8 +113,11 @@ reset:
 }
 
 ALWAYS_INLINE void syncReset() {
-  u32 resetPacket = CMD_RESET + (config.renderMode |
-                                 (config.controls << CONTROLS_BIT_OFFSET));
+  u32 resetPacket =
+      CMD_RESET + (config.renderMode |
+                   (config.controls << CONTROLS_BIT_OFFSET) |
+                   (config.compression << COMPRESSION_BIT_OFFSET) |
+                   (config.cpuOverclock << CPU_OVERCLOCK_BIT_OFFSET));
   while (transfer(resetPacket, false) != resetPacket)
     ;
 }

@@ -38,10 +38,14 @@ ALWAYS_INLINE u16 pressedKeys() {
   return ~REG_KEYS & KEY_ANY;
 }
 
-ALWAYS_INLINE bool needsRestart() {
+ALWAYS_INLINE bool needsRestartABLR() {
   u16 keys = pressedKeys();
-
   return (keys & KEY_A) && (keys & KEY_B) && (keys & KEY_L) && (keys & KEY_R);
+}
+
+ALWAYS_INLINE bool needsRestartSTART() {
+  u16 keys = pressedKeys();
+  return (keys & KEY_START);
 }
 
 #endif  // UTILS_H
