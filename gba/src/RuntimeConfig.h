@@ -114,7 +114,6 @@ ALWAYS_INLINE void initialize() {
   config.scanlines = true;
   config.compression = 2;
   config.cpuOverclock = false;
-  config.ewramOverclock = false;
   config.exitWithStart = false;
   config.controls = 0;
   config.update();
@@ -173,7 +172,8 @@ ALWAYS_INLINE void show() {
           break;
         }
         case Option::EWRAM_OVERCLOCK: {
-          config.ewramOverclock = !config.ewramOverclock;
+          overclockEWRAM();
+          config.ewramOverclock = true;
           break;
         }
         case Option::EXIT_WITH_START_KEY: {

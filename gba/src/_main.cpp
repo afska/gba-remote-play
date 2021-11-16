@@ -76,8 +76,6 @@ ALWAYS_INLINE void wipeScreen() {
 
 ALWAYS_INLINE void init() {
   enableMode4AndBackground2();
-  if (config.ewramOverclock)
-    overclockEWRAM();
   setMosaic(RENDER_MODE_SCALEX[config.renderMode],
             config.scanlines ? 1 : RENDER_MODE_SCALEY[config.renderMode]);
   dma3_cpy(pal_bg_mem, MAIN_PALETTE, sizeof(COLOR) * PALETTE_COLORS);
