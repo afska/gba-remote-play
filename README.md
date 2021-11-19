@@ -1,6 +1,6 @@
 # gba-remote-play
 
-https://user-images.githubusercontent.com/1631752/125162840-7cb0be80-e160-11eb-8c10-cf8a09f7af2b.mp4
+[![demo](https://user-images.githubusercontent.com/1631752/142566072-26e19a9c-e24b-42c7-97f1-847196a1ed5c.png)](https://www.youtube.com/watch?v=PoRmuKUQRY0)
 
 This software streams games from a Raspberry Pi to a Game Boy Advance, through its Link Port. Video and audio are compressed and sent in real time to the GBA, while the latter responds with its current input, allowing to play games of any platform by using the GBA (hence, Remote Play).
 
@@ -9,8 +9,9 @@ This software streams games from a Raspberry Pi to a Game Boy Advance, through i
 - _120x80_ pixels of power!
 - ~60fps using the default display mode
 - Retro scanlines 😎
+- More _pixels of power_ on overclocked GBAs
 - Experimental audio support!
-- Crashes on the GB Micro! _(yep, that's a feature)_
+- ~~Crashes on the GB Micro! _(yep, that's a feature)_~~
 
 > <img alt="rlabs" width="16" height="16" src="https://user-images.githubusercontent.com/1631752/116227197-400d2380-a72a-11eb-9e7b-389aae76f13e.png" /> Created by [[r]labs](https://r-labs.io).
 
@@ -18,17 +19,19 @@ This software streams games from a Raspberry Pi to a Game Boy Advance, through i
 - [piuGBA](https://github.com/rodri042/piugba/): A PIU emulator 💃↙️↘️⬜↖️↗️🕺
 - [gba-link-connection](https://github.com/rodri042/gba-link-connection): A multiplayer library 🎮🔗🎮
 
-# GBA Jam 2021
+# Index
 
-All this code was made during the [GBA Jam 2021](https://itch.io/jam/gbajam21). Since this project doesn't fit well into the jam (as it requires external hardware), there's a Demo available in the [Releases](https://github.com/rodri042/gba-remote-play/releases) section where one GBA sends a video with audio to another GBA via Link Cable.
+- [Demos](#demos)
+- [How it works](#how-it-works)
+- [Setup](#setup)
+- [GBA Jam 2021](#gba-jam-2021)
+- [Credits](#credits)
 
-Here's a video of it:
+# Demos
 
-https://user-images.githubusercontent.com/1631752/125164337-129c1780-e168-11eb-9bc8-9e2719a7180f.mp4
+https://user-images.githubusercontent.com/1631752/142571402-27ff4952-352f-41c4-888b-95575ea91b53.mp4
 
-The code of that demo is in the [#gba-jam](https://github.com/rodri042/gba-remote-play/compare/gba-jam?expand=1) branch.
-
-# Demo with audio
+https://user-images.githubusercontent.com/1631752/125162840-7cb0be80-e160-11eb-8c10-cf8a09f7af2b.mp4
 
 https://user-images.githubusercontent.com/1631752/125162670-a0273980-e15f-11eb-80fb-fee16ae5a6f7.mp4
 
@@ -72,7 +75,7 @@ SPI is a synchronous protocol supported by hardware in many devices, that allows
   <img src="https://user-images.githubusercontent.com/1631752/124885912-2437c080-dfaa-11eb-9eac-006ba64429b8.png">
 </p>
 
-> This is what happens on an SPI cycle. Both devices use shift registers to move the bits of data circularly. You can read more about the data transmission protocol [here](https://en.wikipedia.org/wiki/Serial_Peripheral_Interface#Data_transmission). 
+> This is what happens on an SPI cycle. Both devices use shift registers to move bits of data circularly. You can read more about the data transmission protocol [here](https://en.wikipedia.org/wiki/Serial_Peripheral_Interface#Data_transmission). 
 
 The GBA can work both as master or as slave, but the Raspberry Pi only works as master. So, the Raspberry controls the clock.
 
@@ -92,15 +95,16 @@ Some peculiarities about GBA's Normal Mode:
 - Communication at 2Mbps is only reliable when using very short wires, as it's intended for special expansion hardware. Or so they say, I've tested it with a long cable and it's not "unreliable", just slower 🤷‍♂️
 
 **Related code:**
-- [SPIMaster](https://github.com/rodri042/gba-remote-play/blob/v0.9/raspi/src/SPIMaster.h#L12) on the Raspberry Pi
-- [SPISlave](https://github.com/rodri042/gba-remote-play/blob/v0.9/gba/src/SPISlave.h#L17) on the GBA
-- [SPIMaster](https://github.com/rodri042/gba-remote-play/blob/gba-jam/gba/src/gbajam/SPIMaster.h#L8) on the GBA (used for the GBA Jam demo)
+- [SPIMaster](https://github.com/rodri042/gba-remote-play/blob/v1.1/raspi/src/SPIMaster.h#L24) on the Raspberry Pi
+- [SPISlave](https://github.com/rodri042/gba-remote-play/blob/v1.1/gba/src/SPISlave.h#L15) on the GBA
+- [SPIMaster](https://github.com/rodri042/gba-remote-play/blob/gba-jam/gba/src/gbajam/SPIMaster.h#L8) on the GBA (used for the [GBA Jam demo](#gba-jam-2021))
 	
 ### Reaching the maximum speed
 
 In my tests with a Raspberry Pi 3, the maximum transfer rates I was able to achieve were:
 - **Bidirectional**: 1.6Mbps. From here, the Raspberry Pi starts receiving garbage from the GBA.
-- **One-way**: 2.56Mbps. Crank this up, and nothing good will happen.
+- **One-way**: 2.6Mbps. Crank this up, and you'll have corrupted packets.
+- **One-way, on an overclocked GBA**: 4.8Mbps, using a 12Mhz crystal oscillator instead of the default one (4.194Mhz).
 
 One-way transfers are fine in this case, because we only care about input and some sync packets from the GBA. That means that the code is constantly switching between two frequencies depending of if it needs a response or not.
 	
@@ -112,17 +116,17 @@ In all cases the Raspberry Pi has to wait a small number of microseconds to let 
   <img src="https://user-images.githubusercontent.com/1631752/125121356-314bd100-e0ca-11eb-950d-6e848a53891f.png">
 </p>
 
-> The first dot means 40000 packets/second and each extra dot adds 5000 more. At maximum speed they should be all green. The one at the right indicates if we're free of corrupted packets. If it's red, adjust!
+> The first dot means 40000 packets/second and each extra dot adds 5000 more. At maximum speed, they should be all green. The one at the right indicates if we're free of corrupted packets. If it's red, adjust!
 
 **Related code:**
-- [Delay before each transfer](https://github.com/rodri042/gba-remote-play/blob/v0.9/raspi/src/SPIMaster.h#L64)
-- [GBA benchmark code](https://github.com/rodri042/gba-remote-play/blob/v0.9/gba/src/Benchmark.h#L53)
-- [RPI benchmark code](https://github.com/rodri042/gba-remote-play/blob/v0.9/raspi/src/Benchmark.h#L23)
-- [SPI config](https://github.com/rodri042/gba-remote-play/blob/v0.9/raspi/out/config.cfg#L1)
+- [Delay before each transfer](https://github.com/rodri042/gba-remote-play/blob/v1.1/raspi/src/SPIMaster.h#L80)
+- [GBA benchmark code](https://github.com/rodri042/gba-remote-play/blob/v1.1/gba/src/Benchmark.h#L54)
+- [RPI benchmark code](https://github.com/rodri042/gba-remote-play/blob/v1.1/raspi/src/Benchmark.h#L31)
+- [SPI config](https://github.com/rodri042/gba-remote-play/blob/v1.1/raspi/out/config.cfg#L1)
 
 ### MISO waits
 
-In classic SPI, the master blindly issues clock cycles and it's responsability of the slave to catch up and process all packets on time. But here, sometimes the GBA is very busy doing things like putting pixels on screen or whatever it has to do, so it needs a way to tell the master to stop.
+In classic SPI, the master blindly issues clock cycles and it's responsibility of the slave to catch up and process all packets on time. But here, sometimes the GBA is very busy doing things like putting pixels on screen or whatever it has to do, so it needs a way to tell the master to stop.
 
 As recommended in the GBA manual, the slave can put MISO on HIGH when it's idle, and master can read its value as a GPIO input pin and wait to send until it's LOW.
 
@@ -132,8 +136,9 @@ As recommended in the GBA manual, the slave can put MISO on HIGH when it's idle,
   <img src="https://user-images.githubusercontent.com/1631752/125120423-d2398c80-e0c8-11eb-8f67-62f2b0089949.gif">
 </p>
 
-- [Disable transfers (slave)](https://github.com/rodri042/gba-remote-play/blob/v0.9/gba/src/SPISlave.h#L48)
-- [MISO wait (master)](https://github.com/rodri042/gba-remote-play/blob/v0.9/raspi/src/SPIMaster.h#L67)
+**Related code:**
+- [Disable transfers (slave)](https://github.com/rodri042/gba-remote-play/blob/v1.1/gba/src/SPISlave.h#L46)
+- [MISO wait (master)](https://github.com/rodri042/gba-remote-play/blob/v1.1/raspi/src/SPIMaster.h#L83)
 
 ## Video
 
@@ -150,7 +155,7 @@ Linux can provide all the pixel data shown on the screen (frame buffers) in devf
 </p>
 
 **Related code:**
-- [FrameBuffer](https://github.com/rodri042/gba-remote-play/blob/v0.9/raspi/src/FrameBuffer.h#L17)
+- [FrameBuffer](https://github.com/rodri042/gba-remote-play/blob/v1.1/raspi/src/FrameBuffer.h#L17)
 
 ### Drawing on the GBA screen
 
@@ -165,7 +170,7 @@ To draw those colors on the screen, it supports 3 [different bitmap modes](https
 </p>
 
 **Related code:**
-- [GBA writing a pixel in mode 4](https://github.com/rodri042/gba-remote-play/blob/v0.9/gba/src/Utils.h#L30)
+- [GBA writing a pixel in mode 4](https://github.com/rodri042/gba-remote-play/blob/v1.1/gba/src/Utils.h#L32)
 
 ### Color quantization
   
@@ -193,11 +198,11 @@ So, the Raspberry Pi has to [quantize](https://en.wikipedia.org/wiki/Color_quant
 To approximate colors faster, when running the code for the first time, it creates a 16MB [lookup table](https://en.wikipedia.org/wiki/Lookup_table) called "palette cache" with all the possible color convertions. It's 16MB because there are 2^24 possible colors and each palette index is one byte.
       
 **Related code:**
-- [15bpp palette on GBA](https://github.com/rodri042/gba-remote-play/blob/v0.9/gba/src/Palette.h#L6)
-- [24bpp palette on RPI](https://github.com/rodri042/gba-remote-play/blob/v0.9/raspi/src/Palette.h#L13)
-- [Closest color math](https://github.com/rodri042/gba-remote-play/blob/v0.9/raspi/src/Palette.h#L52)
-- [Palette cache](https://github.com/rodri042/gba-remote-play/blob/v0.9/raspi/src/Palette.h#L68)
-- [JS code used to construct the table](https://github.com/rodri042/gba-remote-play/blob/v0.9/raspi/src/Palette.h#L111)
+- [15bpp palette on GBA](https://github.com/rodri042/gba-remote-play/blob/v1.1/gba/src/Palette.h#L6)
+- [24bpp palette on RPI](https://github.com/rodri042/gba-remote-play/blob/v1.1/raspi/src/Palette.h#L12)
+- [Closest color math](https://github.com/rodri042/gba-remote-play/blob/v1.1/raspi/src/Palette.h#L52)
+- [Palette cache](https://github.com/rodri042/gba-remote-play/blob/v1.1/raspi/src/Palette.h#L68)
+- [JS code used to construct the table](https://github.com/rodri042/gba-remote-play/blob/v1.1/raspi/src/Palette.h#L111)
 
 ### Scaling
 
@@ -236,15 +241,15 @@ At the time of rendering, you have to take this into account because GBA's _mode
 > Here are 3 ways of scaling the same _120x80_ clip.
 
 **Related code:**
-- [RPI ignoring pixels](https://github.com/rodri042/gba-remote-play/blob/v0.9/raspi/src/GBARemotePlay.h#L279)
-- [GBA setting up mosaic](https://github.com/rodri042/gba-remote-play/blob/v0.9/gba/src/_main.cpp#L71)
-- [GBA selecting the draw cursor](https://github.com/rodri042/gba-remote-play/blob/v0.9/gba/src/_main.cpp#L153)
+- [RPI ignoring pixels](https://github.com/rodri042/gba-remote-play/blob/v1.1/raspi/src/GBARemotePlay.h#L303)
+- [GBA setting up mosaic](https://github.com/rodri042/gba-remote-play/blob/v1.1/gba/src/_main.cpp#L79)
+- [GBA selecting the draw cursor](https://github.com/rodri042/gba-remote-play/blob/v1.1/gba/src/_main.cpp#L180)
 
 ### Image compression
 
 #### Temporal diffs
 
-The code only sends the pixels that changed since the previous frame, and what "changed" means can be configured: there's a `DIFF_THRESHOLD` parameter in the configuration file that controls how far should be a color to the previous one in order to refresh it.
+The code only sends the pixels that changed since the previous frame, and what "changed" means can be configured: there's a "compression" (diff threshold) parameter in the runtime configuration that controls how far should be a color to the previous one in order to refresh it.
 
 At the compression stage, it creates a [bit array](https://en.wikipedia.org/wiki/Bit_array) where 1 means that a pixel did change, and 0 that it didn't. Then, it sends that array + the pixels with '1'.
 
@@ -255,16 +260,16 @@ At the compression stage, it creates a [bit array](https://en.wikipedia.org/wiki
 </p>
 
 **Related code:**
-- [ImageDiffRLECompressor](https://github.com/rodri042/gba-remote-play/blob/v0.9/raspi/src/ImageDiffRLECompressor.h#L8)
-- [Bitarray transfer](https://github.com/rodri042/gba-remote-play/blob/v0.9/raspi/src/GBARemotePlay.h#L192)
-- [Diff decompression](https://github.com/rodri042/gba-remote-play/blob/v0.9/gba/src/_main.cpp#L211)
-- [Diff threshold config](https://github.com/rodri042/gba-remote-play/blob/v0.9/raspi/out/config.cfg#L4)
+- [ImageDiffRLECompressor](https://github.com/rodri042/gba-remote-play/blob/v1.1/raspi/src/ImageDiffRLECompressor.h#L8)
+- [Bitarray transfer](https://github.com/rodri042/gba-remote-play/blob/v1.1/raspi/src/GBARemotePlay.h#L211)
+- [Diff decompression](https://github.com/rodri042/gba-remote-play/blob/v1.1/gba/src/_main.cpp#L239)
+- [Diff threshold possible values](https://github.com/rodri042/gba-remote-play/blob/v1.1/gba/src/Protocol.h#L93)
 
 #### Run-length encoding
 
 The resulting buffer of the temporal compression is run-length encoded.
 
-When using palette images, it's highly likely that there are consecutive pixels with the same color. Or, for example, during screen transitions where all pixels are black, instead of sending N black pixels (N bytes) we can send 1 byte for N and then the black color (2 bytes). That's [RLE](https://en.wikipedia.org/wiki/Run-length_encoding).
+When using paletted images, it's highly likely that there are consecutive pixels with the same color. Or, for example, during screen transitions where all pixels are black, instead of sending N black pixels (N bytes) we can send 1 byte for N and then the black color (2 bytes). That's [RLE](https://en.wikipedia.org/wiki/Run-length_encoding).
 
 However, RLE doesn't always make things better: it can sometimes produce a longer buffer than the original one because it has to add the "count" byte for every payload byte. For that reason, the encoding is made of two stages, and it only applies RLE if it helps compressing the data. Then, the frame's metadata stores a bit that represents if the payload is RLE'd or not.
 
@@ -275,9 +280,9 @@ However, RLE doesn't always make things better: it can sometimes produce a longe
 </p>
 
 **Related code:**
-- [RLE bit in frame's metadata](https://github.com/rodri042/gba-remote-play/blob/v0.9/gba/src/_main.cpp#L111)
-- [RLEncoding](https://github.com/rodri042/gba-remote-play/blob/v0.9/raspi/src/GBARemotePlay.h#L246)
-- [RLDecoding](https://github.com/rodri042/gba-remote-play/blob/v0.9/gba/src/_main.cpp#L156)
+- [RLE bit in frame's metadata](https://github.com/rodri042/gba-remote-play/blob/v1.1/gba/src/_main.cpp#L131)
+- [RLEncoding](https://github.com/rodri042/gba-remote-play/blob/v1.1/raspi/src/GBARemotePlay.h#L265)
+- [RLDecoding](https://github.com/rodri042/gba-remote-play/blob/v1.1/gba/src/_main.cpp#L184)
 
 #### Trimming the diffs
 
@@ -310,20 +315,26 @@ Each frame, the GBA sends its pressed keys to the Raspberry Pi. It does so by re
   <img src="https://user-images.githubusercontent.com/1631752/125149055-fd45cf80-e10c-11eb-8634-a1dbe27db9e1.png">
 </p>
 
-In Linux, there's `/dev/uinput` which lets user space processes create virtual devices and update its state. You can create your virtual gamepad however you like, for example, add analog sticks and then map GBA's D-pad to analog values. The current implementation just registers a simple gamepad with the same layout as the GBA.
+In Linux, there's `/dev/uinput` which lets user space processes create virtual devices and update its state. You can create your virtual gamepad however you like, for example, adding analog sticks and then mapping GBA's D-pad to analog values.
+
+The first implementation was just registering a simple gamepad with the same layout as the GBA. The last version allows users to define a `controls.cfg` file with key combos, so games with more complex button requirements are also supported.
 
 **Related code:**
-- [VirtualGamepad](https://github.com/rodri042/gba-remote-play/blob/v0.9/raspi/src/VirtualGamepad.h#L27)
-- [Gamepad name config](https://github.com/rodri042/gba-remote-play/blob/v0.9/raspi/out/config.cfg#L5)
+- [VirtualGamepad (first version)](https://github.com/rodri042/gba-remote-play/blob/v0.9/raspi/src/VirtualGamepad.h#L27)
+- [VirtualGamepad (last version)](https://github.com/rodri042/gba-remote-play/blob/v1.1/raspi/src/VirtualGamepad.h#L74)
+- [Controls config](https://github.com/rodri042/gba-remote-play/blob/v1.1/raspi/out/controls.cfg#L1)
+- [Gamepad name config](https://github.com/rodri042/gba-remote-play/blob/v1.1/raspi/out/config.cfg#L7)
 
 ## Protocol overview
 
-For every frame, the steps to run are:
+At the beginning, there's a [Reset packet sync](#reset-packet-sync).
+
+Then, for every frame, the steps to run are:
 
 - _(Reset if needed)_
 - Build frame _(RPI only)_
 - Sync frame start
-- Metadata exchange (described below)
+- [Metadata exchange](#metadata-exchange)
 - _(If the frame has audio, sync and transfer audio)_
 - Sync pixels start
 - Transfer pixels
@@ -331,9 +342,34 @@ For every frame, the steps to run are:
 - Render _(GBA only)_
 
 **Related code:**
-- [GBA Main loop](https://github.com/rodri042/gba-remote-play/blob/v0.9/gba/src/_main.cpp#L81)
-- [RPI Main loop](https://github.com/rodri042/gba-remote-play/blob/v0.9/raspi/src/GBARemotePlay.h#L42)
-- [Protocol](https://github.com/rodri042/gba-remote-play/blob/v0.9/gba/src/Protocol.h#L4)
+- [GBA Main loop](https://github.com/rodri042/gba-remote-play/blob/v1.1/gba/src/_main.cpp#L92)
+- [RPI Main loop](https://github.com/rodri042/gba-remote-play/blob/v1.1/raspi/src/GBARemotePlay.h#L48)
+- [Protocol](https://github.com/rodri042/gba-remote-play/blob/v1.1/gba/src/Protocol.h#L4)
+
+### Reset packet sync
+
+Part of the runtime configuration is sent in this _reset_ packet:
+
+```
+10011001100010000111000000000000
+____________________^###****$$$$
+|                   ||  |   |
+ > magic number     ||  |    > render mode: frame width and height
+                    ||   > control layout: defined in the configuration file
+		    | > compression: affects temporal diffs' threshold
+		     > CPU overclock flag: if 1, it uses overclocked SPI timings
+```
+
+<p align="center">
+  <i>Runtime configuration menu</i>
+  <br>
+  <img src="https://user-images.githubusercontent.com/1631752/141930047-19e665a9-c24f-40f6-b61a-8c28c5fd7321.png">
+</p>
+
+**Related code:**
+- [Runtime configuration menu](https://github.com/rodri042/gba-remote-play/blob/v1.1/gba/src/RuntimeConfig.h#L68)
+- [Reset packet sync on the GBA](https://github.com/rodri042/gba-remote-play/blob/v1.1/gba/src/_main.cpp#L114)
+- [Reset packet sync on the RPI](https://github.com/rodri042/gba-remote-play/blob/v1.1/raspi/src/GBARemotePlay.h#L180)
 
 ### Metadata exchange
 
@@ -352,15 +388,15 @@ In this step, the GBA sends its input and receives a _frame metadata_ packet:
 As a sanity check, this transfer is done twice. The second time, each device sends the received packet during the first transfer. If it doesn't match => **Reset!**
 
 **Related code:**
-- [Metadata exchange on the GBA](https://github.com/rodri042/gba-remote-play/blob/v0.9/gba/src/_main.cpp#L104)
-- [Metadata exchange on the RPI](https://github.com/rodri042/gba-remote-play/blob/v0.9/raspi/src/GBARemotePlay.h#L180)
+- [Metadata exchange on the GBA](https://github.com/rodri042/gba-remote-play/blob/v1.1/gba/src/_main.cpp#L124)
+- [Metadata exchange on the RPI](https://github.com/rodri042/gba-remote-play/blob/v1.1/raspi/src/GBARemotePlay.h#L198)
 
 ## Audio
 
 For the audio, the GBA runs [a port](https://github.com/pinobatch/gsmplayer-gba) of the [GSM Full Rate](https://en.wikipedia.org/wiki/Full_Rate) audio codec. It expects 33-byte audio frames, but in order to survive frame drops, GSM frames are grouped into chunks, with its length defined by a build time constant called `AUDIO_CHUNK_SIZE`.
 
 **Related code:**
-- [Audio chunk size constant](https://github.com/rodri042/gba-remote-play/blob/v0.9/gba/src/Protocol.h#L22)
+- [Audio chunk size constant](https://github.com/rodri042/gba-remote-play/blob/v1.1/gba/src/Protocol.h#L16)
 
 ### Reading system audio
 
@@ -404,7 +440,7 @@ ffmpeg -f alsa -i hw:0,1 -y -ac 1 -af 'aresample=18157' -strict unofficial -c:a 
 </p>
 
 **Related code:**
-- [LoopbackAudio](https://github.com/rodri042/gba-remote-play/blob/v0.9/raspi/src/LoopbackAudio.h#L21)
+- [LoopbackAudio](https://github.com/rodri042/gba-remote-play/blob/v1.1/raspi/src/LoopbackAudio.h#L21)
 
 ### Controlling Linux pipes
 
@@ -421,7 +457,7 @@ Since transferring a frame takes time, it can sometimes happen that more audio f
 To fix that, there's an [ioctl](https://man7.org/linux/man-pages/man2/ioctl.2.html) we can use (called [FIONREAD](https://docs.oracle.com/cd/E19683-01/806-6546/kermes8-28/index.html)) to retrieve the amount of queued bytes. To skip over those, we call the [splice](https://en.wikipedia.org/wiki/Splice_(system_call)) system call to redirect them to `/dev/null`.
 
 **Related code:**
-- [Skipping outdated bytes](https://github.com/rodri042/gba-remote-play/blob/v0.9/raspi/src/LoopbackAudio.h#L82)
+- [Skipping outdated bytes](https://github.com/rodri042/gba-remote-play/blob/v1.1/raspi/src/LoopbackAudio.h#L82)
 
 ### Decompressing on time
 
@@ -435,20 +471,20 @@ What I understand _GSMPlayer_ does, is decoding GSM frames, putting the resultin
   <img src="https://user-images.githubusercontent.com/1631752/125159152-0d30d400-e14c-11eb-95ca-a5b1cccf8386.png">
 </p>
 
-Audio must be copied on time to prevent stuttering, noises, etc. Regular games do this by using [VBlank](https://www.coranac.com/tonc/text/video.htm#sec-blanks) [interrupts](https://www.coranac.com/tonc/text/interrupts.htm), but that doesn't work here. When transferring at 2.56Mbps there are very few cycles available to process data, and adding an interrupt handler just messes up the packets.
+Audio must be copied on time to prevent stuttering, noises, etc. Regular games do this by using [VBlank](https://www.coranac.com/tonc/text/video.htm#sec-blanks) [interrupts](https://www.coranac.com/tonc/text/interrupts.htm), but that doesn't work here. When transferring at 2.6Mbps there are very few cycles available to process data, and adding an interrupt handler just messes up the packets.
 
 I had to make it so every transfer is cancellable: if it's time to run the audio (we're on the VBlank part), we stop everything, run the audio, and then start a recovery process where we say to the Raspberry Pi where we're at. On start, end, and every `TRANSFER_SYNC_PERIOD` packets of every stream, the Raspi sends a bidirectional packet (at the slow rate) to check if it needs to start the "recovery mode".
 
 **Related code:**
 
-- [ReliableStream](https://github.com/rodri042/gba-remote-play/blob/v0.9/raspi/src/ReliableStream.h#L9)
-- [Starting recovery process](https://github.com/rodri042/gba-remote-play/blob/v0.9/gba/src/_main.cpp#L246)
-- [Handling recovery process](https://github.com/rodri042/gba-remote-play/blob/v0.9/raspi/src/ReliableStream.h#L87)
-- [Transfers can be interrupted](https://github.com/rodri042/gba-remote-play/blob/v0.9/gba/src/SPISlave.h#L39)
+- [ReliableStream](https://github.com/rodri042/gba-remote-play/blob/v1.1/raspi/src/ReliableStream.h#L9)
+- [Starting recovery process](https://github.com/rodri042/gba-remote-play/blob/v1.1/gba/src/_main.cpp#L274)
+- [Handling recovery process](https://github.com/rodri042/gba-remote-play/blob/v1.1/raspi/src/ReliableStream.h#L87)
+- [Transfers can be interrupted](https://github.com/rodri042/gba-remote-play/blob/v1.1/gba/src/SPISlave.h#L38)
 
 ## EWRAM Overclock
 
-The GBA code overclocks the external RAM at the beginning, to use only one [wait state](https://en.wikipedia.org/wiki/Wait_state) instead of two. This process crashes on a GB Micro, but who would use this ~~on a Micro~~ anyway?
+The GBA code can optionally overclock the external RAM, to use only one [wait state](https://en.wikipedia.org/wiki/Wait_state) instead of two. This process crashes on a GB Micro, but who would use this ~~on a Micro~~ anyway?
 
 <p align="center">
   <i>A guy using a GB Micro with a Raspberry Pi attached to it</i>
@@ -456,44 +492,54 @@ The GBA code overclocks the external RAM at the beginning, to use only one [wait
   <img src="https://user-images.githubusercontent.com/1631752/125161540-4d4a8380-e159-11eb-8d0a-804bfaf14a49.png">
 </p>
 
+**Related code:**
+
+- [Overclocking EWRAM](https://github.com/rodri042/gba-remote-play/blob/v1.1/gba/src/Utils.h#L21)
+
 # Setup
 
-- Solder a Link Cable to the Raspberry Pi according to the **Normal Mode / SPI** section of this document.
-- Install [RetroPie](https://retropie.org.uk/docs/First-Installation/).
-- Set the following attributes in `/boot/config.txt`:
-```
-# Disable splash screen
-disable_splash=1
+## Full guide
 
-# Aspect ratio (4:3)
+https://user-images.githubusercontent.com/1631752/142586185-0c524067-aae3-4185-b8b2-9ad5b52a955e.mp4
+
+> [Watch on YouTube](https://www.youtube.com/watch?v=f9Au8nKxzis)
+
+## Quick guide
+
+- Solder a Link Cable to the Raspberry Pi according to the [Normal Mode / SPI](#normal-mode--spi) section of this document.
+- Install [RetroPie](https://retropie.org.uk/docs/First-Installation/).
+- Go to RetroArch options and set:
+  * Settings -> Video -> Scaling -> Aspect ratio -> 4:3
+  * Configuration File -> Save current configuration
+- Run `sudo raspi-config` and set:
+  * **Interface Options:** Enable SPI
+- Run `sudo apt-get install -y wiringpi python-pigpio python3-pigpio` 
+- Add the following attributes to `/boot/config.txt`:
+```
+# Set Aspect Ratio (4:3)
 hdmi_safe=0
 disable_overscan=1
 hdmi_group=2
 hdmi_mode=6
 
-# GBA render resolution
+# Set GBA Resolution
 framebuffer_width=240
 framebuffer_height=160
-
-# Memory Split (for RetroPie)
-gpu_mem_256=128
-gpu_mem_512=256
-gpu_mem_1024=256
-#scaling_kernel=8
 ```
-- In `raspi-config`, enable **SPI**.
-- Set RetroArch to a 4:3 aspect ratio: Settings -> Video -> Aspect ratio -> **4:3**.
-- Pick the required files from the [Releases](https://github.com/rodri042/gba-remote-play/releases) section of this GitHub repo.
-- Load the GBA ROM with `./multiboot.tool gba.mb.gba`.
-- Run the RPI backend with `sudo ./raspi.run`
+- Download the required files (from the [Releases](https://github.com/rodri042/gba-remote-play/releases) section of this GitHub repo) to `/home/pi/gba-remote-play`.
+- From that directory, run: `chmod +x gbarplay.sh multiboot.tool raspi.run`.
+- Edit `/etc/rc.local` and add `/home/pi/gba-remote-play/gbarplay.sh &` before the `exit 0` line.
+- Reboot and turn on your GBA.
 
-### Audio (optional)
+#### Audio (optional)
 
-> It's optional because the Raspberry Pi already has pins for good old analog audio, and you could attach a speaker to it and have clean high-quality sound. On the other hand, audio support here is experimental and heavily decreases the frame rate.
+> It's optional because the Raspberry Pi already has pins for good old analog audio, and you could attach a speaker to it and have clean high-quality sound. On the other hand, audio support here is experimental and heavily decreases the frame rate. Only v1.0 was tested with audio.
 
 If you want audio coming out from the GBA speakers anyway, here's how:
 
-Change `/etc/modprobe.d/alsa-base.conf` and make it look like this:
+When downloading, use the file `video-and-audio.zip` from the [v1.0 release](https://github.com/rodri042/gba-remote-play/releases/v1.0).
+
+Modify `/etc/modprobe.d/alsa-base.conf` and make it look like this:
 
 ```
 options snd_aloop index=0
@@ -512,7 +558,15 @@ Then, when you run `cat /proc/asound/modules` you should see:
 
 Now run `sudo modprobe snd-aloop` and set **Loopback (Stereo Full Duplex)** as the default output audio device from the UI.
 
-As a last step, open the config file of GBA Remote Play (`config.cfg`) and make sure that `SPI_DELAY_MICROSECONDS` is `4`. **It won't work with smaller values!**
+# GBA Jam 2021
+
+Most of this code was made during the [GBA Jam 2021](https://itch.io/jam/gbajam21). Since this project doesn't fit well into the jam (as it requires external hardware), there's a Demo available in the [Releases](https://github.com/rodri042/gba-remote-play/releases/v1.0) section where one GBA sends a video with audio to another GBA via Link Cable.
+
+Here's a video of it:
+
+https://user-images.githubusercontent.com/1631752/125164337-129c1780-e168-11eb-9bc8-9e2719a7180f.mp4
+
+The code of that demo is in the [#gba-jam](https://github.com/rodri042/gba-remote-play/compare/v1.0...gba-jam?expand=1) branch.
 
 # Credits
 
@@ -523,7 +577,7 @@ This project relies on the following open-source libraries:
 - GBA multiboot writer by [gba_03_multiboot](https://github.com/akkera102/gba_03_multiboot)
 - Raspberry PI SPI transfers by the [C library for Broadcom BCM 2835](https://www.airspayce.com/mikem/bcm2835/)
 
-The GBA Jam demo, uses these two open Blender clips with Creative Commons licenses:
+The GBA Jam demo uses these two open Blender clips with Creative Commons licenses:
 - [Caminandes 2: Gran Dillama](https://www.youtube.com/watch?v=Z4C82eyhwgU)
 - [Caminandes 3: Llamigos](https://www.youtube.com/watch?v=SkVqJ1SGeL0)
 

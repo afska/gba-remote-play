@@ -9,36 +9,52 @@
 
 #define SPI_MISO_PIN 9
 
+typedef struct {
+  uint32_t slowFrequency;
+  uint32_t fastFrequency;
+  uint32_t delayMicroseconds;
+
+  void reset() {
+    slowFrequency = 0;
+    fastFrequency = 0;
+    delayMicroseconds = 0;
+  }
+} SPITiming;
+
 class SPIMaster {
  public:
-  SPIMaster(uint8_t mode,
-            uint32_t slowFrequency,
-            uint32_t fastFrequency,
-            uint32_t delayMicroseconds) {
+  bool isOverclocked = false;
+
+  SPIMaster(uint8_t mode, SPITiming normalTiming, SPITiming overclockedTiming) {
     initialize();
     bcm2835_spi_setDataMode(mode);
 
-    this->slowFrequency = slowFrequency;
-    this->fastFrequency = fastFrequency;
-    this->delayMicroseconds = delayMicroseconds;
+    this->normalTiming = normalTiming;
+    this->overclockedTiming = overclockedTiming;
   }
 
   void send(uint32_t value) {
-    bcm2835_spi_set_speed_hz(fastFrequency);
+    bcm2835_spi_set_speed_hz(timing().fastFrequency);
     transfer(value);
   }
 
   uint32_t exchange(uint32_t value) {
-    bcm2835_spi_set_speed_hz(slowFrequency);
+    bcm2835_spi_set_speed_hz(timing().slowFrequency);
     return transfer(value);
+  }
+
+  void setOverclocked(bool isOverclocked) {
+    this->isOverclocked = isOverclocked;
   }
 
   ~SPIMaster() { bcm2835_spi_end(); }
 
  private:
-  uint32_t slowFrequency;
-  uint32_t fastFrequency;
-  uint32_t delayMicroseconds;
+  SPITiming normalTiming, overclockedTiming;
+
+  SPITiming timing() {
+    return isOverclocked ? overclockedTiming : normalTiming;
+  }
 
   bool isSlaveBusy() { return bcm2835_gpio_lev(SPI_MISO_PIN); }
 
@@ -61,7 +77,7 @@ class SPIMaster {
     } x;
     x.u32 = bswap_32(value);
 
-    bcm2835_delayMicroseconds(delayMicroseconds);
+    bcm2835_delayMicroseconds(timing().delayMicroseconds);
 
 #ifndef WITH_AUDIO
     while (isSlaveBusy())

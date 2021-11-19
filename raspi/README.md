@@ -4,8 +4,7 @@
 
 ### Raspberry Pi
 
-- Install Raspberry Pi OS
-- Enable SSH, SPI, and Serial Port
+- Enable SSH and SPI
 
 ### Development PC
 
@@ -23,7 +22,6 @@ Before compiling, you can comment/uncomment these build parameters in `src/Build
 Name | Description
 --- | ---
 `WITH_AUDIO` | Enables GSM audio encoding.
-`BENCHMARK` | Replaces all the code with an SPI speed benchmark.
 `PROFILE` | Outputs the amount of frames per second to _stdout_.
 `PROFILE_VERBOSE` | Outputs how much time in milliseconds every step takes.
 `DEBUG` | Enables Debug Mode, where frames are sent one by one, on every user input from _stdin_.
@@ -33,3 +31,4 @@ Name | Description
 
 - `./out/multiboot.tool out/gba.mb.gba`: Sends the ROM via Multiboot to the GBA
 - `./build.sh`: Compiles the code. The output file is `out/raspi.run`. Run with **sudo**!
+- `./out/gbarplay.sh`: Sends the ROM and runs the compiled code

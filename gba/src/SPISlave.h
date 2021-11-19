@@ -12,26 +12,24 @@
 #define SPI_BIT_LENGTH 12
 #define SPI_BIT_IRQ 14
 
-// A Link Port connection for Normal mode (slave, 32bit packets)
-
 class SPISlave {
  public:
   SPISlave() { start(); }
 
-  void start() {
+  ALWAYS_INLINE void start() {
     setNormalMode();
     set32BitPackets();
     setSlaveMode();
     disableTransfer();
   }
 
-  u32 transfer(u32 value) {
+  ALWAYS_INLINE u32 transfer(u32 value) {
     return transfer(
         value, []() { return false; }, NULL);
   }
 
   template <typename F>
-  u32 transfer(u32 value, F needsBreak, bool* breakFlag) {
+  ALWAYS_INLINE u32 transfer(u32 value, F needsBreak, bool* breakFlag) {
     setData(value);
     enableTransfer();
     startTransfer();
@@ -51,7 +49,7 @@ class SPISlave {
     return data;
   }
 
-  void stop() {
+  ALWAYS_INLINE void stop() {
     stopTransfer();
     disableTransfer();
     BIT_SET_LOW(REG_SIOCNT, SPI_BIT_IRQ);

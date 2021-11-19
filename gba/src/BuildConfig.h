@@ -3,6 +3,4 @@
 
 // #define WITH_AUDIO
 
-// #define BENCHMARK
-
 #endif  // BUILD_CONFIG_H

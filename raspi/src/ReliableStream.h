@@ -39,7 +39,7 @@ class ReliableStream {
       if (isOnSync)
         return true;
       else {
-        if (confirmation == CMD_RESET) {
+        if (IS_RESET(confirmation)) {
           logReset("Reset! (sync)", local, remote);
           return false;
         }
@@ -81,7 +81,7 @@ class ReliableStream {
     uint32_t requestedIndex = spiMaster->exchange(packet);
     if (finishSyncIfNeeded(requestedIndex, syncCommand))
       goto again;
-    if (requestedIndex != CMD_RESET)
+    if (!IS_RESET(requestedIndex))
       lastReceivedPacket = requestedIndex;
 
     if (requestedIndex == CMD_RECOVERY + CMD_GBA_OFFSET) {
@@ -95,7 +95,7 @@ class ReliableStream {
       }
       *index = requestedIndex;
       return true;
-    } else if (requestedIndex == CMD_RESET) {
+    } else if (IS_RESET(requestedIndex)) {
       // (reset command)
       logReset("Reset! (stream - " + std::to_string(*index) + "/" +
                    std::to_string(totalPackets) + ")",

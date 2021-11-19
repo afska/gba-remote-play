@@ -1,6 +1,7 @@
 #ifndef GBA_REMOTE_PLAY_H
 #define GBA_REMOTE_PLAY_H
 
+#include "Benchmark.h"
 #include "BuildConfig.h"
 #include "Config.h"
 #include "Frame.h"
@@ -15,20 +16,25 @@
 #include "Utils.h"
 #include "VirtualGamepad.h"
 
+#define TRY(ACTION) \
+  if (!(ACTION))    \
+    return false;
+
 uint8_t LUT_24BPP_TO_8BIT_PALETTE[PALETTE_24BIT_MAX_COLORS];
 
 class GBARemotePlay {
  public:
   GBARemotePlay() {
     config = new Config(CONFIG_FILENAME);
-    spiMaster =
-        new SPIMaster(SPI_MODE, config->spiSlowFrequency,
-                      config->spiFastFrequency, config->spiDelayMicroseconds);
+    spiMaster = new SPIMaster(SPI_MODE, config->spiNormalTiming,
+                              config->spiOverclockedTiming);
     reliableStream = new ReliableStream(spiMaster);
     frameBuffer = new FrameBuffer(DRAW_WIDTH, DRAW_HEIGHT);
     loopbackAudio = new LoopbackAudio();
-    virtualGamepad = new VirtualGamepad(config->virtualGamepadName);
+    virtualGamepad =
+        new VirtualGamepad(config->virtualGamepadName, CONTROLS_FILENAME);
     lastFrame = Frame{0};
+    renderMode = DEFAULT_RENDER_MODE;
 
     PALETTE_initializeCache(PALETTE_CACHE_FILENAME);
   }
@@ -40,7 +46,7 @@ class GBARemotePlay {
 #endif
 
   reset:
-    spiMaster->send(CMD_RESET);
+    syncReset();
 
     while (true) {
 #ifdef DEBUG
@@ -61,7 +67,7 @@ class GBARemotePlay {
 #endif
 
       ImageDiffRLECompressor diffs;
-      diffs.initialize(frame, lastFrame, config->diffThreshold);
+      diffs.initialize(frame, lastFrame, diffThreshold, renderMode);
 
 #ifdef PROFILE_VERBOSE
       auto frameDiffsElapsedTime = PROFILE_END(frameDiffsStartTime);
@@ -114,6 +120,8 @@ class GBARemotePlay {
   LoopbackAudio* loopbackAudio;
   VirtualGamepad* virtualGamepad;
   Frame lastFrame;
+  uint32_t renderMode;
+  uint32_t diffThreshold;
   uint32_t input;
 
   bool send(Frame& frame, ImageDiffRLECompressor& diffs) {
@@ -125,8 +133,7 @@ class GBARemotePlay {
 #endif
 
     DEBULOG("Syncing frame start...");
-    if (!reliableStream->sync(CMD_FRAME_START))
-      return false;
+    TRY(reliableStream->sync(CMD_FRAME_START))
 
 #ifdef PROFILE_VERBOSE
     auto idleElapsedTime = PROFILE_END(idleStartTime);
@@ -135,8 +142,7 @@ class GBARemotePlay {
 #endif
 
     DEBULOG("Receiving keys and send metadata...");
-    if (!receiveKeysAndSendMetadata(frame, diffs))
-      return false;
+    TRY(receiveKeysAndSendMetadata(frame, diffs))
 
 #ifdef PROFILE_VERBOSE
     auto metadataElapsedTime = PROFILE_END(metadataStartTime);
@@ -145,34 +151,47 @@ class GBARemotePlay {
 
     if (frame.hasAudio()) {
       DEBULOG("Syncing audio...");
-      if (!reliableStream->sync(CMD_AUDIO))
-        return false;
+      TRY(reliableStream->sync(CMD_AUDIO))
 
       DEBULOG("Sending audio...");
-      if (!sendAudio(frame))
-        return false;
+      TRY(sendAudio(frame))
     }
 
     DEBULOG("Syncing pixels...");
-    if (!reliableStream->sync(CMD_PIXELS))
-      return false;
+    TRY(reliableStream->sync(CMD_PIXELS))
 
     DEBULOG("Sending pixels...");
-    if (!compressAndSendPixels(frame, diffs))
-      return false;
+    TRY(compressAndSendPixels(frame, diffs))
 
     DEBULOG("Syncing frame end...");
-    if (!reliableStream->sync(CMD_FRAME_END))
-      return false;
+    TRY(reliableStream->sync(CMD_FRAME_END))
 
 #ifdef DEBUG_PNG
     LOG("Writing debug PNG file...");
-    WritePNG("debug.png", frame.raw8BitPixels, MAIN_PALETTE_24BPP, RENDER_WIDTH,
-             RENDER_HEIGHT);
+    WritePNG("debug.png", frame.raw8BitPixels, MAIN_PALETTE_24BPP,
+             RENDER_MODE_WIDTH[renderMode], RENDER_MODE_HEIGHT[renderMode]);
     LOG("Frame end!");
 #endif
 
     return true;
+  }
+
+  void syncReset() {
+    uint32_t resetPacket;
+    while (!IS_RESET(resetPacket = spiMaster->exchange(0)))
+      ;
+    spiMaster->exchange(resetPacket);
+
+    renderMode = resetPacket & RENDER_MODE_BIT_MASK;
+    virtualGamepad->setCurrentConfiguration(
+        (resetPacket >> CONTROLS_BIT_OFFSET) & CONTROLS_BIT_MASK);
+    diffThreshold = DIFF_THRESHOLDS[(resetPacket >> COMPRESSION_BIT_OFFSET) &
+                                    COMPRESSION_BIT_MASK];
+    spiMaster->setOverclocked((resetPacket >> CPU_OVERCLOCK_BIT_OFFSET) &
+                              CPU_OVERCLOCK_BIT_MASK);
+
+    if (RENDER_MODE_IS_BENCHMARK(renderMode))
+      Benchmark::main(renderMode);
   }
 
   bool receiveKeysAndSendMetadata(Frame& frame, ImageDiffRLECompressor& diffs) {
@@ -270,18 +289,23 @@ class GBARemotePlay {
 
   Frame loadFrame() {
     Frame frame;
-    frame.totalPixels = TOTAL_PIXELS;
-    frame.raw8BitPixels = (uint8_t*)malloc(TOTAL_PIXELS);
+    frame.totalPixels = RENDER_MODE_PIXELS[renderMode];
+    frame.raw8BitPixels = (uint8_t*)malloc(RENDER_MODE_PIXELS[renderMode]);
     frame.palette = MAIN_PALETTE_24BPP;
 
-    frameBuffer->forEachPixel(
-        [&frame, this](int x, int y, uint8_t r, uint8_t g, uint8_t b) {
-          if (x % DRAW_SCALE_X != 0 || y % DRAW_SCALE_Y != 0)
-            return;
-          x = x / DRAW_SCALE_X;
-          y = y / DRAW_SCALE_Y;
+    uint32_t width = RENDER_MODE_WIDTH[renderMode];
+    uint32_t scaleX = RENDER_MODE_SCALEX[renderMode];
+    uint32_t scaleY = RENDER_MODE_SCALEY[renderMode];
 
-          frame.raw8BitPixels[y * RENDER_WIDTH + x] =
+    frameBuffer->forEachPixel(
+        [&frame, &width, &scaleX, &scaleY, this](int x, int y, uint8_t r,
+                                                 uint8_t g, uint8_t b) {
+          if (x % scaleX != 0 || y % scaleY != 0)
+            return;
+          x = x / scaleX;
+          y = y / scaleY;
+
+          frame.raw8BitPixels[y * width + x] =
               LUT_24BPP_TO_8BIT_PALETTE[(r << 0) | (g << 8) | (b << 16)];
         });
 
@@ -290,7 +314,7 @@ class GBARemotePlay {
     return frame;
   }
 
-  void processKeys(uint16_t keys) { virtualGamepad->setKeys(keys); }
+  void processKeys(uint16_t keys) { virtualGamepad->setButtons(keys); }
 };
 
 #endif  // GBA_REMOTE_PLAY_H

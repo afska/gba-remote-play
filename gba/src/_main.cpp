@@ -4,6 +4,7 @@
 #include "BuildConfig.h"
 #include "Palette.h"
 #include "Protocol.h"
+#include "RuntimeConfig.h"
 #include "SPISlave.h"
 #include "Utils.h"
 #include "_state.h"
@@ -16,61 +17,71 @@ extern "C" {
   if (!(ACTION))    \
     goto reset;
 
-// -----
-// STATE
-// -----
-
-SPISlave* spiSlave = new SPISlave();
-DATA_EWRAM u8 compressedPixels[TOTAL_PIXELS];
-
-// ---------
-// BENCHMARK
-// ---------
-
-#ifdef BENCHMARK
-int main() {
-  Benchmark::init();
-  Benchmark::mainLoop();
-  return 0;
-}
-#endif
-
 // ------------
 // DECLARATIONS
 // ------------
 
+void wipeScreen();
 void init();
 void mainLoop();
+void syncReset();
 bool sendKeysAndReceiveMetadata();
 bool receiveAudio();
 bool receivePixels();
-void render(bool withRLE);
+void render(bool withRLE, u32 width, u32 scaleX, u32 scaleY, u32 totalPixels);
 bool needsToRunAudio();
 void runAudio();
 u32 transfer(u32 packetToSend, bool withRecovery = true);
 bool sync(u32 command);
-u32 x(u32 cursor);
-u32 y(u32 cursor);
+u32 x(u32 cursor, u32 width, u32 scaleX);
+u32 y(u32 cursor, u32 width, u32 scaleY);
+void optimizedRender();
+
+SPISlave* spiSlave = new SPISlave();
 
 // -----------
 // DEFINITIONS
 // -----------
 
-#ifndef BENCHMARK
-int main() {
-  init();
-  mainLoop();
+CODE_EWRAM int main() {
+  RuntimeConfig::initialize();
+
+  while (true) {
+    RuntimeConfig::show();
+    wipeScreen();
+
+    if (config.isBenchmark()) {
+      syncReset();
+      Benchmark::init();
+      Benchmark::mainLoop();
+    }
+
+    init();
+    mainLoop();
+
+#ifdef WITH_AUDIO
+    player_stop();
+#endif
+  }
 
   return 0;
 }
-#endif
 
-inline void init() {
+ALWAYS_INLINE void wipeScreen() {
+  tte_erase_screen();
+  for (u32 i = 0; i < TOTAL_SCREEN_PIXELS; i++)
+    m4Draw(i, 0);
+  setMosaic(1, 1);
+}
+
+ALWAYS_INLINE void init() {
   enableMode4AndBackground2();
-  overclockEWRAM();
-  enableMosaic(DRAW_SCALE_X, DRAW_SCANLINES ? 1 : DRAW_SCALE_Y);
+  setMosaic(RENDER_MODE_SCALEX[config.renderMode],
+            config.scanlines ? 1 : RENDER_MODE_SCALEY[config.renderMode]);
   dma3_cpy(pal_bg_mem, MAIN_PALETTE, sizeof(COLOR) * PALETTE_COLORS);
+#ifdef WITH_AUDIO
   player_init();
+#endif
 }
 
 CODE_IWRAM void mainLoop() {
@@ -79,9 +90,12 @@ CODE_IWRAM void mainLoop() {
   state.isAudioReady = false;
 
 reset:
-  transfer(CMD_RESET, false);
+  syncReset();
 
   while (true) {
+    if ((config.exitWithStart && needsRestartSTART()) || needsRestartABLR())
+      return;
+
     TRY(sync(CMD_FRAME_START))
     TRY(sendKeysAndReceiveMetadata())
     if (state.hasAudio) {
@@ -92,15 +106,21 @@ reset:
     TRY(receivePixels())
     TRY(sync(CMD_FRAME_END))
 
-    // (gcc optimizes this better than `render(state.isRLE)`)
-    if (state.isRLE)
-      render(true);
-    else
-      render(false);
+    optimizedRender();
   }
 }
 
-inline bool sendKeysAndReceiveMetadata() {
+ALWAYS_INLINE void syncReset() {
+  u32 resetPacket =
+      CMD_RESET + (config.renderMode |
+                   (config.controls << CONTROLS_BIT_OFFSET) |
+                   (config.compression << COMPRESSION_BIT_OFFSET) |
+                   (config.cpuOverclock << CPU_OVERCLOCK_BIT_OFFSET));
+  while (transfer(resetPacket, false) != resetPacket)
+    ;
+}
+
+ALWAYS_INLINE bool sendKeysAndReceiveMetadata() {
   u16 keys = pressedKeys();
   u32 metadata = spiSlave->transfer(keys);
   if (spiSlave->transfer(metadata) != keys)
@@ -111,17 +131,19 @@ inline bool sendKeysAndReceiveMetadata() {
   state.isRLE = (metadata & COMPR_BIT_MASK) != 0;
   state.hasAudio = (metadata & AUDIO_BIT_MASK) != 0;
 
+  u32 diffMaxPackets =
+      TEMPORAL_DIFF_MAX_PACKETS(RENDER_MODE_PIXELS[config.renderMode]);
   u32 diffStart = (state.startPixel / 8) / PACKET_SIZE;
-  u32 diffEndPacket = min(spiSlave->transfer(0), TEMPORAL_DIFF_MAX_PACKETS);
+  u32 diffEndPacket = min(spiSlave->transfer(0), diffMaxPackets);
   for (u32 i = diffStart; i < diffEndPacket; i++)
     ((u32*)state.temporalDiffs)[i] = transfer(i);
-  for (u32 i = diffEndPacket; i < TEMPORAL_DIFF_MAX_PACKETS; i++)
+  for (u32 i = diffEndPacket; i < diffMaxPackets; i++)
     ((u32*)state.temporalDiffs)[i] = 0;
 
   return true;
 }
 
-inline bool receiveAudio() {
+ALWAYS_INLINE bool receiveAudio() {
   for (u32 i = 0; i < AUDIO_SIZE_PACKETS; i++)
     ((u32*)state.audioChunks)[i] = transfer(i);
 
@@ -130,14 +152,18 @@ inline bool receiveAudio() {
   return true;
 }
 
-inline bool receivePixels() {
+ALWAYS_INLINE bool receivePixels() {
   for (u32 i = 0; i < state.expectedPackets; i++)
     ((u32*)compressedPixels)[i] = transfer(i);
 
   return true;
 }
 
-inline void render(bool withRLE) {
+ALWAYS_INLINE void render(bool withRLE,
+                          u32 width,
+                          u32 scaleX,
+                          u32 scaleY,
+                          u32 totalPixels) {
   u32 cursor = state.startPixel;
   u32 rleRepeats = compressedPixels[0];
   u32 decompressedBytes = withRLE;
@@ -150,7 +176,9 @@ inline void render(bool withRLE) {
     if (!(cursor % 8) && needsToRunAudio()) \
       runAudio();                           \
   }
-#define DRAW_PIXEL(PIXEL) m4Draw(y(cursor) * DRAW_WIDTH + x(cursor), PIXEL);
+#define DRAW_PIXEL(PIXEL)                                                  \
+  m4Draw(y(cursor, width, scaleY) * DRAW_WIDTH + x(cursor, width, scaleX), \
+         PIXEL);
 #define DRAW_NEXT()                                         \
   if (withRLE) {                                            \
     u8 pixel = compressedPixels[decompressedBytes];         \
@@ -166,14 +194,14 @@ inline void render(bool withRLE) {
     decompressedBytes++;                                    \
     cursor++;                                               \
   }
-#define DRAW_BATCH(TIMES)                         \
-  u32 target = min(cursor + TIMES, TOTAL_PIXELS); \
-  while (cursor < target) {                       \
-    RUN_AUDIO_IF_NEEDED()                         \
-    DRAW_NEXT()                                   \
+#define DRAW_BATCH(TIMES)                        \
+  u32 target = min(cursor + TIMES, totalPixels); \
+  while (cursor < target) {                      \
+    RUN_AUDIO_IF_NEEDED()                        \
+    DRAW_NEXT()                                  \
   }
 
-  while (cursor < TOTAL_PIXELS) {
+  while (cursor < totalPixels) {
     RUN_AUDIO_IF_NEEDED()
     u32 diffCursor = cursor / 8;
     u32 diffCursorBit = cursor % 8;
@@ -217,7 +245,7 @@ inline void render(bool withRLE) {
   }
 }
 
-inline bool needsToRunAudio() {
+ALWAYS_INLINE bool needsToRunAudio() {
 #ifndef WITH_AUDIO
   return false;
 #endif
@@ -242,7 +270,7 @@ CODE_IWRAM void runAudio() {
   spiSlave->start();
 }
 
-inline u32 transfer(u32 packetToSend, bool withRecovery) {
+ALWAYS_INLINE u32 transfer(u32 packetToSend, bool withRecovery) {
   bool breakFlag = false;
   u32 receivedPacket =
       spiSlave->transfer(packetToSend, needsToRunAudio, &breakFlag);
@@ -260,7 +288,7 @@ inline u32 transfer(u32 packetToSend, bool withRecovery) {
   return receivedPacket;
 }
 
-inline bool sync(u32 command) {
+CODE_IWRAM bool sync(u32 command) {
   u32 local = command + CMD_GBA_OFFSET;
   u32 remote = command + CMD_RPI_OFFSET;
   bool wasVBlank = IS_VBLANK;
@@ -288,10 +316,41 @@ inline bool sync(u32 command) {
   }
 }
 
-inline u32 x(u32 cursor) {
-  return (cursor % RENDER_WIDTH) * DRAW_SCALE_X;
+ALWAYS_INLINE u32 x(u32 cursor, u32 width, u32 scaleX) {
+  return (cursor % width) * scaleX;
 }
 
-inline u32 y(u32 cursor) {
-  return (cursor / RENDER_WIDTH) * DRAW_SCALE_Y;
+ALWAYS_INLINE u32 y(u32 cursor, u32 width, u32 scaleY) {
+  return (cursor / width) * scaleY;
+}
+
+ALWAYS_INLINE void optimizedRender() {
+#define RENDER(N, WITH_RLE)                                     \
+  render(WITH_RLE, RENDER_MODE_WIDTH[N], RENDER_MODE_SCALEX[N], \
+         RENDER_MODE_SCALEY[N], RENDER_MODE_PIXELS[N]);
+#define HANDLE_RENDER_MODE(N)         \
+  case N: {                           \
+    if (!RENDER_MODE_IS_INVALID(N)) { \
+      if (state.isRLE)                \
+        RENDER(N, true)               \
+      else                            \
+        RENDER(N, false)              \
+    }                                 \
+    break;                            \
+  }
+
+  // (this creates multiple copies of render(...)'s code)
+  switch (config.renderMode) {
+    HANDLE_RENDER_MODE(0)
+    HANDLE_RENDER_MODE(1)
+    HANDLE_RENDER_MODE(2)
+    HANDLE_RENDER_MODE(3)
+    HANDLE_RENDER_MODE(4)
+    HANDLE_RENDER_MODE(5)
+    HANDLE_RENDER_MODE(6)
+    HANDLE_RENDER_MODE(7)
+    HANDLE_RENDER_MODE(8)
+    default:
+      break;
+  }
 }
