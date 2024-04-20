@@ -3,22 +3,23 @@
 ## Install (Windows)
 
 - Choose a folder (from now, `GBA_DIR`), and use this file structure:
-	* `gba`
-		* `tools`
-			* `devkitPro`
-		* `projects`
-			* `gba-remote-play`
+  - `gba`
+    - `tools`
+      - `devkitPro`
+    - `projects`
+      - `gba-remote-play`
 - Install the toolchain:
-  * Dev
-    * devkitPro: The devkit for compiling GBA roms
-    * make: The build automation tool
-  * Other
-    * [Git Bash](https://gitforwindows.org): Linux shell and tools
-    * [VSCode](https://code.visualstudio.com): The IDE
+  - Dev
+    - devkitPro: The devkit for compiling GBA roms
+    - make: The build automation tool
+  - Other
+    - [Git Bash](https://gitforwindows.org): Linux shell and tools
+    - [VSCode](https://code.visualstudio.com): The IDE
 - Add to `~/.bash_profile`:
+
 ```bash
 export GBA_DIR="/c/Work/gba" # <<< CHANGE THIS PATH
-export GBARP_OUT_DIR="//192.168.0.199/pi/gba-remote-play/raspi/out" # <<< CHANGE THIS PATH
+export GBARP_OUT_DIR="//192.168.0.199/shared/gba-remote-play/raspi/out" # <<< CHANGE THIS PATH
 
 export DEVKITPRO="$GBA_DIR/tools/devkitPro"
 export PATH="$PATH:$GBA_DIR/tools/devkitPro/bin"
@@ -35,9 +36,9 @@ export PATH="$PATH:$GBA_DIR/tools/devkitPro/tools/bin"
 
 Before compiling, you can comment/uncomment these build parameters in `src/BuildConfig.h`:
 
-Name | Description
---- | ---
-`WITH_AUDIO` | Enables GSM audio decoding.
+| Name         | Description                 |
+| ------------ | --------------------------- |
+| `WITH_AUDIO` | Enables GSM audio decoding. |
 
 ## Commands
 

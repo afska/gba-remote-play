@@ -44,6 +44,8 @@ SPISlave* spiSlave = new SPISlave();
 // -----------
 
 CODE_EWRAM int main() {
+  REG_WAITCNT = 0x4317;  // (3,1 waitstates, prefetch ON)
+
   RuntimeConfig::initialize();
 
   while (true) {
