@@ -11,6 +11,7 @@
 - Install the toolchain:
   - Dev
     - devkitPro: The devkit for compiling GBA roms
+      - Use [this version](http://www.mediafire.com/file/69k859riisvo660/devkitPro-gcc-9.1.0.zip/file) if you don't want build problems. It builds exactly the same file uploaded in the _Releases_ section
     - make: The build automation tool
   - Other
     - [Git Bash](https://gitforwindows.org): Linux shell and tools

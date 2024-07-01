@@ -1,17 +1,122 @@
+#
+# Template tonc makefile
+#
+# Yoinked mostly from DKP's template
+#
+
 # === SETUP ===========================================================
 
 # --- No implicit rules ---
 .SUFFIXES:
 
 # --- Paths ---
-export BASE_DIR = $(GBA_DIR)\projects\gba-remote-play\gba
+export TONCLIB := ${DEVKITPRO}/libtonc
+export LIBGBA  := ${DEVKITPRO}/libgba
 
-export TONCLIB := $(DEVKITPRO)/libtonc
-include  $(BASE_DIR)/tonc_rules
+# === TONC RULES ======================================================
+#
+# Yes, this is almost, but not quite, completely like to
+# DKP's base_rules and gba_rules
+#
+
+export PATH	:=	$(DEVKITARM)/bin:$(PATH)
+
+
+# --- Executable names ---
+
+PREFIX		?=	arm-none-eabi-
+
+export CC	:=	$(PREFIX)gcc
+export CXX	:=	$(PREFIX)g++
+export AS	:=	$(PREFIX)as
+export AR	:=	$(PREFIX)ar
+export NM	:=	$(PREFIX)nm
+export OBJCOPY	:=	$(PREFIX)objcopy
+
+# LD defined in Makefile
+
+
+# === LINK / TRANSLATE ================================================
+
+%.gba : %.elf
+	@$(OBJCOPY) -O binary $< $@
+	@echo built ... $(notdir $@)
+	@gbafix $@ -t$(GAMETITLE) -c$(GAMECODE) -mGAMEMAKER
+
+#----------------------------------------------------------------------
+
+%.mb.elf :
+	@echo Linking multiboot
+	$(LD) -specs=gba_mb.specs $(LDFLAGS) $(OFILES) $(LIBPATHS) $(LIBS) -o $@
+	$(NM) -Sn $@ > $(basename $(notdir $@)).map
+
+#----------------------------------------------------------------------
+
+%.elf :
+	@echo Linking cartridge
+	$(LD) -specs=gba.specs $(LDFLAGS) $(OFILES) $(LIBPATHS) $(LIBS) -o $@
+	$(NM) -Sn $@ > $(basename $(notdir $@)).map
+
+#----------------------------------------------------------------------
+
+%.a :
+	@echo $(notdir $@)
+	@rm -f $@
+	$(AR) -crs $@ $^
+
+
+# === OBJECTIFY =======================================================
+
+%.iwram.o : %.iwram.cpp
+	@echo $(notdir $<)
+	$(CXX) -MMD -MP -MF $(DEPSDIR)/$*.d $(CXXFLAGS) $(IARCH) -c $< -o $@
+
+#----------------------------------------------------------------------
+%.iwram.o : %.iwram.c
+	@echo $(notdir $<)
+	$(CC) -MMD -MP -MF $(DEPSDIR)/$*.d $(CFLAGS) $(IARCH) -c $< -o $@
+
+#----------------------------------------------------------------------
+
+%.o : %.cpp
+	@echo $(notdir $<)
+	$(CXX) -MMD -MP -MF $(DEPSDIR)/$*.d $(CXXFLAGS) $(RARCH) -c $< -o $@
+
+#----------------------------------------------------------------------
+
+%.o : %.c
+	@echo $(notdir $<)
+	$(CC) -MMD -MP -MF $(DEPSDIR)/$*.d $(CFLAGS) $(RARCH) -c $< -o $@
+
+#----------------------------------------------------------------------
+
+%.o : %.s
+	@echo $(notdir $<)
+	$(CC) -MMD -MP -MF $(DEPSDIR)/$*.d -x assembler-with-cpp $(ASFLAGS) -c $< -o $@
+
+#----------------------------------------------------------------------
+
+%.o : %.S
+	@echo $(notdir $<)
+	$(CC) -MMD -MP -MF $(DEPSDIR)/$*.d -x assembler-with-cpp $(ASFLAGS) -c $< -o $@
+
+
+#----------------------------------------------------------------------
+# canned command sequence for binary data
+#----------------------------------------------------------------------
+
+define bin2o
+	bin2s $< | $(AS) -o $(@)
+	echo "extern const u8" `(echo $(<F) | sed -e 's/^\([0-9]\)/_\1/' | tr . _)`"_end[];" > `(echo $(<F) | tr . _)`.h
+	echo "extern const u8" `(echo $(<F) | sed -e 's/^\([0-9]\)/_\1/' | tr . _)`"[];" >> `(echo $(<F) | tr . _)`.h
+	echo "extern const u32" `(echo $(<F) | sed -e 's/^\([0-9]\)/_\1/' | tr . _)`_size";" >> `(echo $(<F) | tr . _)`.h
+endef
+# =====================================================================
 
 # --- Main path ---
 
 export PATH	:=	$(DEVKITARM)/bin:$(PATH)
+
 
 # === PROJECT DETAILS =================================================
 # PROJ		: Base project name
@@ -31,18 +136,19 @@ LIBS		:= -ltonc -lgba
 
 BUILD		:= build
 SRCDIRS		:= src \
-						 src/gsmplayer \
-						 src/gsmplayer/core \
-						 src/data/_compiled_files
-DATADIRS	:=
+							src/gsmplayer \
+							src/gsmplayer/core \
+							src/data/_compiled_files
+DATADIRS	:= data
 INCDIRS		:= src
 LIBDIRS		:= $(TONCLIB) $(LIBGBA)
 
 # --- switches ---
 
 bMB		:= 1	# Multiboot build
-bTEMPS	:= 0	# Save gcc temporaries (.i and .S files)
+bTEMPS	:= 0	# Save gcc temporaries (.i and .s files)
 bDEBUG2	:= 0	# Generate debug info (bDEBUG2? Not a full DEBUG flag. Yet)
+
 
 # === BUILD FLAGS =====================================================
 # This is probably where you can stop editing
@@ -124,7 +230,7 @@ export DEPSDIR	:=	$(CURDIR)/$(BUILD)
 
 CFILES		:=	$(foreach dir, $(SRCDIRS) , $(notdir $(wildcard $(dir)/*.c)))
 CPPFILES	:=	$(foreach dir, $(SRCDIRS) , $(notdir $(wildcard $(dir)/*.cpp)))
-SFILES		:=	$(foreach dir, $(SRCDIRS) , $(notdir $(wildcard $(dir)/*.S)))
+SFILES		:=	$(foreach dir, $(SRCDIRS) , $(notdir $(wildcard $(dir)/*.s)))
 BINFILES	:=	$(foreach dir, $(DATADIRS), $(notdir $(wildcard $(dir)/*.*)))
 
 # --- Set linker depending on C++ file existence ---
@@ -137,7 +243,7 @@ endif
 # --- Define object file list ---
 export OFILES	:=	$(addsuffix .o, $(BINFILES))					\
 					$(CFILES:.c=.o) $(CPPFILES:.cpp=.o)				\
-					$(SFILES:.S=.o)
+					$(SFILES:.s=.o)
 
 # --- Create include and library search paths ---
 export INCLUDE	:=	$(foreach dir,$(INCDIRS),-I$(CURDIR)/$(dir))	\
@@ -159,9 +265,10 @@ clean:
 	@echo clean ...
 	@rm -rf $(BUILD) $(TARGET).elf $(TARGET).gba $(TARGET).sav
 
+
 else		# If we're here, we should be in the BUILD dir
 
-DEPENDS	:= $(OFILES:.o=.d)
+DEPENDS	:=	$(OFILES:.o=.d)
 
 # --- Main targets ----
 
@@ -171,29 +278,23 @@ $(OUTPUT).elf	:	$(OFILES)
 
 -include $(DEPENDS)
 
+
 endif		# End BUILD switch
 
 # --- More targets ----------------------------------------------------
 
-.PHONY: check-env clean assets start rebuild restart
+.PHONY: check-env clean rebuild start
 
 check-env:
-ifndef GBA_DIR
-	$(warning Missing environment variable: GBA_DIR. See README.md)
-	$(error "Aborting")
-endif
 ifndef GBARP_OUT_DIR
 	$(warning Missing environment variable: GBARP_OUT_DIR. See README.md)
 	$(error "Aborting")
 endif
 
-assets: check-env
-	./scripts/assets.sh
+rebuild: check-env clean $(BUILD)
 
 start: check-env $(BUILD)
 	start "$(TARGET).gba"
-
-rebuild: check-env clean $(BUILD)
 
 restart: check-env rebuild
 	cp "$(TARGET).gba" "$(GBARP_OUT_DIR)"
