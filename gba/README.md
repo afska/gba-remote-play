@@ -44,7 +44,6 @@ Before compiling, you can comment/uncomment these build parameters in `src/Build
 ## Commands
 
 - `make clean`: Cleans build artifacts
-- `make assets`: Compiles the needed assets in `src/data/_compiled_files` (required for compiling)
 - `make build`: Compiles and generates a `.gba` file
 - `make start`: Starts the compiled ROM
 - `make rebuild`: Recompiles (clean+build) a ROM
