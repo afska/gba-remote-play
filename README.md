@@ -134,7 +134,7 @@ In all cases the Raspberry Pi has to wait a small number of microseconds to let 
 
 In classic SPI, the master blindly issues clock cycles and it's responsibility of the slave to catch up and process all packets on time. But here, sometimes the GBA is very busy doing things like putting pixels on screen or whatever it has to do, so it needs a way to tell the master to stop.
 
-As recommended in the GBA manual, the slave can put MISO on HIGH when it's idle, and master can read its value as a GPIO input pin and wait to send until it's LOW.
+As recommended in the GBA manual, the slave can put MISO on HIGH when it's unable to receive, and master can read its value as a GPIO input pin and wait to send until it's LOW.
 
 <p align="center">
   <i>Pls don't send me anything</i>
