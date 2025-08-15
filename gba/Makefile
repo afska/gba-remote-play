@@ -172,7 +172,7 @@ CFLAGS		+= -ffast-math -fno-strict-aliasing
 CXXFLAGS	:= $(CFLAGS) -fno-rtti -fno-exceptions
 
 ASFLAGS		:= $(ARCH) $(INCLUDE)
-LDFLAGS 	:= $(ARCH) -Wl,-Map,$(PROJ).map
+LDFLAGS 	:= $(ARCH) -Wl,-Map,$(PROJ).map,--print-memory-usage
 
 # --- switched additions ----------------------------------------------
 
@@ -291,7 +291,7 @@ ifndef GBARP_OUT_DIR
 	$(error "Aborting")
 endif
 
-rebuild: check-env clean $(BUILD)
+rebuild: clean $(BUILD)
 
 start: check-env $(BUILD)
 	start "$(TARGET).gba"

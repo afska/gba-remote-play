@@ -1,6 +1,20 @@
 # gba
 
-## Install (Windows)
+## Compile (Docker)
+
+```bash
+docker run -it \
+  --user "$(id -u):$(id -g)" \
+  -v "$(pwd)":/opt/gba \
+  devkitpro/devkitarm:20200730 \
+  bash -c "cd /opt/gba && make rebuild"
+```
+
+## Compile (native)
+
+> ⚠️ **Deprecated** ⚠️
+> 
+> Modern devkitARM versions don't work anymore since they generate bigger code and doesn't fit in IWRAM. Use the Docker build.
 
 - Choose a folder (from now, `GBA_DIR`), and use this file structure:
   - `gba`
